@@ -16,7 +16,11 @@ Magic: The Gatheringのカード情報を提供するScryfall APIをMCP (Model C
 
 ```
 scryfall-mcp/
-├── docs/                      # ドキュメント類置き場
+├── docs/                      # ドキュメント類置き場（ファイル名は大文字で統一）
+│   ├── API-REFERENCE.md       # API仕様書
+│   ├── CONFIGURATION.md       # 設定ガイド
+│   ├── DEVELOPMENT.md         # 開発者ガイド
+│   └── INTERNATIONALIZATION.md # 多言語対応ガイド
 ├── src/
 │   └── scryfall_mcp/
 │       ├── __init__.py
@@ -214,3 +218,16 @@ GitHub Actionsで以下を実行:
 2. 型チェック
 3. テスト実行
 4. カバレッジ測定
+
+## ドキュメント規約
+
+### ファイル命名規則
+- docs/直下のファイル名は**すべて大文字**で統一すること
+- 拡張子は.mdを使用
+- 例: API-REFERENCE.md, CONFIGURATION.md, DEVELOPMENT.md
+
+### ドキュメント構成
+- API-REFERENCE.md: MCPツール仕様とScryfall検索構文
+- CONFIGURATION.md: 環境変数設定ガイド
+- DEVELOPMENT.md: 開発環境セットアップと規約
+- INTERNATIONALIZATION.md: 多言語対応実装ガイド
