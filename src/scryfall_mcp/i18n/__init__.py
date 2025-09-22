@@ -1,0 +1,32 @@
+"""Internationalization system for Scryfall MCP Server.
+
+This module provides basic internationalization support with a focus on
+Japanese language support for Magic: The Gathering card searches.
+"""
+
+from __future__ import annotations
+
+from .locales import (
+    LocaleInfo,
+    LocaleManager,
+    detect_and_set_locale,
+    get_current_mapping,
+    get_locale_manager,
+    set_current_locale,
+)
+from .mappings.common import LanguageMapping
+from .mappings.en import english_mapping
+from .mappings.ja import JAPANESE_CARD_NAMES, japanese_mapping
+
+__all__ = [
+    "LanguageMapping",
+    "LocaleInfo",
+    "LocaleManager",
+    "english_mapping",
+    "japanese_mapping",
+    "JAPANESE_CARD_NAMES",
+    "get_locale_manager",
+    "get_current_mapping",
+    "set_current_locale",
+    "detect_and_set_locale",
+]
