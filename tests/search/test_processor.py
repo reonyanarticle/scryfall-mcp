@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
-from scryfall_mcp.search.processor import SearchProcessor
 from scryfall_mcp.i18n import set_current_locale
+from scryfall_mcp.search.processor import SearchProcessor
 
 
 class TestSearchProcessor:
@@ -331,7 +329,7 @@ class TestSearchProcessor:
         # Check all expected fields are present
         required_fields = [
             "original_query", "scryfall_query", "detected_intent",
-            "extracted_entities", "suggestions", "language"
+            "extracted_entities", "suggestions", "language",
         ]
         for field in required_fields:
             assert field in result

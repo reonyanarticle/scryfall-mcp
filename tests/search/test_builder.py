@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
-from scryfall_mcp.search.builder import QueryBuilder
 from scryfall_mcp.i18n import set_current_locale
+from scryfall_mcp.search.builder import QueryBuilder
 
 
 class TestQueryBuilder:

@@ -19,14 +19,14 @@ from .mappings.en import english_mapping
 from .mappings.ja import JAPANESE_CARD_NAMES, japanese_mapping
 
 __all__ = [
+    "JAPANESE_CARD_NAMES",
     "LanguageMapping",
     "LocaleInfo",
     "LocaleManager",
-    "english_mapping",
-    "japanese_mapping",
-    "JAPANESE_CARD_NAMES",
-    "get_locale_manager",
-    "get_current_mapping",
-    "set_current_locale",
     "detect_and_set_locale",
+    "english_mapping",
+    "get_current_mapping",
+    "get_locale_manager",
+    "japanese_mapping",
+    "set_current_locale",
 ]

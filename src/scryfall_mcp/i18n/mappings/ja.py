@@ -292,7 +292,7 @@ class JapaneseMapping(LanguageMapping):
                 "価格未満": "usd<",
                 "価格以上": "usd>",
                 "価格ちょうど": "usd:",
-                "コストが": "usd<",
+                "価格コストが": "usd<",
                 "より安い": "usd<",
                 "より高い": "usd>",
 
@@ -309,7 +309,7 @@ class JapaneseMapping(LanguageMapping):
                 "無効なクエリ": "無効な検索クエリです。",
 
                 # Card information
-                "マナコスト": "マナコスト",
+                "マナコスト情報": "マナコスト",
                 "タイプ": "タイプ",
                 "オラクルテキスト": "オラクルテキスト",
                 "フレーバーテキスト": "フレーバーテキスト",
@@ -323,12 +323,12 @@ class JapaneseMapping(LanguageMapping):
                 "リーガル情報": "使用可能フォーマット",
 
                 # Currency
-                "ドル": "USD",
+                "通貨ドル": "USD",
                 "ユーロ": "EUR",
                 "チケット": "TIX",
-                "円": "JPY",
+                "通貨円": "JPY",
                 "米ドル": "USD",
-            }
+            },
         )
 
 

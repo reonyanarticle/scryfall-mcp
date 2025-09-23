@@ -6,18 +6,19 @@ using natural language queries with Japanese support.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from mcp import Tool
-from mcp.types import TextContent, ImageContent, EmbeddedResource
+from mcp.types import EmbeddedResource, ImageContent, TextContent
 from pydantic import BaseModel, Field
 
-from ..api.client import get_client, ScryfallAPIError
-from ..api.models import SearchResult, Card
-from ..search.processor import SearchProcessor
+from ..api.client import ScryfallAPIError, get_client
 from ..i18n import get_current_mapping, set_current_locale
+from ..search.processor import SearchProcessor
+
+if TYPE_CHECKING:
+    from ..api.models import Card
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,10 @@ class SearchCardsRequest(BaseModel):
     """Request model for card search."""
 
     query: str = Field(description="Natural language search query (supports Japanese)")
-    language: Optional[str] = Field(default=None, description="Language code (ja, en)")
-    max_results: Optional[int] = Field(default=20, ge=1, le=175, description="Maximum number of results")
-    include_images: Optional[bool] = Field(default=True, description="Include card images in results")
-    format_filter: Optional[str] = Field(default=None, description="Filter by Magic format (standard, modern, etc.)")
+    language: str | None = Field(default=None, description="Language code (ja, en)")
+    max_results: int | None = Field(default=20, ge=1, le=175, description="Maximum number of results")
+    include_images: bool | None = Field(default=True, description="Include card images in results")
+    format_filter: str | None = Field(default=None, description="Filter by Magic format (standard, modern, etc.)")
 
 
 class CardSearchTool:
@@ -41,7 +42,7 @@ class CardSearchTool:
         return Tool(
             name="search_cards",
             description="Search for Magic: The Gathering cards using natural language. Supports Japanese queries like '白いクリーチャー', '稲妻', 'パワー3以上のクリーチャー'.",
-            inputSchema=SearchCardsRequest.model_json_schema()
+            inputSchema=SearchCardsRequest.model_json_schema(),
         )
 
     @staticmethod
@@ -84,12 +85,12 @@ class CardSearchTool:
             try:
                 search_result = await client.search_cards(
                     query=scryfall_query,
-                    page=1
+                    page=1,
                 )
             except ScryfallAPIError as e:
                 return [TextContent(
                     type="text",
-                    text=f"検索エラー: {e}" if request.language == "ja" else f"Search error: {e}"
+                    text=f"検索エラー: {e}" if request.language == "ja" else f"Search error: {e}",
                 )]
 
             # Limit results
@@ -101,11 +102,11 @@ class CardSearchTool:
                 return [TextContent(type="text", text=no_results_msg)]
 
             # Format results
-            content_items = []
+            content_items: list[TextContent | ImageContent | EmbeddedResource] = []
 
             # Add search summary
             summary = CardSearchTool._format_search_summary(
-                processed, search_result.total_cards, len(cards), request.language
+                processed, search_result.total_cards, len(cards), request.language,
             )
             content_items.append(TextContent(type="text", text=summary))
 
@@ -119,7 +120,7 @@ class CardSearchTool:
                     content_items.append(ImageContent(
                         type="image",
                         data=str(card.image_uris.normal),
-                        mimeType="image/jpeg"
+                        mimeType="image/jpeg",
                     ))
 
             # Add suggestions if available
@@ -143,30 +144,30 @@ class CardSearchTool:
         processed: dict[str, Any],
         total_cards: int,
         shown_cards: int,
-        language: Optional[str]
+        language: str | None,
     ) -> str:
         """Format search summary."""
         if language == "ja":
-            summary = f"**検索結果**\n"
+            summary = "**検索結果**\n"
             summary += f"元のクエリ: {processed['original_query']}\n"
             summary += f"Scryfallクエリ: {processed['scryfall_query']}\n"
             summary += f"総カード数: {total_cards}枚\n"
             summary += f"表示: {shown_cards}枚\n"
-            if processed['detected_intent'] != 'general_search':
+            if processed["detected_intent"] != "general_search":
                 summary += f"検索意図: {processed['detected_intent']}\n"
         else:
-            summary = f"**Search Results**\n"
+            summary = "**Search Results**\n"
             summary += f"Original query: {processed['original_query']}\n"
             summary += f"Scryfall query: {processed['scryfall_query']}\n"
             summary += f"Total cards: {total_cards}\n"
             summary += f"Showing: {shown_cards}\n"
-            if processed['detected_intent'] != 'general_search':
+            if processed["detected_intent"] != "general_search":
                 summary += f"Intent: {processed['detected_intent']}\n"
 
         return summary
 
     @staticmethod
-    def _format_card_result(card: Card, index: int, language: Optional[str]) -> str:
+    def _format_card_result(card: Card, index: int, language: str | None) -> str:
         """Format a single card result."""
         if language == "ja":
             result = f"**{index}. {card.name}**\n"
@@ -221,7 +222,7 @@ class AutocompleteRequest(BaseModel):
     """Request model for card name autocomplete."""
 
     query: str = Field(description="Partial card name")
-    language: Optional[str] = Field(default=None, description="Language code (ja, en)")
+    language: str | None = Field(default=None, description="Language code (ja, en)")
 
 
 class AutocompleteTool:
@@ -233,7 +234,7 @@ class AutocompleteTool:
         return Tool(
             name="autocomplete_card_names",
             description="Get card name suggestions for partial input. Useful for finding exact card names.",
-            inputSchema=AutocompleteRequest.model_json_schema()
+            inputSchema=AutocompleteRequest.model_json_schema(),
         )
 
     @staticmethod

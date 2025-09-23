@@ -9,134 +9,154 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from typing import Any, Optional, Sequence
 
-import mcp.server.stdio
-import mcp.types as types
-from mcp.server import NotificationOptions, Server
-from mcp.server.models import InitializationOptions
+from fastmcp import FastMCP
 
 from .api.client import close_client
 from .i18n import detect_and_set_locale, get_locale_manager
 from .settings import get_settings
-from .tools.search import SEARCH_TOOLS
+from .tools.search import AutocompleteTool, CardSearchTool
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stderr  # MCP uses stdout for communication
+    stream=sys.stderr,  # MCP uses stdout for communication
 )
 logger = logging.getLogger(__name__)
 
 
 class ScryfallMCPServer:
-    """Main Scryfall MCP Server implementation."""
+    """Main Scryfall MCP Server implementation using fastmcp."""
 
     def __init__(self) -> None:
         """Initialize the MCP server."""
         self.settings = get_settings()
-        self.server = Server("scryfall-mcp")
-        self._setup_handlers()
+        self.app = FastMCP("scryfall-mcp")
+        self._setup_tools()
 
-    def _setup_handlers(self) -> None:
-        """Set up MCP server handlers."""
+    def _setup_tools(self) -> None:
+        """Set up MCP tools using fastmcp decorators."""
+        # Search cards tool
+        @self.app.tool()
+        async def search_cards(
+            query: str,
+            language: str | None = None,
+            max_results: int = 20,
+            include_images: bool = True,
+            format_filter: str | None = None,
+        ) -> str:
+            """Search for Magic: The Gathering cards.
 
-        @self.server.list_tools()
-        async def handle_list_tools() -> list[types.Tool]:
-            """List available tools."""
-            tools = []
-            for tool_class in SEARCH_TOOLS:
-                tools.append(tool_class.get_tool_definition())
+            Args:
+                query: Search query (natural language or Scryfall syntax)
+                language: Language code ("en", "ja")
+                max_results: Maximum number of results (1-100)
+                include_images: Whether to include card images
+                format_filter: Format filter ("standard", "modern", etc.)
 
-            logger.info(f"Listed {len(tools)} tools")
-            return tools
+            Returns:
+                Formatted search results with card information
+            """
+            return await self._search_cards_async(
+                query, language, max_results, include_images, format_filter,
+            )
 
-        @self.server.call_tool()
-        async def handle_call_tool(
-            name: str, arguments: Optional[dict[str, Any]]
-        ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-            """Handle tool execution."""
-            logger.info(f"Tool called: {name} with args: {arguments}")
+        # Autocomplete tool
+        @self.app.tool()
+        async def autocomplete_card_names(
+            query: str,
+            language: str | None = None,
+        ) -> str:
+            """Get card name autocompletion suggestions.
 
-            if arguments is None:
-                arguments = {}
+            Args:
+                query: Partial card name to complete
+                language: Language code for completion
 
-            # Find and execute the appropriate tool
-            for tool_class in SEARCH_TOOLS:
-                tool_def = tool_class.get_tool_definition()
-                if tool_def.name == name:
-                    try:
-                        return await tool_class.execute(arguments)
-                    except Exception as e:
-                        logger.error(f"Error executing tool {name}: {e}", exc_info=True)
-                        error_msg = f"Tool execution failed: {e}"
-                        return [types.TextContent(type="text", text=error_msg)]
+            Returns:
+                List of suggested card names
+            """
+            logger.info(
+                "autocomplete_card_names called with query='%s', language='%s'",
+                query, language,
+            )
+            return await self._autocomplete_async(query, language)
 
-            # Tool not found
-            error_msg = f"Unknown tool: {name}"
-            logger.error(error_msg)
-            return [types.TextContent(type="text", text=error_msg)]
+    async def _search_cards_async(
+        self,
+        query: str,
+        language: str | None = None,
+        max_results: int = 20,
+        include_images: bool = True,
+        format_filter: str | None = None,
+    ) -> str:
+        """Async implementation of card search."""
+        arguments = {
+            "query": query,
+            "language": language,
+            "max_results": max_results,
+            "include_images": include_images,
+            "format_filter": format_filter,
+        }
 
-        @self.server.list_resources()
-        async def handle_list_resources() -> list[types.Resource]:
-            """List available resources."""
-            # For now, we don't provide any static resources
-            # Could be extended to provide card databases, set lists, etc.
-            return []
+        try:
+            results = await CardSearchTool.execute(arguments)
+            # Convert MCP content to string for fastmcp
+            content_parts = []
+            for result in results:
+                if hasattr(result, "text"):
+                    content_parts.append(result.text)
+                elif hasattr(result, "data") and hasattr(result, "mimeType"):
+                    content_parts.append(f"[Image: {result.mimeType}]")
+            return "\n\n".join(content_parts)
+        except Exception as e:
+            logger.exception("Error in search_cards")
+            return f"Error: {e}"
 
-        @self.server.read_resource()
-        async def handle_read_resource(uri: types.AnyUrl) -> str:
-            """Read a resource."""
-            # Not implemented yet
-            raise ValueError(f"Resource not found: {uri}")
+    async def _autocomplete_async(
+        self,
+        query: str,
+        language: str | None = None,
+    ) -> str:
+        """Async implementation of autocomplete."""
+        arguments = {
+            "query": query,
+            "language": language,
+        }
 
-        @self.server.list_prompts()
-        async def handle_list_prompts() -> list[types.Prompt]:
-            """List available prompts."""
-            # Could provide predefined search prompts
-            return []
-
-        @self.server.get_prompt()
-        async def handle_get_prompt(
-            name: str, arguments: Optional[dict[str, str]]
-        ) -> types.GetPromptResult:
-            """Get a prompt."""
-            # Not implemented yet
-            raise ValueError(f"Prompt not found: {name}")
+        try:
+            results = await AutocompleteTool.execute(arguments)
+            # Convert MCP content to string for fastmcp
+            content_parts = []
+            for result in results:
+                if hasattr(result, "text"):
+                    content_parts.append(result.text)
+            return "\n\n".join(content_parts)
+        except Exception as e:
+            logger.exception("Error in autocomplete")
+            return f"Error: {e}"
 
     async def run(self) -> None:
         """Run the MCP server."""
         try:
             # Initialize locale
             detected_locale = detect_and_set_locale()
-            logger.info(f"Detected and set locale: {detected_locale}")
+            logger.info("Detected and set locale: %s", detected_locale)
 
             # Log server startup
-            logger.info("Starting Scryfall MCP Server")
-            logger.info(f"Settings: {self.settings.dict()}")
+            logger.info("Starting Scryfall MCP Server (fastmcp)")
+            logger.info("Settings: %s", self.settings.model_dump())
 
             # Get locale manager info
             locale_manager = get_locale_manager()
             supported_locales = locale_manager.get_supported_locale_codes()
-            logger.info(f"Supported locales: {supported_locales}")
+            logger.info("Supported locales: %s", supported_locales)
 
-            # Run the server
-            async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-                await self.server.run(
-                    read_stream,
-                    write_stream,
-                    InitializationOptions(
-                        server_name="scryfall-mcp",
-                        server_version="0.1.0",
-                        capabilities=self.server.get_capabilities(
-                            notification_options=NotificationOptions(),
-                            experimental_capabilities={},
-                        ),
-                    ),
-                )
-        except Exception as e:
-            logger.error(f"Server error: {e}", exc_info=True)
+            # Run the fastmcp server in stdio mode for MCP compatibility
+            await self.app.run_stdio_async()
+        except Exception:
+            logger.exception("Server error")
             raise
         finally:
             # Cleanup
@@ -156,8 +176,8 @@ def sync_main() -> None:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Server interrupted by user")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Fatal error")
         sys.exit(1)
 
 

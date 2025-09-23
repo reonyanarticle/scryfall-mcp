@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+
 import pytest
 from pydantic import ValidationError
 
@@ -80,7 +81,7 @@ class TestSettings:
         settings = Settings(
             supported_locales=["en", "ja", "fr"],
             default_locale="ja",
-            fallback_locale="en"
+            fallback_locale="en",
         )
         assert settings.default_locale == "ja"
         assert settings.fallback_locale == "en"
@@ -89,14 +90,14 @@ class TestSettings:
         with pytest.raises(ValidationError):
             Settings(
                 supported_locales=["en", "ja"],
-                default_locale="fr"
+                default_locale="fr",
             )
 
         # Test fallback locale not in supported locales
         with pytest.raises(ValidationError):
             Settings(
                 supported_locales=["en", "ja"],
-                fallback_locale="fr"
+                fallback_locale="fr",
             )
 
     def test_currency_validation(self):
@@ -104,7 +105,7 @@ class TestSettings:
         # Test valid currencies
         settings = Settings(
             supported_currencies=["USD", "JPY", "EUR"],
-            default_currency="JPY"
+            default_currency="JPY",
         )
         assert settings.default_currency == "JPY"
 
@@ -112,7 +113,7 @@ class TestSettings:
         with pytest.raises(ValidationError):
             Settings(
                 supported_currencies=["USD", "JPY"],
-                default_currency="EUR"
+                default_currency="EUR",
             )
 
     def test_ttl_settings(self):
@@ -121,7 +122,7 @@ class TestSettings:
             cache_ttl_search=3600,
             cache_ttl_card=7200,
             cache_ttl_price=1800,
-            cache_ttl_set=86400
+            cache_ttl_set=86400,
         )
 
         assert settings.cache_ttl_search == 3600
@@ -140,7 +141,7 @@ class TestSettings:
         """Test circuit breaker settings validation."""
         settings = Settings(
             circuit_breaker_failure_threshold=10,
-            circuit_breaker_recovery_timeout=120
+            circuit_breaker_recovery_timeout=120,
         )
 
         assert settings.circuit_breaker_failure_threshold == 10
@@ -201,7 +202,7 @@ class TestSettingsIntegration:
         settings = Settings(
             cache_backend="redis",
             redis_url="redis://localhost:6379/0",
-            redis_db=5
+            redis_db=5,
         )
 
         assert settings.cache_backend == "redis"

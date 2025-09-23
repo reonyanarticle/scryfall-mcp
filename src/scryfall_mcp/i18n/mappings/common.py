@@ -6,10 +6,10 @@ all supported languages for the Scryfall MCP Server.
 
 from __future__ import annotations
 
-from typing import Protocol, Set
-from typing_extensions import TypedDict
+from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import TypedDict
 
 
 class ColorMapping(TypedDict):
@@ -145,7 +145,7 @@ class TranslationProtocol(Protocol):
 
 
 # Common Scryfall search keywords that don't need translation
-SCRYFALL_KEYWORDS: Set[str] = {
+SCRYFALL_KEYWORDS: set[str] = {
     # Basic search syntax
     "c", "color", "ci", "id", "identity",
     "m", "mana", "cmc", "mv", "manavalue",
@@ -172,7 +172,7 @@ SCRYFALL_KEYWORDS: Set[str] = {
     "commander", "partner", "companions",
     "digital", "paper", "mtgo", "arena",
     "foil", "nonfoil", "etched", "glossy",
-    "promo", "reprint", "booster", "unique",
+    "promo", "booster", "unique",
     "funny", "acorn", "silver", "gold",
 }
 
@@ -180,7 +180,7 @@ SCRYFALL_KEYWORDS: Set[str] = {
 MAGIC_COLORS: list[str] = ["W", "U", "B", "R", "G"]
 
 # All Magic card types (comprehensive list)
-MAGIC_TYPES: Set[str] = {
+MAGIC_TYPES: set[str] = {
     # Basic types
     "Artifact", "Creature", "Enchantment", "Instant", "Land",
     "Planeswalker", "Sorcery", "Tribal", "Conspiracy", "Phenomenon",

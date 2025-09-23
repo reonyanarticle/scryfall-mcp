@@ -14,10 +14,10 @@ __description__ = "Magic: The Gathering card information via MCP protocol with J
 from .server import ScryfallMCPServer, main, sync_main
 
 __all__ = [
-    "__version__",
+    "ScryfallMCPServer",
     "__author__",
     "__description__",
-    "ScryfallMCPServer",
+    "__version__",
     "main",
     "sync_main",
 ]

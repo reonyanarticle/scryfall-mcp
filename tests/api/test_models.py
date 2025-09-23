@@ -3,26 +3,23 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
 
 from scryfall_mcp.api.models import (
+    BulkData,
     Card,
-    SearchResult,
+    CardFace,
+    Catalog,
     ImageUris,
     Legalities,
     Prices,
-    PurchaseUris,
-    RelatedUris,
-    CardFace,
-    ScryfallError,
-    Set,
     Ruling,
-    Catalog,
-    BulkData,
+    ScryfallError,
+    SearchResult,
+    Set,
 )
 
 
@@ -172,7 +169,7 @@ class TestCard:
                 "set_search_uri", "scryfall_set_uri", "rulings_uri",
                 "prints_search_uri", "collector_number", "rarity",
                 "border_color", "frame", "prices", "related_uris",
-                "purchase_uris"
+                "purchase_uris",
             }
         }
 

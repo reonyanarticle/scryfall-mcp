@@ -9,14 +9,16 @@ from __future__ import annotations
 import locale
 import logging
 import os
-from typing import Optional, Set
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
-from .mappings.common import LanguageMapping
+from ..settings import get_settings
 from .mappings.en import english_mapping
 from .mappings.ja import japanese_mapping
-from ..settings import get_settings
+
+if TYPE_CHECKING:
+    from .mappings.common import LanguageMapping
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,9 @@ class LocaleInfo(BaseModel):
     code: str
     language: str
     language_code: str
-    country: Optional[str] = None
-    country_code: Optional[str] = None
-    encoding: Optional[str] = None
+    country: str | None = None
+    country_code: str | None = None
+    encoding: str | None = None
     is_default: bool = False
     is_fallback: bool = False
 
@@ -50,7 +52,7 @@ class LocaleManager:
         self._settings = get_settings()
         self._mappings: dict[str, LanguageMapping] = {}
         self._available_locales: dict[str, LocaleInfo] = {}
-        self._current_locale: Optional[str] = None
+        self._current_locale: str | None = None
         self._default_locale: str = self._settings.default_locale
         self._fallback_locale: str = self._settings.fallback_locale
 
@@ -112,7 +114,7 @@ class LocaleManager:
         # Fallback to default
         return self._default_locale
 
-    def _parse_locale_string(self, locale_str: str) -> Optional[str]:
+    def _parse_locale_string(self, locale_str: str) -> str | None:
         """Parse a locale string to extract language code.
 
         Parameters
@@ -167,7 +169,7 @@ class LocaleManager:
         """
         return self._current_locale or self._default_locale
 
-    def get_mapping(self, locale_code: Optional[str] = None) -> LanguageMapping:
+    def get_mapping(self, locale_code: str | None = None) -> LanguageMapping:
         """Get language mapping for a locale.
 
         Parameters
@@ -189,7 +191,7 @@ class LocaleManager:
         # Fallback to fallback locale
         if self._fallback_locale in self._mappings:
             logger.warning(
-                f"Locale {locale_code} not found, using fallback {self._fallback_locale}"
+                f"Locale {locale_code} not found, using fallback {self._fallback_locale}",
             )
             return self._mappings[self._fallback_locale]
 
@@ -198,7 +200,7 @@ class LocaleManager:
             fallback_key = next(iter(self._mappings))
             logger.error(
                 f"Fallback locale {self._fallback_locale} not found, "
-                f"using {fallback_key}"
+                f"using {fallback_key}",
             )
             return self._mappings[fallback_key]
 
@@ -229,7 +231,7 @@ class LocaleManager:
         """
         return list(self._available_locales.values())
 
-    def get_supported_locale_codes(self) -> Set[str]:
+    def get_supported_locale_codes(self) -> set[str]:
         """Get set of supported locale codes.
 
         Returns
@@ -277,7 +279,7 @@ class LocaleManager:
         self._initialize_locales()
         logger.info("Reloaded all language mappings")
 
-    def get_locale_info(self, locale_code: Optional[str] = None) -> LocaleInfo:
+    def get_locale_info(self, locale_code: str | None = None) -> LocaleInfo:
         """Get detailed locale information.
 
         Parameters
@@ -305,7 +307,7 @@ class LocaleManager:
 
 
 # Global locale manager instance
-_locale_manager: Optional[LocaleManager] = None
+_locale_manager: LocaleManager | None = None
 
 
 def get_locale_manager() -> LocaleManager:

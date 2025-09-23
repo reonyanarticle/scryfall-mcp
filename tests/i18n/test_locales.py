@@ -10,13 +10,11 @@ import pytest
 from scryfall_mcp.i18n.locales import (
     LocaleInfo,
     LocaleManager,
-    get_locale_manager,
-    get_current_mapping,
-    set_current_locale,
     detect_and_set_locale,
+    get_current_mapping,
+    get_locale_manager,
+    set_current_locale,
 )
-from scryfall_mcp.i18n.mappings.en import english_mapping
-from scryfall_mcp.i18n.mappings.ja import japanese_mapping
 
 
 class TestLocaleInfo:
@@ -182,7 +180,7 @@ class TestLocaleManager:
         """Test locale detection fallback."""
         # Clear environment variables
         env_vars = ["LC_ALL", "LC_CTYPE", "LANG", "LANGUAGE"]
-        with patch.dict(os.environ, {var: "" for var in env_vars}, clear=True):
+        with patch.dict(os.environ, dict.fromkeys(env_vars, ""), clear=True):
             detected = locale_manager.detect_locale()
             # Should fallback to default
             assert detected == locale_manager._default_locale
@@ -318,14 +316,14 @@ class TestGlobalFunctions:
         # LC_ALL should take priority
         with patch.dict(os.environ, {
             "LC_ALL": "ja_JP.UTF-8",
-            "LANG": "en_US.UTF-8"
+            "LANG": "en_US.UTF-8",
         }):
             detected = manager.detect_locale()
             assert detected == "ja"
 
         # LANG should be used if LC_ALL is not set
         with patch.dict(os.environ, {
-            "LANG": "ja_JP.UTF-8"
+            "LANG": "ja_JP.UTF-8",
         }, clear=True):
             detected = manager.detect_locale()
             assert detected == "ja"
@@ -335,7 +333,7 @@ class TestGlobalFunctions:
         manager = LocaleManager()
 
         # Test with locale that raises exception
-        with patch('locale.getdefaultlocale', side_effect=Exception("Test error")):
+        with patch("locale.getdefaultlocale", side_effect=Exception("Test error")):
             detected = manager.detect_locale()
             # Should fallback to default
             assert detected == manager._default_locale

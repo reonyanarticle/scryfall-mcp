@@ -224,10 +224,10 @@ class EnglishMapping(LanguageMapping):
                 "invalid query": "Invalid search query.",
 
                 # Card information
-                "mana cost": "Mana Cost",
+                "mana cost info": "Mana Cost",
                 "type line": "Type",
-                "oracle text": "Oracle Text",
-                "flavor text": "Flavor Text",
+                "oracle text info": "Oracle Text",
+                "flavor text info": "Flavor Text",
                 "power and toughness": "Power/Toughness",
                 "loyalty": "Loyalty",
                 "rarity": "Rarity",
@@ -244,7 +244,7 @@ class EnglishMapping(LanguageMapping):
                 "dollars": "USD",
                 "euros": "EUR",
                 "tickets": "TIX",
-            }
+            },
         )
 
 

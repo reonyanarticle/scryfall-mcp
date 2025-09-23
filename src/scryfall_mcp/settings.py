@@ -6,11 +6,8 @@ Supports multiple locales and provides secure configuration management.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Optional
-
-from pydantic import Field, field_validator, model_validator, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,113 +16,113 @@ class Settings(BaseSettings):
     # Scryfall API Configuration
     scryfall_base_url: str = Field(
         default="https://api.scryfall.com",
-        description="Base URL for Scryfall API"
+        description="Base URL for Scryfall API",
     )
     scryfall_rate_limit_ms: int = Field(
         default=100,
         ge=75,
         le=1000,
-        description="Rate limit interval in milliseconds (75-1000ms)"
+        description="Rate limit interval in milliseconds (75-1000ms)",
     )
     scryfall_timeout_seconds: int = Field(
         default=30,
         ge=5,
         le=120,
-        description="HTTP request timeout in seconds"
+        description="HTTP request timeout in seconds",
     )
     scryfall_max_retries: int = Field(
         default=5,
         ge=0,
         le=10,
-        description="Maximum number of retry attempts"
+        description="Maximum number of retry attempts",
     )
 
     # HTTP Headers
     user_agent: str = Field(
         default="Scryfall-MCP-Server/0.1.0 (contact@example.com)",
-        description="User-Agent header for API requests"
+        description="User-Agent header for API requests",
     )
     accept_header: str = Field(
         default="application/json;q=0.9,*/*;q=0.8",
-        description="Accept header for API requests"
+        description="Accept header for API requests",
     )
 
     # Cache Configuration
     cache_enabled: bool = Field(
         default=True,
-        description="Enable/disable caching system"
+        description="Enable/disable caching system",
     )
     cache_backend: str = Field(
         default="memory",
         pattern="^(memory|redis)$",
-        description="Cache backend type: memory or redis"
+        description="Cache backend type: memory or redis",
     )
     cache_max_size: int = Field(
         default=1000,
         ge=100,
         le=10000,
-        description="Maximum cache entries for memory backend"
+        description="Maximum cache entries for memory backend",
     )
-    
+
     # Redis Configuration (if using redis backend)
-    redis_url: Optional[str] = Field(
+    redis_url: str | None = Field(
         default=None,
-        description="Redis connection URL"
+        description="Redis connection URL",
     )
     redis_db: int = Field(
         default=0,
         ge=0,
         le=15,
-        description="Redis database number"
+        description="Redis database number",
     )
 
     # Cache TTL Settings (in seconds)
     cache_ttl_search: int = Field(
         default=1800,  # 30 minutes
         ge=60,
-        description="TTL for search results"
+        description="TTL for search results",
     )
     cache_ttl_card: int = Field(
         default=86400,  # 24 hours
         ge=3600,
-        description="TTL for card details"
+        description="TTL for card details",
     )
     cache_ttl_price: int = Field(
         default=21600,  # 6 hours
         ge=300,
-        description="TTL for price information"
+        description="TTL for price information",
     )
     cache_ttl_set: int = Field(
         default=604800,  # 1 week
         ge=86400,
-        description="TTL for set information"
+        description="TTL for set information",
     )
 
     # Internationalization
     default_locale: str = Field(
         default="en",
         pattern="^[a-z]{2}$",
-        description="Default locale (ISO 639-1 code)"
+        description="Default locale (ISO 639-1 code)",
     )
     supported_locales: list[str] = Field(
         default=["en", "ja"],
-        description="List of supported locales"
+        description="List of supported locales",
     )
     fallback_locale: str = Field(
         default="en",
         pattern="^[a-z]{2}$",
-        description="Fallback locale when translation is not available"
+        description="Fallback locale when translation is not available",
     )
 
     # Currency and Pricing
     default_currency: str = Field(
         default="USD",
         pattern="^[A-Z]{3}$",
-        description="Default currency code (ISO 4217)"
+        description="Default currency code (ISO 4217)",
     )
     supported_currencies: list[str] = Field(
         default=["USD", "JPY", "EUR", "GBP"],
-        description="List of supported currencies"
+        description="List of supported currencies",
     )
 
     # Circuit Breaker Configuration
@@ -133,34 +130,34 @@ class Settings(BaseSettings):
         default=5,
         ge=1,
         le=20,
-        description="Number of failures before opening circuit"
+        description="Number of failures before opening circuit",
     )
     circuit_breaker_recovery_timeout: int = Field(
         default=60,
         ge=10,
         le=300,
-        description="Circuit breaker recovery timeout in seconds"
+        description="Circuit breaker recovery timeout in seconds",
     )
 
     # Logging
     log_level: str = Field(
         default="INFO",
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
-        description="Logging level"
+        description="Logging level",
     )
     log_format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        description="Log message format"
+        description="Log message format",
     )
 
     # Development Settings
     debug: bool = Field(
         default=False,
-        description="Enable debug mode"
+        description="Enable debug mode",
     )
     mock_api: bool = Field(
         default=False,
-        description="Use mock API responses for testing"
+        description="Use mock API responses for testing",
     )
 
     @field_validator("supported_locales")
@@ -186,7 +183,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_locale_currency_consistency(self) -> "Settings":
+    def validate_locale_currency_consistency(self) -> Settings:
         """Ensure default locales and currencies are in their supported lists."""
         # Validate default locale
         if self.supported_locales and self.default_locale not in self.supported_locales:
@@ -202,10 +199,10 @@ class Settings(BaseSettings):
 
         return self
 
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         env_prefix="SCRYFALL_MCP_",
         case_sensitive=False,
-        validate_assignment=True
+        validate_assignment=True,
     )
 
 
@@ -215,7 +212,7 @@ settings = Settings()
 
 def get_settings() -> Settings:
     """Get the global settings instance.
-    
+
     Returns
     -------
     Settings
@@ -226,7 +223,7 @@ def get_settings() -> Settings:
 
 def reload_settings() -> Settings:
     """Reload settings from environment variables.
-    
+
     Returns
     -------
     Settings

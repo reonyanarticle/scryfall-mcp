@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import AsyncGenerator, Dict, Any
-from unittest.mock import Mock, AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
-import pytest
 import httpx
+import pytest
 
-from scryfall_mcp.api.models import Card, SearchResult, ImageUris, Legalities, Prices, PurchaseUris, RelatedUris
+from scryfall_mcp.api.models import (
+    Card,
+    SearchResult,
+)
 from scryfall_mcp.settings import Settings
 
 
@@ -66,7 +69,7 @@ def mock_httpx_client():
 
 
 @pytest.fixture
-def sample_card_data() -> Dict[str, Any]:
+def sample_card_data() -> dict[str, Any]:
     """Sample card data for testing."""
     return {
         "object": "card",
@@ -187,7 +190,7 @@ def mock_scryfall_response():
         "object": "list",
         "total_cards": 1,
         "has_more": False,
-        "data": []
+        "data": [],
     }
     return mock_response
 

@@ -5,11 +5,16 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from mcp.types import TextContent, ImageContent
+from mcp.types import TextContent
 
-from scryfall_mcp.tools.search import CardSearchTool, AutocompleteTool, SearchCardsRequest, AutocompleteRequest
-from scryfall_mcp.api.models import SearchResult, Card
 from scryfall_mcp.api.client import ScryfallAPIError
+from scryfall_mcp.api.models import SearchResult
+from scryfall_mcp.tools.search import (
+    AutocompleteRequest,
+    AutocompleteTool,
+    CardSearchTool,
+    SearchCardsRequest,
+)
 
 
 class TestSearchCardsRequest:
@@ -22,7 +27,7 @@ class TestSearchCardsRequest:
             language="en",
             max_results=10,
             include_images=True,
-            format_filter="modern"
+            format_filter="modern",
         )
 
         assert request.query == "Lightning Bolt"
@@ -58,7 +63,7 @@ class TestAutocompleteRequest:
         """Test valid autocomplete request."""
         request = AutocompleteRequest(
             query="Light",
-            language="ja"
+            language="ja",
         )
 
         assert request.query == "Light"
@@ -91,11 +96,11 @@ class TestCardSearchTool:
             "query": "Lightning Bolt",
             "language": "en",
             "max_results": 5,
-            "include_images": True
+            "include_images": True,
         }
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 # Setup mocks
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
@@ -103,7 +108,7 @@ class TestCardSearchTool:
                     "scryfall_query": "Lightning Bolt",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": []
+                    "suggestions": [],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -130,11 +135,11 @@ class TestCardSearchTool:
         arguments = {
             "query": "白いクリーチャー",
             "language": "ja",
-            "max_results": 10
+            "max_results": 10,
         }
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 # Setup mocks
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
@@ -142,7 +147,7 @@ class TestCardSearchTool:
                     "scryfall_query": "c:w t:creature",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": []
+                    "suggestions": [],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -150,7 +155,7 @@ class TestCardSearchTool:
                 mock_client.search_cards.return_value = sample_search_result
                 mock_get_client.return_value = mock_client
 
-                with patch('scryfall_mcp.tools.search.set_current_locale') as mock_set_locale:
+                with patch("scryfall_mcp.tools.search.set_current_locale") as mock_set_locale:
                     result = await CardSearchTool.execute(arguments)
 
                     # Check that locale was set
@@ -165,18 +170,18 @@ class TestCardSearchTool:
         """Test tool execution with format filter."""
         arguments = {
             "query": "Lightning Bolt",
-            "format_filter": "standard"
+            "format_filter": "standard",
         }
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
                     "original_query": "Lightning Bolt",
                     "scryfall_query": "Lightning Bolt",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": []
+                    "suggestions": [],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -195,8 +200,8 @@ class TestCardSearchTool:
         """Test tool execution with no results."""
         arguments = {"query": "nonexistent card"}
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 # Setup mocks for no results
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
@@ -204,7 +209,7 @@ class TestCardSearchTool:
                     "scryfall_query": "nonexistent card",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": []
+                    "suggestions": [],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -212,7 +217,7 @@ class TestCardSearchTool:
                     object="list",
                     total_cards=0,
                     has_more=False,
-                    data=[]
+                    data=[],
                 )
 
                 mock_client = AsyncMock()
@@ -231,15 +236,15 @@ class TestCardSearchTool:
         """Test tool execution with API error."""
         arguments = {"query": "invalid query"}
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
                     "original_query": "invalid query",
                     "scryfall_query": "invalid query",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": []
+                    "suggestions": [],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -259,15 +264,15 @@ class TestCardSearchTool:
         """Test tool execution with suggestions."""
         arguments = {"query": "Lightning"}
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
-            with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
+            with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 mock_processor = Mock()
                 mock_processor.process_query.return_value = {
                     "original_query": "Lightning",
                     "scryfall_query": "Lightning",
                     "detected_intent": "card_search",
                     "extracted_entities": {},
-                    "suggestions": ["Did you mean Lightning Bolt?"]
+                    "suggestions": ["Did you mean Lightning Bolt?"],
                 }
                 mock_processor_class.return_value = mock_processor
 
@@ -280,7 +285,7 @@ class TestCardSearchTool:
                 # Should include suggestions
                 suggestion_content = next(
                     (item for item in result if isinstance(item, TextContent) and "Suggestions" in item.text),
-                    None
+                    None,
                 )
                 assert suggestion_content is not None
                 assert "Lightning Bolt" in suggestion_content.text
@@ -290,7 +295,7 @@ class TestCardSearchTool:
         """Test tool execution with unexpected error."""
         arguments = {"query": "test"}
 
-        with patch('scryfall_mcp.tools.search.SearchProcessor') as mock_processor_class:
+        with patch("scryfall_mcp.tools.search.SearchProcessor") as mock_processor_class:
             mock_processor_class.side_effect = Exception("Unexpected error")
 
             result = await CardSearchTool.execute(arguments)
@@ -307,7 +312,7 @@ class TestCardSearchTool:
             "scryfall_query": "Lightning Bolt",
             "detected_intent": "card_search",
             "extracted_entities": {},
-            "suggestions": []
+            "suggestions": [],
         }
 
         summary = CardSearchTool._format_search_summary(processed, 10, 5, "en")
@@ -324,7 +329,7 @@ class TestCardSearchTool:
             "scryfall_query": "c:w t:creature",
             "detected_intent": "card_search",
             "extracted_entities": {},
-            "suggestions": []
+            "suggestions": [],
         }
 
         summary = CardSearchTool._format_search_summary(processed, 15, 8, "ja")
@@ -388,12 +393,12 @@ class TestAutocompleteTool:
         """Test successful autocomplete execution."""
         arguments = {
             "query": "Light",
-            "language": "en"
+            "language": "en",
         }
 
         suggestions = ["Lightning Bolt", "Lightning Strike", "Lightning Helix"]
 
-        with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = suggestions
             mock_get_client.return_value = mock_client
@@ -412,7 +417,7 @@ class TestAutocompleteTool:
         """Test autocomplete with no suggestions."""
         arguments = {"query": "nonexistent"}
 
-        with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = []
             mock_get_client.return_value = mock_client
@@ -429,13 +434,13 @@ class TestAutocompleteTool:
         """Test autocomplete with Japanese language setting."""
         arguments = {
             "query": "ライト",
-            "language": "ja"
+            "language": "ja",
         }
 
         suggestions = ["Lightning Bolt", "Light Up the Stage"]
 
-        with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
-            with patch('scryfall_mcp.tools.search.set_current_locale') as mock_set_locale:
+        with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
+            with patch("scryfall_mcp.tools.search.set_current_locale") as mock_set_locale:
                 mock_client = AsyncMock()
                 mock_client.autocomplete_card_name.return_value = suggestions
                 mock_get_client.return_value = mock_client
@@ -455,7 +460,7 @@ class TestAutocompleteTool:
         """Test autocomplete with error."""
         arguments = {"query": "test"}
 
-        with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.side_effect = Exception("API error")
             mock_get_client.return_value = mock_client
@@ -475,7 +480,7 @@ class TestAutocompleteTool:
         # Return more than 10 suggestions
         many_suggestions = [f"Card {i}" for i in range(15)]
 
-        with patch('scryfall_mcp.tools.search.get_client') as mock_get_client:
+        with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = many_suggestions
             mock_get_client.return_value = mock_client
@@ -485,5 +490,5 @@ class TestAutocompleteTool:
             # Should limit to 10
             assert len(result) == 1
             text = result[0].text
-            suggestion_lines = [line for line in text.split('\n') if line.startswith('- ')]
+            suggestion_lines = [line for line in text.split("\n") if line.startswith("- ")]
             assert len(suggestion_lines) == 10

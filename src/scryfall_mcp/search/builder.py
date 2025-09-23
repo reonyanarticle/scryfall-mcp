@@ -7,9 +7,9 @@ from natural language (especially Japanese) to Scryfall search syntax.
 from __future__ import annotations
 
 import re
-from typing import Optional, Tuple
+from typing import Any
 
-from ..i18n import get_current_mapping, JAPANESE_CARD_NAMES
+from ..i18n import JAPANESE_CARD_NAMES, get_current_mapping
 
 
 class QueryBuilder:
@@ -19,7 +19,7 @@ class QueryBuilder:
         """Initialize the query builder."""
         self._mapping = get_current_mapping()
 
-    def build_query(self, text: str, locale: Optional[str] = None) -> str:
+    def build_query(self, text: str, locale: str | None = None) -> str:
         """Build a Scryfall query from natural language text.
 
         Parameters
@@ -68,7 +68,7 @@ class QueryBuilder:
             Normalized text
         """
         # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text.strip())
+        text = re.sub(r"\s+", " ", text.strip())
 
         # Handle Japanese specific normalizations
         if self._mapping.language_code == "ja":
@@ -76,9 +76,9 @@ class QueryBuilder:
             text = self._convert_fullwidth_numbers(text)
 
             # Convert full-width operators to half-width
-            text = text.replace('＝', '=').replace('！', '!')
-            text = text.replace('（', '(').replace('）', ')')
-            text = text.replace('［', '[').replace('］', ']')
+            text = text.replace("＝", "=").replace("！", "!")
+            text = text.replace("（", "(").replace("）", ")")
+            text = text.replace("［", "[").replace("］", "]")
 
         return text
 
@@ -96,8 +96,8 @@ class QueryBuilder:
             Text with half-width numbers
         """
         fullwidth_to_halfwidth = {
-            '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
-            '５': '5', '６': '6', '７': '7', '８': '8', '９': '9'
+            "０": "0", "１": "1", "２": "2", "３": "3", "４": "4",
+            "５": "5", "６": "6", "７": "7", "８": "8", "９": "9",
         }
 
         for fw, hw in fullwidth_to_halfwidth.items():
@@ -121,7 +121,7 @@ class QueryBuilder:
         for term, scryfall_term in self._mapping.search_keywords.items():
             if scryfall_term:  # Only replace if there's a mapping
                 # Use word boundaries for exact matches
-                pattern = rf'\b{re.escape(term)}\b'
+                pattern = rf"\b{re.escape(term)}\b"
                 text = re.sub(pattern, scryfall_term, text, flags=re.IGNORECASE)
 
         return text
@@ -142,23 +142,23 @@ class QueryBuilder:
         # Handle Japanese color patterns
         if self._mapping.language_code == "ja":
             # Pattern: "白いクリーチャー" -> "c:w t:creature"
-            color_creature_pattern = r'(白|青|黒|赤|緑|無色)い?の?(クリーチャー|アーティファクト|エンチャント|インスタント|ソーサリー|土地|プレインズウォーカー)'
+            color_creature_pattern = r"(白|青|黒|赤|緑|無色)い?の?(クリーチャー|アーティファクト|エンチャント|インスタント|ソーサリー|土地|プレインズウォーカー)"
 
-            def replace_color_type(match):
+            def replace_color_type(match: Any) -> str:
                 color_ja, type_ja = match.groups()
                 color_code = {
-                    '白': 'w', '青': 'u', '黒': 'b', '赤': 'r', '緑': 'g', '無色': 'c'
-                }.get(color_ja, '')
+                    "白": "w", "青": "u", "黒": "b", "赤": "r", "緑": "g", "無色": "c",
+                }.get(color_ja, "")
 
                 type_code = {
-                    'クリーチャー': 'creature',
-                    'アーティファクト': 'artifact',
-                    'エンチャント': 'enchantment',
-                    'インスタント': 'instant',
-                    'ソーサリー': 'sorcery',
-                    '土地': 'land',
-                    'プレインズウォーカー': 'planeswalker'
-                }.get(type_ja, '')
+                    "クリーチャー": "creature",
+                    "アーティファクト": "artifact",
+                    "エンチャント": "enchantment",
+                    "インスタント": "instant",
+                    "ソーサリー": "sorcery",
+                    "土地": "land",
+                    "プレインズウォーカー": "planeswalker",
+                }.get(type_ja, "")
 
                 return f"c:{color_code} t:{type_code}"
 
@@ -199,61 +199,61 @@ class QueryBuilder:
         if self._mapping.language_code == "ja":
             # Handle Japanese numeric comparisons
             # Pattern: "パワーが3以上" -> "p>=3"
-            power_pattern = r'パワーが?(\d+)(以上|以下|より大きい|未満|と?等しい)?'
+            power_pattern = r"パワーが?(\d+)(以上|以下|より大きい|未満|と?等しい)?"
 
-            def replace_power(match):
+            def replace_power(match: Any) -> str:
                 number, operator_ja = match.groups()
                 operator = {
-                    '以上': '>=',
-                    '以下': '<=',
-                    'より大きい': '>',
-                    '未満': '<',
-                    '等しい': '=',
-                    'と等しい': '='
-                }.get(operator_ja or '等しい', '=')
+                    "以上": ">=",
+                    "以下": "<=",
+                    "より大きい": ">",
+                    "未満": "<",
+                    "等しい": "=",
+                    "と等しい": "=",
+                }.get(operator_ja or "等しい", "=")
 
                 return f"p{operator}{number}"
 
             text = re.sub(power_pattern, replace_power, text)
 
             # Similar for toughness
-            toughness_pattern = r'タフネスが?(\d+)(以上|以下|より大きい|未満|と?等しい)?'
+            toughness_pattern = r"タフネスが?(\d+)(以上|以下|より大きい|未満|と?等しい)?"
 
-            def replace_toughness(match):
+            def replace_toughness(match: Any) -> str:
                 number, operator_ja = match.groups()
                 operator = {
-                    '以上': '>=',
-                    '以下': '<=',
-                    'より大きい': '>',
-                    '未満': '<',
-                    '等しい': '=',
-                    'と等しい': '='
-                }.get(operator_ja or '等しい', '=')
+                    "以上": ">=",
+                    "以下": "<=",
+                    "より大きい": ">",
+                    "未満": "<",
+                    "等しい": "=",
+                    "と等しい": "=",
+                }.get(operator_ja or "等しい", "=")
 
                 return f"tou{operator}{number}"
 
             text = re.sub(toughness_pattern, replace_toughness, text)
 
             # Mana cost patterns
-            mana_pattern = r'(マナ総量|点数で見たマナコスト|マナコスト)が?(\d+)(以上|以下|より大きい|未満|と?等しい)?'
+            mana_pattern = r"(マナ総量|点数で見たマナコスト|マナコスト)が?(\d+)(以上|以下|より大きい|未満|と?等しい)?"
 
-            def replace_mana(match):
+            def replace_mana(match: Any) -> str:
                 cost_type, number, operator_ja = match.groups()
 
-                field = 'mv'  # Default to mana value
-                if cost_type == '点数で見たマナコスト':
-                    field = 'cmc'
-                elif cost_type == 'マナコスト':
-                    field = 'm'
+                field = "mv"  # Default to mana value
+                if cost_type == "点数で見たマナコスト":
+                    field = "cmc"
+                elif cost_type == "マナコスト":
+                    field = "m"
 
                 operator = {
-                    '以上': '>=',
-                    '以下': '<=',
-                    'より大きい': '>',
-                    '未満': '<',
-                    '等しい': '=',
-                    'と等しい': '='
-                }.get(operator_ja or '等しい', '=')
+                    "以上": ">=",
+                    "以下": "<=",
+                    "より大きい": ">",
+                    "未満": "<",
+                    "等しい": "=",
+                    "と等しい": "=",
+                }.get(operator_ja or "等しい", "=")
 
                 return f"{field}{operator}{number}"
 
@@ -314,14 +314,14 @@ class QueryBuilder:
             Cleaned query
         """
         # Remove extra spaces
-        query = re.sub(r'\s+', ' ', query.strip())
+        query = re.sub(r"\s+", " ", query.strip())
 
         # Remove redundant operators
-        query = re.sub(r'\s+(and|or)\s+', r' \1 ', query)
+        query = re.sub(r"\s+(and|or)\s+", r" \1 ", query)
 
         # Clean up any remaining artifacts
-        query = re.sub(r'\s*:\s*', ':', query)
-        query = re.sub(r'\s*([<>=!]+)\s*', r'\1', query)
+        query = re.sub(r"\s*:\s*", ":", query)
+        query = re.sub(r"\s*([<>=!]+)\s*", r"\1", query)
 
         return query
 
@@ -343,11 +343,11 @@ class QueryBuilder:
         # Check for common misspellings in Japanese
         if self._mapping.language_code == "ja":
             common_mistakes = {
-                'くりーちゃー': 'クリーチャー',
-                'いんすたんと': 'インスタント',
-                'そーさりー': 'ソーサリー',
-                'あーてぃふぁくと': 'アーティファクト',
-                'えんちゃんと': 'エンチャント',
+                "くりーちゃー": "クリーチャー",
+                "いんすたんと": "インスタント",
+                "そーさりー": "ソーサリー",
+                "あーてぃふぁくと": "アーティファクト",
+                "えんちゃんと": "エンチャント",
             }
 
             for mistake, correction in common_mistakes.items():
@@ -387,26 +387,25 @@ class QueryBuilder:
                     "アーティファクト → アーティファクト",
                 ],
             }
-        else:
-            return {
-                "Colors": [
-                    "white creatures",
-                    "blue spells",
-                    "red or green",
-                ],
-                "Power/Toughness": [
-                    "power >= 3",
-                    "toughness <= 2",
-                    "power > 5",
-                ],
-                "Mana Cost": [
-                    "mana value 3",
-                    "mana cost {1}{W}",
-                    "cmc <= 4",
-                ],
-                "Card Types": [
-                    "creatures",
-                    "instants",
-                    "artifacts",
-                ],
-            }
+        return {
+            "Colors": [
+                "white creatures",
+                "blue spells",
+                "red or green",
+            ],
+            "Power/Toughness": [
+                "power >= 3",
+                "toughness <= 2",
+                "power > 5",
+            ],
+            "Mana Cost": [
+                "mana value 3",
+                "mana cost {1}{W}",
+                "cmc <= 4",
+            ],
+            "Card Types": [
+                "creatures",
+                "instants",
+                "artifacts",
+            ],
+        }

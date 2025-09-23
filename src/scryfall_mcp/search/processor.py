@@ -7,10 +7,10 @@ for Magic: The Gathering card searches, with special focus on Japanese.
 from __future__ import annotations
 
 import re
-from typing import Optional, Set, Tuple
+from typing import Any
 
-from .builder import QueryBuilder
 from ..i18n import get_current_mapping
+from .builder import QueryBuilder
 
 
 class SearchProcessor:
@@ -21,7 +21,7 @@ class SearchProcessor:
         self._mapping = get_current_mapping()
         self._query_builder = QueryBuilder()
 
-    def process_query(self, text: str, locale: Optional[str] = None) -> dict[str, str]:
+    def process_query(self, text: str, locale: str | None = None) -> dict[str, str]:
         """Process a natural language search query.
 
         Parameters
@@ -52,7 +52,7 @@ class SearchProcessor:
         # Get suggestions for improvements
         suggestions = self._query_builder.suggest_corrections(text)
 
-        return {
+        result: dict[str, Any] = {
             "original_query": text,
             "scryfall_query": scryfall_query,
             "detected_intent": intent,
@@ -60,6 +60,7 @@ class SearchProcessor:
             "suggestions": suggestions,
             "language": self._mapping.language_code,
         }
+        return result
 
     def _detect_intent(self, text: str) -> str:
         """Detect the intent of the search query.
@@ -80,25 +81,24 @@ class SearchProcessor:
         if self._mapping.language_code == "ja":
             if any(word in text for word in ["探して", "検索", "見つけて", "カード"]):
                 return "card_search"
-            elif any(word in text for word in ["価格", "値段", "相場"]):
+            if any(word in text for word in ["価格", "値段", "相場"]):
                 return "price_inquiry"
-            elif any(word in text for word in ["ルール", "効果", "テキスト"]):
+            if any(word in text for word in ["ルール", "効果", "テキスト"]):
                 return "rules_inquiry"
-            elif any(word in text for word in ["デッキ", "構築", "採用"]):
+            if any(word in text for word in ["デッキ", "構築", "採用"]):
                 return "deck_building"
-        else:
-            # Card search patterns
-            if any(phrase in text_lower for phrase in ["find", "search", "show me", "get"]):
-                return "card_search"
-            # Price inquiry patterns
-            elif any(phrase in text_lower for phrase in ["price of", "how much", "cost"]):
-                return "price_inquiry"
-            # Rules inquiry patterns
-            elif any(phrase in text_lower for phrase in ["what does", "rules for", "how does"]):
-                return "rules_inquiry"
-            # Deck building patterns
-            elif any(phrase in text_lower for phrase in ["deck with", "build a deck"]):
-                return "deck_building"
+        # Card search patterns
+        elif any(phrase in text_lower for phrase in ["find", "search", "show me", "get"]):
+            return "card_search"
+        # Price inquiry patterns
+        elif any(phrase in text_lower for phrase in ["price of", "how much", "cost"]):
+            return "price_inquiry"
+        # Rules inquiry patterns
+        elif any(phrase in text_lower for phrase in ["what does", "rules for", "how does"]):
+            return "rules_inquiry"
+        # Deck building patterns
+        elif any(phrase in text_lower for phrase in ["deck with", "build a deck"]):
+            return "deck_building"
 
         return "general_search"
 
@@ -115,7 +115,7 @@ class SearchProcessor:
         dict
             Extracted entities by category
         """
-        entities = {
+        entities: dict[str, list[str]] = {
             "colors": [],
             "types": [],
             "numbers": [],
@@ -125,14 +125,14 @@ class SearchProcessor:
         }
 
         # Extract numbers
-        numbers = re.findall(r'\d+', text)
+        numbers = re.findall(r"\d+", text)
         entities["numbers"] = numbers
 
         # Extract colors
         if self._mapping.language_code == "ja":
             color_mapping = {
                 "白": "white", "青": "blue", "黒": "black",
-                "赤": "red", "緑": "green", "無色": "colorless"
+                "赤": "red", "緑": "green", "無色": "colorless",
             }
             for ja_color, en_color in color_mapping.items():
                 if ja_color in text:
@@ -160,7 +160,7 @@ class SearchProcessor:
         else:
             type_words = [
                 "creature", "artifact", "enchantment", "instant",
-                "sorcery", "land", "planeswalker"
+                "sorcery", "land", "planeswalker",
             ]
             for card_type in type_words:
                 if card_type in text.lower():
@@ -212,7 +212,7 @@ class SearchProcessor:
                     suggestions.append(f"カード名'{ja_name}'は引用符で囲むと正確に検索できます")
         else:
             # Check for capitalized words that might be card names
-            potential_names = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+            potential_names = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)
             for name in potential_names:
                 if f'"{name}"' not in text:
                     suggestions.append(f"Use quotes around '{name}' if it's a card name")
@@ -226,7 +226,7 @@ class SearchProcessor:
 
         return suggestions
 
-    def validate_query(self, query: str) -> Tuple[bool, list[str]]:
+    def validate_query(self, query: str) -> tuple[bool, list[str]]:
         """Validate a Scryfall search query.
 
         Parameters
@@ -249,7 +249,7 @@ class SearchProcessor:
                 errors.append("Unmatched quotes in query")
 
         # Check for invalid operators
-        invalid_operators = re.findall(r'[<>=!]{3,}', query)
+        invalid_operators = re.findall(r"[<>=!]{3,}", query)
         if invalid_operators:
             if self._mapping.language_code == "ja":
                 errors.append(f"無効な演算子: {', '.join(invalid_operators)}")
@@ -257,7 +257,7 @@ class SearchProcessor:
                 errors.append(f"Invalid operators: {', '.join(invalid_operators)}")
 
         # Check for empty search terms
-        if re.search(r':\s*($|\s)', query):
+        if re.search(r":\s*($|\s)", query):
             if self._mapping.language_code == "ja":
                 errors.append("空の検索条件があります")
             else:
@@ -281,11 +281,11 @@ class SearchProcessor:
         parts = []
 
         # Parse different parts of the query
-        color_matches = re.findall(r'c:([wubrgc]+)', query, re.IGNORECASE)
-        type_matches = re.findall(r't:(\w+)', query, re.IGNORECASE)
-        power_matches = re.findall(r'p([<>=!]+)(\d+)', query, re.IGNORECASE)
-        toughness_matches = re.findall(r'tou([<>=!]+)(\d+)', query, re.IGNORECASE)
-        mana_matches = re.findall(r'(mv|cmc)([<>=!]+)(\d+)', query, re.IGNORECASE)
+        color_matches = re.findall(r"c:([wubrgc]+)", query, re.IGNORECASE)
+        type_matches = re.findall(r"t:(\w+)", query, re.IGNORECASE)
+        power_matches = re.findall(r"p([<>=!]+)(\d+)", query, re.IGNORECASE)
+        toughness_matches = re.findall(r"tou([<>=!]+)(\d+)", query, re.IGNORECASE)
+        mana_matches = re.findall(r"(mv|cmc)([<>=!]+)(\d+)", query, re.IGNORECASE)
 
         if self._mapping.language_code == "ja":
             if color_matches:
@@ -298,7 +298,7 @@ class SearchProcessor:
                     "creature": "クリーチャー", "artifact": "アーティファクト",
                     "enchantment": "エンチャント", "instant": "インスタント",
                     "sorcery": "ソーサリー", "land": "土地",
-                    "planeswalker": "プレインズウォーカー"
+                    "planeswalker": "プレインズウォーカー",
                 }
                 types = [type_names.get(t.lower(), t) for t in type_matches]
                 parts.append(f"タイプ: {', '.join(types)}")
@@ -321,25 +321,24 @@ class SearchProcessor:
 
             return "、".join(parts) if parts else "一般的な検索"
 
-        else:
-            if color_matches:
-                colors = [c.upper() for match in color_matches for c in match]
-                parts.append(f"Colors: {', '.join(colors)}")
+        if color_matches:
+            colors = [c.upper() for match in color_matches for c in match]
+            parts.append(f"Colors: {', '.join(colors)}")
 
-            if type_matches:
-                parts.append(f"Types: {', '.join(type_matches)}")
+        if type_matches:
+            parts.append(f"Types: {', '.join(type_matches)}")
 
-            if power_matches:
-                for op, val in power_matches:
-                    parts.append(f"Power {op} {val}")
+        if power_matches:
+            for op, val in power_matches:
+                parts.append(f"Power {op} {val}")
 
-            if toughness_matches:
-                for op, val in toughness_matches:
-                    parts.append(f"Toughness {op} {val}")
+        if toughness_matches:
+            for op, val in toughness_matches:
+                parts.append(f"Toughness {op} {val}")
 
-            if mana_matches:
-                for field, op, val in mana_matches:
-                    field_name = {"mv": "Mana Value", "cmc": "CMC"}.get(field, field.upper())
-                    parts.append(f"{field_name} {op} {val}")
+        if mana_matches:
+            for field, op, val in mana_matches:
+                field_name = {"mv": "Mana Value", "cmc": "CMC"}.get(field, field.upper())
+                parts.append(f"{field_name} {op} {val}")
 
-            return ", ".join(parts) if parts else "General search"
+        return ", ".join(parts) if parts else "General search"

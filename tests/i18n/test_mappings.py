@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 
 from scryfall_mcp.i18n.mappings.common import (
-    LanguageMapping,
-    SCRYFALL_KEYWORDS,
     MAGIC_COLORS,
     MAGIC_TYPES,
+    SCRYFALL_KEYWORDS,
     SEARCH_PATTERNS,
+    LanguageMapping,
 )
 from scryfall_mcp.i18n.mappings.en import english_mapping
-from scryfall_mcp.i18n.mappings.ja import japanese_mapping, JAPANESE_CARD_NAMES
+from scryfall_mcp.i18n.mappings.ja import JAPANESE_CARD_NAMES, japanese_mapping
 
 
 class TestCommonMappings:
@@ -41,7 +41,7 @@ class TestCommonMappings:
         """Test Magic type definitions."""
         essential_types = {
             "Artifact", "Creature", "Enchantment", "Instant", "Land",
-            "Planeswalker", "Sorcery", "Basic", "Legendary"
+            "Planeswalker", "Sorcery", "Basic", "Legendary",
         }
         assert essential_types.issubset(MAGIC_TYPES)
         assert isinstance(MAGIC_TYPES, set)
@@ -73,17 +73,17 @@ class TestLanguageMapping:
     def test_required_fields(self):
         """Test that mappings have all required fields."""
         for mapping in [english_mapping, japanese_mapping]:
-            assert hasattr(mapping, 'language_code')
-            assert hasattr(mapping, 'language_name')
-            assert hasattr(mapping, 'locale_code')
-            assert hasattr(mapping, 'colors')
-            assert hasattr(mapping, 'types')
-            assert hasattr(mapping, 'operators')
-            assert hasattr(mapping, 'formats')
-            assert hasattr(mapping, 'rarities')
-            assert hasattr(mapping, 'set_types')
-            assert hasattr(mapping, 'search_keywords')
-            assert hasattr(mapping, 'phrases')
+            assert hasattr(mapping, "language_code")
+            assert hasattr(mapping, "language_name")
+            assert hasattr(mapping, "locale_code")
+            assert hasattr(mapping, "colors")
+            assert hasattr(mapping, "types")
+            assert hasattr(mapping, "operators")
+            assert hasattr(mapping, "formats")
+            assert hasattr(mapping, "rarities")
+            assert hasattr(mapping, "set_types")
+            assert hasattr(mapping, "search_keywords")
+            assert hasattr(mapping, "phrases")
 
     def test_color_mappings_consistency(self):
         """Test that color mappings are consistent."""
@@ -100,7 +100,7 @@ class TestLanguageMapping:
         """Test that operator mappings are consistent."""
         required_operators = {
             "equals", "not_equals", "less_than", "less_than_or_equal",
-            "greater_than", "greater_than_or_equal", "contains", "not_contains"
+            "greater_than", "greater_than_or_equal", "contains", "not_contains",
         }
 
         for mapping in [english_mapping, japanese_mapping]:
@@ -110,7 +110,7 @@ class TestLanguageMapping:
         """Test that format mappings are consistent."""
         required_formats = {
             "standard", "pioneer", "modern", "legacy", "vintage",
-            "commander", "pauper", "historic", "alchemy", "brawl"
+            "commander", "pauper", "historic", "alchemy", "brawl",
         }
 
         for mapping in [english_mapping, japanese_mapping]:
@@ -137,7 +137,7 @@ class TestEnglishMapping:
         """Test English color mappings."""
         expected_colors = {
             "white": "w", "blue": "u", "black": "b",
-            "red": "r", "green": "g", "colorless": "c"
+            "red": "r", "green": "g", "colorless": "c",
         }
         assert english_mapping.colors == expected_colors
 
@@ -323,7 +323,7 @@ class TestMappingValidation:
         basic_lands_ja = ["平地", "島", "沼", "山", "森"]
         basic_lands_en = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
 
-        for ja_land, en_land in zip(basic_lands_ja, basic_lands_en):
+        for ja_land, en_land in zip(basic_lands_ja, basic_lands_en, strict=False):
             assert JAPANESE_CARD_NAMES[ja_land] == en_land
 
     def test_mapping_types_are_correct(self):

@@ -9,11 +9,11 @@ from unittest.mock import patch
 import pytest
 
 from scryfall_mcp.api.rate_limiter import (
-    RateLimiter,
     CircuitBreaker,
     CircuitBreakerOpenError,
-    get_rate_limiter,
+    RateLimiter,
     get_circuit_breaker,
+    get_rate_limiter,
     reset_rate_limiting,
 )
 
@@ -210,7 +210,7 @@ class TestCircuitBreaker:
         await asyncio.sleep(1.1)
 
         # Manually trigger state check by attempting a call
-        with patch('time.time', return_value=time.time() + 2):
+        with patch("time.time", return_value=time.time() + 2):
             try:
                 await circuit_breaker.call(failing_func)
             except ValueError:
