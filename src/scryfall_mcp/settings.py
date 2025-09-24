@@ -54,8 +54,8 @@ class Settings(BaseSettings):
     )
     cache_backend: str = Field(
         default="memory",
-        pattern="^(memory|redis)$",
-        description="Cache backend type: memory or redis",
+        pattern="^(memory|redis|composite)$",
+        description="Cache backend type: memory, redis, or composite",
     )
     cache_max_size: int = Field(
         default=1000,
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     )
 
     # Redis Configuration (if using redis backend)
-    redis_url: str | None = Field(
+    cache_redis_url: str | None = Field(
         default=None,
         description="Redis connection URL",
     )
@@ -96,6 +96,11 @@ class Settings(BaseSettings):
         default=604800,  # 1 week
         ge=86400,
         description="TTL for set information",
+    )
+    cache_ttl_default: int = Field(
+        default=3600,  # 1 hour
+        ge=300,
+        description="Default TTL for cached items",
     )
 
     # Internationalization

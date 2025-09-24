@@ -14,7 +14,7 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent
 from pydantic import BaseModel, Field
 
 from ..api.client import ScryfallAPIError, get_client
-from ..i18n import get_current_mapping, set_current_locale
+from ..i18n import get_current_mapping, use_locale
 from ..search.processor import SearchProcessor
 
 if TYPE_CHECKING:
@@ -63,80 +63,82 @@ class CardSearchTool:
             # Validate arguments
             request = SearchCardsRequest(**arguments)
 
-            # Set language if specified
-            if request.language:
-                set_current_locale(request.language)
+            # Use context-based locale management
+            with use_locale(request.language or "en"):
+                # Initialize processor and client
+                processor = SearchProcessor()
+                client = await get_client()
 
-            # Initialize processor and client
-            processor = SearchProcessor()
-            client = await get_client()
+                # Process the natural language query
+                processed = processor.process_query(request.query, request.language)
+                scryfall_query = processed["scryfall_query"]
 
-            # Process the natural language query
-            processed = processor.process_query(request.query, request.language)
-            scryfall_query = processed["scryfall_query"]
+                # Add format filter if specified
+                if request.format_filter:
+                    scryfall_query += f" f:{request.format_filter}"
 
-            # Add format filter if specified
-            if request.format_filter:
-                scryfall_query += f" f:{request.format_filter}"
+                logger.info(f"Searching with query: {scryfall_query}")
 
-            logger.info(f"Searching with query: {scryfall_query}")
+                # Search for cards
+                try:
+                    search_result = await client.search_cards(
+                        query=scryfall_query,
+                        page=1,
+                    )
+                except ScryfallAPIError as e:
+                    return [TextContent(
+                        type="text",
+                        text=f"検索エラー: {e}" if request.language == "ja" else f"Search error: {e}",
+                    )]
 
-            # Search for cards
-            try:
-                search_result = await client.search_cards(
-                    query=scryfall_query,
-                    page=1,
+                # Limit results
+                cards = search_result.data[:request.max_results]
+
+                if not cards:
+                    mapping = get_current_mapping()
+                    no_results_msg = mapping.phrases.get("no results found", "No cards found.")
+                    return [TextContent(type="text", text=no_results_msg)]
+
+                # Format results
+                content_items: list[TextContent | ImageContent | EmbeddedResource] = []
+
+                # Add search summary
+                summary = CardSearchTool._format_search_summary(
+                    processed, search_result.total_cards, len(cards), request.language,
                 )
-            except ScryfallAPIError as e:
-                return [TextContent(
-                    type="text",
-                    text=f"検索エラー: {e}" if request.language == "ja" else f"Search error: {e}",
-                )]
+                content_items.append(TextContent(type="text", text=summary))
 
-            # Limit results
-            cards = search_result.data[:request.max_results]
+                # Add card results
+                for i, card in enumerate(cards, 1):
+                    card_text = CardSearchTool._format_card_result(card, i, request.language)
+                    content_items.append(TextContent(type="text", text=card_text))
 
-            if not cards:
-                mapping = get_current_mapping()
-                no_results_msg = mapping.phrases.get("no results found", "No cards found.")
-                return [TextContent(type="text", text=no_results_msg)]
+                    # Add card image if requested and available
+                    if request.include_images and card.image_uris and card.image_uris.normal:
+                        content_items.append(ImageContent(
+                            type="image",
+                            data=str(card.image_uris.normal),
+                            mimeType="image/jpeg",
+                        ))
 
-            # Format results
-            content_items: list[TextContent | ImageContent | EmbeddedResource] = []
+                # Add suggestions if available
+                if processed["suggestions"]:
+                    suggestions_text = "\n".join(processed["suggestions"])
+                    if request.language == "ja":
+                        suggestions_text = f"**提案:**\n{suggestions_text}"
+                    else:
+                        suggestions_text = f"**Suggestions:**\n{suggestions_text}"
+                    content_items.append(TextContent(type="text", text=suggestions_text))
 
-            # Add search summary
-            summary = CardSearchTool._format_search_summary(
-                processed, search_result.total_cards, len(cards), request.language,
-            )
-            content_items.append(TextContent(type="text", text=summary))
-
-            # Add card results
-            for i, card in enumerate(cards, 1):
-                card_text = CardSearchTool._format_card_result(card, i, request.language)
-                content_items.append(TextContent(type="text", text=card_text))
-
-                # Add card image if requested and available
-                if request.include_images and card.image_uris and card.image_uris.normal:
-                    content_items.append(ImageContent(
-                        type="image",
-                        data=str(card.image_uris.normal),
-                        mimeType="image/jpeg",
-                    ))
-
-            # Add suggestions if available
-            if processed["suggestions"]:
-                suggestions_text = "\n".join(processed["suggestions"])
-                if request.language == "ja":
-                    suggestions_text = f"**提案:**\n{suggestions_text}"
-                else:
-                    suggestions_text = f"**Suggestions:**\n{suggestions_text}"
-                content_items.append(TextContent(type="text", text=suggestions_text))
-
-            return content_items
+                return content_items
 
         except Exception as e:
             logger.error(f"Error in card search: {e}", exc_info=True)
-            error_msg = f"予期しないエラーが発生しました: {e}" if request.language == "ja" else f"An unexpected error occurred: {e}"
+            # Safe error handling without referencing potentially undefined 'request'
+            try:
+                error_msg = f"予期しないエラーが発生しました: {e}" if arguments.get("language") == "ja" else f"An unexpected error occurred: {e}"
+            except Exception:
+                error_msg = f"An unexpected error occurred: {e}"
             return [TextContent(type="text", text=error_msg)]
 
     @staticmethod
@@ -254,33 +256,36 @@ class AutocompleteTool:
         try:
             request = AutocompleteRequest(**arguments)
 
-            if request.language:
-                set_current_locale(request.language)
+            # Use context-based locale management
+            with use_locale(request.language or "en"):
+                client = await get_client()
 
-            client = await get_client()
+                # Get suggestions from Scryfall
+                suggestions = await client.autocomplete_card_name(request.query)
 
-            # Get suggestions from Scryfall
-            suggestions = await client.autocomplete_card_name(request.query)
+                if not suggestions:
+                    mapping = get_current_mapping()
+                    no_results_msg = mapping.phrases.get("no results found", "No suggestions found.")
+                    return [TextContent(type="text", text=no_results_msg)]
 
-            if not suggestions:
-                mapping = get_current_mapping()
-                no_results_msg = mapping.phrases.get("no results found", "No suggestions found.")
-                return [TextContent(type="text", text=no_results_msg)]
+                # Format suggestions
+                if request.language == "ja":
+                    result_text = f"**'{request.query}'の候補:**\n"
+                else:
+                    result_text = f"**Suggestions for '{request.query}':**\n"
 
-            # Format suggestions
-            if request.language == "ja":
-                result_text = f"**'{request.query}'の候補:**\n"
-            else:
-                result_text = f"**Suggestions for '{request.query}':**\n"
+                for suggestion in suggestions[:10]:  # Limit to 10 suggestions
+                    result_text += f"- {suggestion}\n"
 
-            for suggestion in suggestions[:10]:  # Limit to 10 suggestions
-                result_text += f"- {suggestion}\n"
-
-            return [TextContent(type="text", text=result_text)]
+                return [TextContent(type="text", text=result_text)]
 
         except Exception as e:
             logger.error(f"Error in autocomplete: {e}", exc_info=True)
-            error_msg = f"オートコンプリートエラー: {e}" if request.language == "ja" else f"Autocomplete error: {e}"
+            # Safe error handling without referencing potentially undefined 'request'
+            try:
+                error_msg = f"オートコンプリートエラー: {e}" if arguments.get("language") == "ja" else f"Autocomplete error: {e}"
+            except Exception:
+                error_msg = f"Autocomplete error: {e}"
             return [TextContent(type="text", text=error_msg)]
 
 

@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 import httpx
 
 from ..settings import get_settings
+from ..cache import get_cache, CACHE_TTL_SEARCH, CACHE_TTL_CARD, CACHE_TTL_AUTOCOMPLETE
 from .models import (
     BulkData,
     Card,
@@ -225,6 +226,23 @@ class ScryfallAPIClient:
         SearchResult
             Search results with card data
         """
+        # Check cache first
+        cache = get_cache()
+        if cache:
+            cached = await cache.get(
+                "search_cards",
+                query=query,
+                unique=unique,
+                order=order,
+                direction=direction,
+                include_extras=include_extras,
+                include_multilingual=include_multilingual,
+                include_variations=include_variations,
+                page=page,
+            )
+            if cached:
+                return SearchResult(**cached)
+
         params = {
             "q": query,
             "unique": unique,
@@ -237,7 +255,25 @@ class ScryfallAPIClient:
         }
 
         data = await self._make_request("GET", "/cards/search", params)
-        return SearchResult(**data)
+        result = SearchResult(**data)
+
+        # Cache the result
+        if cache:
+            await cache.set(
+                "search_cards",
+                result.model_dump(),
+                ttl=CACHE_TTL_SEARCH,
+                query=query,
+                unique=unique,
+                order=order,
+                direction=direction,
+                include_extras=include_extras,
+                include_multilingual=include_multilingual,
+                include_variations=include_variations,
+                page=page,
+            )
+
+        return result
 
     async def get_card_by_id(self, card_id: str) -> Card:
         """Get a card by its Scryfall ID.
@@ -252,8 +288,21 @@ class ScryfallAPIClient:
         Card
             Card data
         """
+        # Check cache first
+        cache = get_cache()
+        if cache:
+            cached = await cache.get("card_by_id", card_id=card_id)
+            if cached:
+                return Card(**cached)
+
         data = await self._make_request("GET", f"/cards/{card_id}")
-        return Card(**data)
+        result = Card(**data)
+
+        # Cache the result
+        if cache:
+            await cache.set("card_by_id", result.model_dump(), ttl=CACHE_TTL_CARD, card_id=card_id)
+
+        return result
 
     async def get_card_by_name(
         self,
@@ -394,10 +443,23 @@ class ScryfallAPIClient:
         list[str]
             Suggested card names
         """
+        # Check cache first
+        cache = get_cache()
+        if cache:
+            cached = await cache.get("autocomplete", query=query)
+            if cached:
+                return cached
+
         params = {"q": query}
         data = await self._make_request("GET", "/cards/autocomplete", params)
         catalog = Catalog(**data)
-        return catalog.data
+        result = catalog.data
+
+        # Cache the result
+        if cache:
+            await cache.set("autocomplete", result, ttl=CACHE_TTL_AUTOCOMPLETE, query=query)
+
+        return result
 
 
 # Global client instance

@@ -81,27 +81,39 @@ class TestLocaleManager:
 
     def test_set_locale_valid(self, locale_manager):
         """Test setting valid locale."""
-        result = locale_manager.set_locale("ja")
-        assert result is True
-        assert locale_manager.get_current_locale() == "ja"
+        from scryfall_mcp.i18n import use_locale
+
+        # Test using context manager
+        with use_locale("ja"):
+            assert locale_manager.get_current_locale() == "ja"
+
+        # Should revert to default after context
+        assert locale_manager.get_current_locale() == "en"
 
     def test_set_locale_invalid(self, locale_manager):
         """Test setting invalid locale."""
-        original_locale = locale_manager.get_current_locale()
-        result = locale_manager.set_locale("invalid")
-        assert result is False
-        assert locale_manager.get_current_locale() == original_locale
+        import pytest
+
+        from scryfall_mcp.i18n import use_locale
+
+        # Should raise error for invalid locale
+        with pytest.raises(ValueError, match="Unsupported locale"):
+            with use_locale("invalid"):
+                pass
 
     def test_get_mapping_current(self, locale_manager):
-        """Test getting current mapping."""
-        # Default should be English
+        """Test getting mapping for current locale."""
+        from scryfall_mcp.i18n import use_locale
+
+        # Test default locale
         mapping = locale_manager.get_mapping()
         assert mapping.language_code == "en"
 
-        # Switch to Japanese
-        locale_manager.set_locale("ja")
-        mapping = locale_manager.get_mapping()
-        assert mapping.language_code == "ja"
+        # Test specific locale in context
+        with use_locale("ja"):
+            mapping = locale_manager.get_mapping()
+            assert mapping.language_code == "ja"
+            assert mapping.language_name == "日本語"
 
     def test_get_mapping_specific(self, locale_manager):
         """Test getting specific mapping."""
@@ -297,10 +309,9 @@ class TestGlobalFunctions:
         with patch.dict(os.environ, {"LANG": "ja_JP.UTF-8"}):
             detected = detect_and_set_locale()
             assert detected == "ja"
-            assert get_locale_manager().get_current_locale() == "ja"
-
-        # Reset to default
-        set_current_locale("en")
+            # Note: detect_and_set_locale no longer sets global state,
+            # it just returns the detected locale
+            # The actual setting would be done via context manager
 
     def test_locale_detection_with_unsupported_language(self):
         """Test locale detection with unsupported language."""
@@ -337,3 +348,85 @@ class TestGlobalFunctions:
             detected = manager.detect_locale()
             # Should fallback to default
             assert detected == manager._default_locale
+
+class TestContextvarLocale:
+    """Test contextvar-based locale management."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_locale_contexts(self):
+        """Test that different locales work concurrently without interference."""
+        import asyncio
+        from scryfall_mcp.i18n import use_locale, get_current_mapping
+
+        results = []
+        
+        async def task_with_locale(locale_code: str, expected_lang: str):
+            """Task that uses specific locale."""
+            with use_locale(locale_code):
+                # Simulate some async work
+                await asyncio.sleep(0.01)
+                mapping = get_current_mapping()
+                results.append((locale_code, mapping.language_code, expected_lang))
+                # Verify context is maintained
+                assert mapping.language_code == expected_lang
+
+        # Run concurrent tasks with different locales
+        tasks = [
+            task_with_locale("ja", "ja"),
+            task_with_locale("en", "en"),
+            task_with_locale("ja", "ja"),
+            task_with_locale("en", "en"),
+        ]
+
+        await asyncio.gather(*tasks)
+
+        # Verify all tasks got their expected locales
+        assert len(results) == 4
+        for locale_code, actual_lang, expected_lang in results:
+            assert actual_lang == expected_lang, f"Task with {locale_code} got {actual_lang}, expected {expected_lang}"
+
+    def test_locale_context_isolation(self):
+        """Test that locale context is properly isolated."""
+        from scryfall_mcp.i18n import use_locale, get_locale_manager
+
+        manager = get_locale_manager()
+        
+        # Default should be 'en'
+        assert manager.get_current_locale() == "en"
+        
+        # Test nested contexts
+        with use_locale("ja"):
+            assert manager.get_current_locale() == "ja"
+            
+            with use_locale("en"):
+                assert manager.get_current_locale() == "en"
+            
+            # Should revert to outer context
+            assert manager.get_current_locale() == "ja"
+        
+        # Should revert to default
+        assert manager.get_current_locale() == "en"
+
+    def test_use_locale_error_handling(self):
+        """Test error handling in use_locale context manager."""
+        from scryfall_mcp.i18n import use_locale, get_locale_manager
+        import pytest
+
+        manager = get_locale_manager()
+        
+        # Test invalid locale
+        with pytest.raises(ValueError, match="Unsupported locale"):
+            with use_locale("invalid"):
+                pass
+        
+        # Ensure context is clean after error
+        assert manager.get_current_locale() == "en"
+        
+        # Test exception within context
+        with pytest.raises(RuntimeError):
+            with use_locale("ja"):
+                assert manager.get_current_locale() == "ja"
+                raise RuntimeError("Test error")
+        
+        # Should still revert to default
+        assert manager.get_current_locale() == "en"

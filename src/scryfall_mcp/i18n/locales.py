@@ -20,7 +20,14 @@ from .mappings.ja import japanese_mapping
 if TYPE_CHECKING:
     from .mappings.common import LanguageMapping
 
+import contextvars
+from contextlib import contextmanager
+
 logger = logging.getLogger(__name__)
+# Context variable for per-request locale management
+_current_locale_context: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_locale", default="en"
+)
 
 
 class LocaleInfo(BaseModel):
@@ -52,7 +59,6 @@ class LocaleManager:
         self._settings = get_settings()
         self._mappings: dict[str, LanguageMapping] = {}
         self._available_locales: dict[str, LocaleInfo] = {}
-        self._current_locale: str | None = None
         self._default_locale: str = self._settings.default_locale
         self._fallback_locale: str = self._settings.fallback_locale
 
@@ -79,9 +85,6 @@ class LocaleManager:
                 is_fallback=(lang_code == self._fallback_locale),
             )
             self._available_locales[lang_code] = locale_info
-
-        # Set current locale to default
-        self._current_locale = self._default_locale
 
         logger.info(f"Initialized {len(self._available_locales)} locales")
 
@@ -138,36 +141,15 @@ class LocaleManager:
 
         return None
 
-    def set_locale(self, locale_code: str) -> bool:
-        """Set the current locale.
-
-        Parameters
-        ----------
-        locale_code : str
-            Locale code to set
-
-        Returns
-        -------
-        bool
-            True if successfully set, False otherwise
-        """
-        if not self.is_supported(locale_code):
-            logger.warning(f"Unsupported locale: {locale_code}")
-            return False
-
-        self._current_locale = locale_code
-        logger.info(f"Set current locale to: {locale_code}")
-        return True
-
     def get_current_locale(self) -> str:
-        """Get the current locale code.
+        """Get the current locale code from context or default.
 
         Returns
         -------
         str
             Current locale code
         """
-        return self._current_locale or self._default_locale
+        return _current_locale_context.get(self._default_locale)
 
     def get_mapping(self, locale_code: str | None = None) -> LanguageMapping:
         """Get language mapping for a locale.
@@ -305,6 +287,37 @@ class LocaleManager:
             language_code=locale_code,
         )
 
+@contextmanager
+def use_locale(locale_code: str):
+    """Context manager for setting locale in current context.
+    
+    Parameters
+    ----------
+    locale_code : str
+        Locale code to set
+        
+    Yields
+    ------
+    str
+        The locale code that was set
+        
+    Raises
+    ------
+    ValueError
+        If locale code is not supported
+    """
+    manager = get_locale_manager()
+
+    if not manager.is_supported(locale_code):
+        raise ValueError(f"Unsupported locale: {locale_code}")
+
+    # Set the locale in the context
+    token = _current_locale_context.set(locale_code)
+    try:
+        yield locale_code
+    finally:
+        _current_locale_context.reset(token)
+
 
 # Global locale manager instance
 _locale_manager: LocaleManager | None = None
@@ -336,7 +349,7 @@ def get_current_mapping() -> LanguageMapping:
 
 
 def set_current_locale(locale_code: str) -> bool:
-    """Set the current locale.
+    """Set the current locale in context.
 
     Parameters
     ----------
@@ -348,7 +361,12 @@ def set_current_locale(locale_code: str) -> bool:
     bool
         True if successfully set, False otherwise
     """
-    return get_locale_manager().set_locale(locale_code)
+    manager = get_locale_manager()
+    if not manager.is_supported(locale_code):
+        return False
+
+    _current_locale_context.set(locale_code)
+    return True
 
 
 def detect_and_set_locale() -> str:
@@ -361,5 +379,6 @@ def detect_and_set_locale() -> str:
     """
     manager = get_locale_manager()
     detected = manager.detect_locale()
-    manager.set_locale(detected)
+    # Set in context rather than globally
+    set_current_locale(detected)
     return detected

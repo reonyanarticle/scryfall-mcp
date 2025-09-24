@@ -155,11 +155,15 @@ class TestCardSearchTool:
                 mock_client.search_cards.return_value = sample_search_result
                 mock_get_client.return_value = mock_client
 
-                with patch("scryfall_mcp.tools.search.set_current_locale") as mock_set_locale:
+                with patch("scryfall_mcp.tools.search.use_locale") as mock_use_locale:
+                    # Mock context manager behavior
+                    mock_use_locale.return_value.__enter__ = Mock(return_value="ja")
+                    mock_use_locale.return_value.__exit__ = Mock(return_value=False)
+
                     result = await CardSearchTool.execute(arguments)
 
-                    # Check that locale was set
-                    mock_set_locale.assert_called_with("ja")
+                    # Check that locale context manager was used
+                    mock_use_locale.assert_called_with("ja")
 
                     # Check that processed query was used
                     call_args = mock_client.search_cards.call_args
@@ -440,20 +444,24 @@ class TestAutocompleteTool:
         suggestions = ["Lightning Bolt", "Light Up the Stage"]
 
         with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
-            with patch("scryfall_mcp.tools.search.set_current_locale") as mock_set_locale:
+            with patch("scryfall_mcp.tools.search.use_locale") as mock_use_locale:
                 mock_client = AsyncMock()
                 mock_client.autocomplete_card_name.return_value = suggestions
                 mock_get_client.return_value = mock_client
 
+                # Mock context manager behavior
+                mock_use_locale.return_value.__enter__ = Mock(return_value="ja")
+                mock_use_locale.return_value.__exit__ = Mock(return_value=False)
+
                 result = await AutocompleteTool.execute(arguments)
 
-                # Check that locale was set
-                mock_set_locale.assert_called_with("ja")
+                # Check that locale context manager was used
+                mock_use_locale.assert_called_with("ja")
 
                 # Check results format
                 assert len(result) == 1
                 assert isinstance(result[0], TextContent)
-                assert "候補" in result[0].text  # Japanese for "suggestions"
+                assert "候補" in result[0].text  # Japanese for "suggestions"  # Japanese for "suggestions"
 
     @pytest.mark.asyncio
     async def test_execute_error(self):

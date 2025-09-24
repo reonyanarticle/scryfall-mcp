@@ -13,6 +13,7 @@ from .locales import (
     get_current_mapping,
     get_locale_manager,
     set_current_locale,
+    use_locale,
 )
 from .mappings.common import LanguageMapping
 from .mappings.en import english_mapping
@@ -29,4 +30,5 @@ __all__ = [
     "get_locale_manager",
     "japanese_mapping",
     "set_current_locale",
+    "use_locale",
 ]
