@@ -19,59 +19,114 @@ Magic: The GatheringのカードデータをMCP (Model Context Protocol)経由�
 - **非同期処理**: すべてのI/O処理はasync/await
 - **早期リターン推奨**: 深いネスト回避
 
-## 現在の主要な設計課題
+## 実装済みアーキテクチャ
 
-### 1. 並行性の問題 🚨
-**問題**: グローバルなロケール管理により、並行リクエスト間で言語設定が干渉
+### 並行性セーフなロケール管理
 ```python
-# src/scryfall_mcp/tools/search.py:67-68
-set_current_locale(language or "en")  # グローバル状態を変更
+# contextvarsベースのスレッドセーフ実装
+_current_locale_context: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_locale", default="en"
+)
+
+@contextmanager
+def use_locale(locale_code: str):
+    """リクエスト毎に独立したロケールコンテキスト"""
+    token = _current_locale_context.set(locale_code)
+    try:
+        yield locale_code
+    finally:
+        _current_locale_context.reset(token)
 ```
 
-**解決策**:
-- `contextvars`またはリクエストスコープの依存性注入を使用
-- 並行する日本語・英語検索が互いに影響しないよう改修
+### 2層キャッシュシステム
+- **L1 (Memory)**: LRU、最大1000エントリ、インメモリ高速キャッシュ
+- **L2 (Redis)**: TTL付き永続化、複数プロセス間共有
+- **グレースフルフォールバック**: Redis接続失敗時もメモリキャッシュで継続動作
 
-### 2. 責任の混在
-**問題**: `CardSearchTool.execute`メソッドに以下の責任が集中
-- バリデーション
-- ロケール処理
-- 自然言語処理
-- API呼び出し
-- 出力フォーマット
+### 検索パイプライン分離
+```
+自然言語クエリ → Parser → QueryBuilder → Presenter → MCPレスポンス
+                    ↓          ↓           ↓
+               ParsedQuery → BuiltQuery → EmbeddedResource
+```
 
-**解決策**:
-- パーサー → クエリビルダー → プレゼンターに分離
-- 各コンポーネントの単体テストを可能にする
+### 構造化MCPレスポンス
+- **EmbeddedResource**: カードメタデータをJSONで構造化保持
+- **カスタムURIスキーマ**: `card://scryfall/{id}` による一意識別
+- **適切なコンテンツタイプ**: TextContent、ImageContent、EmbeddedResourceの使い分け
 
-### 3. 未実装のキャッシュシステム 🚨
-**現状**:
-- 設定にキャッシュ項目はあるが実装は空
-- `src/scryfall_mcp/cache/__init__.py` は空ファイル
-- レート制限とレイテンシの最適化機会を逸している
+### 多言語エラーハンドリング
+- **ステータス別対応**: 400/403/429/500+系の詳細ガイダンス
+- **実行可能な提案**: クエリ固有の回復方法提示
+- **多言語サポート**: 日本語・英語での詳細エラーメッセージ
 
-**改善必要**:
-- メモリ + Redis の2層キャッシュ実装
-- クエリパラメータベースのキーイング
-- TTL設定（検索結果30分、カード詳細24時間、価格6時間）
+## 設計課題と実装状況
 
-### 4. 静的な日本語マッピング
+### 1. 並行性の問題 ✅ **完了**
+**問題**: グローバルなロケール管理により、並行リクエスト間で言語設定が干渉
+
+**実装済み解決策**:
+- `contextvars`を使用したコンテキストスコープのロケール管理
+- `src/scryfall_mcp/i18n/locales.py` で実装完了
+- `use_locale()` コンテキストマネージャーによるスレッドセーフな言語設定
+```python
+@contextmanager
+def use_locale(locale_code: str):
+    """Context manager for setting locale in current context."""
+    token = _current_locale_context.set(locale_code)
+    try:
+        yield locale_code
+    finally:
+        _current_locale_context.reset(token)
+```
+
+### 2. 責任の混在 ✅ **完了**
+**問題**: `CardSearchTool.execute`メソッドに複数の責任が集中
+
+**実装済み解決策**:
+- パーサー → クエリビルダー → プレゼンターのパイプライン分離
+- `src/scryfall_mcp/search/` モジュールで実装完了
+  - `parser.py`: 自然言語解析
+  - `builder.py`: Scryfallクエリ構築
+  - `presenter.py`: MCP出力フォーマット
+  - `models.py`: データモデル定義
+
+### 3. 未実装のキャッシュシステム ✅ **完了**
+**以前の問題**: 設定にキャッシュ項目はあるが実装は空
+
+**実装済み解決策**:
+- メモリ + Redis の2層キャッシュシステム実装完了
+- `src/scryfall_mcp/cache/` モジュールで実装完了
+  - `backends.py`: Memory/Redis/Composite cache実装
+  - `manager.py`: キャッシュマネージャーとファクトリー
+- 設定済みTTL（検索結果30分、カード詳細24時間、オートコンプリート15分）
+- Redis接続失敗時のグレースフルフォールバック
+
+### 4. 静的な日本語マッピング 🔄 **部分対応**
 **問題**:
 - 日本語カード名辞書は一部の有名カードのみ
 - 新カードへの対応が手動で困難
-- `src/scryfall_mcp/i18n/mappings/ja.py:339-407`
 
-**改善案**:
+**改善案**（将来実装）:
 - 日本語トークナイザー（MeCab、SudachiPy）統合
 - ベクター検索による意図検出
 - 動的カード名ルックアップ
 
-### 5. MCP機能の未活用
-**問題**:
-- fastmcpの豊富なコンテンツタイプ（画像、構造化データ）が文字列に変換される
-- `src/scryfall_mcp/server.py:103-112` でデータが失われる
+### 5. MCP機能の未活用 ✅ **完了**
+**問題**: fastmcpの豊富なコンテンツタイプが文字列に変換される
 
-**改善**: 構造化MCPコンテンツを返してメタデータや画像URLを保持
+**実装済み解決策**:
+- 構造化MCPレスポンスの実装完了
+- `EmbeddedResource`によるメタデータ保持
+- カスタムURIスキーマ（`card://scryfall/{id}`）による構造化データ
+- ImageContent、TextContent、EmbeddedResourceの適切な使い分け
+
+### 6. エラーハンドリング強化 ✅ **完了**
+**実装済み解決策**:
+- ステータス別詳細エラー情報（400/403/429/500+系）
+- 日本語・英語両方での実行可能なガイダンス
+- `src/scryfall_mcp/errors/` モジュールで実装完了
+- クエリ固有の回復提案機能
 
 ## 必要な追加技術・機能
 
@@ -124,19 +179,24 @@ uv run pytest --cov=scryfall_mcp --cov-report=term-missing
 
 ## 開発優先順位
 
-1. **High Priority** 🚨
-   - 並行ロケール管理の修正
-   - キャッシュシステムの実装
-   - 構造化MCPレスポンス対応
+### 完了済み ✅
+**High Priority タスク（すべて完了）**:
+- ✅ 並行ロケール管理の修正（contextvarsベース）
+- ✅ キャッシュシステムの実装（2層キャッシュ）
+- ✅ 構造化MCPレスポンス対応（EmbeddedResource）
 
-2. **Medium Priority**
-   - 検索ツールの責任分離
-   - エラーハンドリング強化
-   - 観測可能性の追加
+**Medium Priority タスク（すべて完了）**:
+- ✅ 検索ツールの責任分離（Parser → QueryBuilder → Presenter）
+- ✅ エラーハンドリング強化（ステータス別多言語対応）
 
-3. **Low Priority**
-   - 日本語NLP強化
-   - Redis統合完成
-   - 運用管理機能
+### 残存タスク
+
+1. **Medium Priority**
+   - 観測可能性の追加（構造化ログ、メトリクス、トレーシング）
+
+2. **Low Priority**
+   - 日本語NLP強化（トークナイザー統合、ベクター検索）
+   - Redis統合完成（ヘルスチェック、設定検証）
+   - 運用管理機能（グレースフルシャットダウン、レディネスプローブ）
 
 このドキュメントは定期的に更新し、設計決定と技術的負債の現状を反映させること。
