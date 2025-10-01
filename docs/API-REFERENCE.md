@@ -12,7 +12,7 @@ Magic: The Gatheringのカードを検索します。
 |------------|----|----|-----------|------|
 | `query` | string | ✓ | - | 検索クエリ（自然言語またはScryfall構文） |
 | `language` | string | - | null | 言語コード（"en", "ja"） |
-| `max_results` | integer | - | 20 | 最大検索結果数（1-100） |
+| `max_results` | integer | - | 20 | 最大の検索結果数（1-100） |
 | `include_images` | boolean | - | true | 画像を含めるか |
 | `format_filter` | string | - | null | フォーマット指定（"standard", "modern"等） |
 
@@ -106,7 +106,7 @@ autocomplete_card_names({
 | `format:フォーマット` | フォーマット指定 | `format:standard` |
 | `set:セット` | セット指定 | `set:znr` |
 
-### 日本語検索対応
+### 日本語の検索対応
 
 #### 色の指定
 

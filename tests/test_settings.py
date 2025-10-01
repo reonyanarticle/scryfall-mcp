@@ -201,12 +201,12 @@ class TestSettingsIntegration:
         """Test Redis-specific settings."""
         settings = Settings(
             cache_backend="redis",
-            redis_url="redis://localhost:6379/0",
+            cache_redis_url="redis://localhost:6379/0",
             redis_db=5,
         )
 
         assert settings.cache_backend == "redis"
-        assert settings.redis_url == "redis://localhost:6379/0"
+        assert settings.cache_redis_url == "redis://localhost:6379/0"
         assert settings.redis_db == 5
 
         # Test Redis DB validation

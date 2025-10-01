@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from scryfall_mcp.i18n import set_current_locale
+from scryfall_mcp.i18n import set_current_locale, get_current_mapping
 from scryfall_mcp.search.builder import QueryBuilder
 
 
@@ -14,7 +14,8 @@ class TestQueryBuilder:
     @pytest.fixture
     def query_builder(self):
         """Create a query builder for testing."""
-        return QueryBuilder()
+        mapping = get_current_mapping()
+        return QueryBuilder(mapping)
 
     @pytest.fixture(autouse=True)
     def reset_locale(self):
@@ -41,7 +42,8 @@ class TestQueryBuilder:
     def test_normalize_text_japanese(self, query_builder):
         """Test Japanese text normalization."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()  # Recreate with Japanese locale
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)  # Recreate with Japanese locale
 
         # Test full-width number conversion
         result = query_builder._normalize_text("パワー３以上")
@@ -78,21 +80,24 @@ class TestQueryBuilder:
     def test_build_query_japanese(self, query_builder):
         """Test query building in Japanese."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Test Japanese color + type conversion
         result = query_builder.build_query("白いクリーチャー")
         assert "c:w" in result
         assert "t:creature" in result
 
-        # Test Japanese card name conversion
+        # Test Japanese card name pass-through (no conversion)
         result = query_builder.build_query("稲妻")
-        assert "Lightning Bolt" in result
+        # Card name should remain in Japanese - Scryfall handles multilingual lookup
+        assert "稲妻" in result
 
     def test_convert_colors_japanese(self, query_builder):
         """Test Japanese color conversion."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         test_cases = [
             ("白いクリーチャー", "c:w t:creature"),
@@ -109,7 +114,8 @@ class TestQueryBuilder:
     def test_convert_operators_japanese(self, query_builder):
         """Test Japanese operator conversion."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         test_cases = [
             ("パワーが3以上", "p>=3"),
@@ -127,25 +133,35 @@ class TestQueryBuilder:
             assert expected in result
 
     def test_convert_card_names_japanese(self, query_builder):
-        """Test Japanese card name conversion."""
-        set_current_locale("ja")
-        query_builder = QueryBuilder()
+        """Test Japanese card name pass-through (no conversion).
 
-        # Test basic lands
+        Japanese card names are now passed directly to Scryfall's API
+        which natively supports multilingual card names via the printed_name
+        field and lang: parameter.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test that Japanese card names are passed through unchanged
         test_cases = [
-            ("平地", '"Plains"'),
-            ("島", '"Island"'),
-            ("稲妻", '"Lightning Bolt"'),
+            "平地",
+            "島",
+            "稲妻",
+            "エイトグ",
+            "アトガトグ",
         ]
 
-        for ja_name, expected in test_cases:
+        for ja_name in test_cases:
             result = query_builder._convert_card_names(ja_name)
-            assert expected in result
+            # Card names should be unchanged - Scryfall handles multilingual lookup
+            assert result == ja_name
 
     def test_convert_phrases_japanese(self, query_builder):
         """Test Japanese phrase conversion."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         test_cases = [
             ("を持つクリーチャー", "t:creature"),
@@ -177,7 +193,8 @@ class TestQueryBuilder:
     def test_suggest_corrections_japanese(self, query_builder):
         """Test suggestion for Japanese corrections."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Test common misspellings
         suggestions = query_builder.suggest_corrections("くりーちゃー")
@@ -187,7 +204,8 @@ class TestQueryBuilder:
     def test_get_search_help_japanese(self, query_builder):
         """Test search help in Japanese."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         help_info = query_builder.get_search_help()
 
@@ -227,7 +245,8 @@ class TestQueryBuilder:
     def test_complex_japanese_query(self, query_builder):
         """Test complex Japanese query building."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Complex query with multiple Japanese elements
         complex_query = "パワー3以上の赤いクリーチャーでマナ総量5以下"
@@ -256,7 +275,8 @@ class TestQueryBuilder:
     def test_mixed_language_query(self, query_builder):
         """Test query with mixed languages."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Mix of Japanese and English
         mixed_query = "白い creature パワー3以上"
@@ -280,7 +300,8 @@ class TestQueryBuilder:
     def test_japanese_number_integration(self, query_builder):
         """Test integration of Japanese number conversion with operators."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Full-width numbers with operators
         query = "パワー３以上タフネス５以下"
@@ -292,7 +313,8 @@ class TestQueryBuilder:
     def test_basic_term_conversion(self, query_builder):
         """Test basic search term conversion."""
         set_current_locale("ja")
-        query_builder = QueryBuilder()
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
 
         # Test individual term conversions
         test_cases = [

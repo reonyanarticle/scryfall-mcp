@@ -60,10 +60,34 @@ def use_locale(locale_code: str):
 - **実行可能な提案**: クエリ固有の回復方法提示
 - **多言語サポート**: 日本語・英語での詳細エラーメッセージ
 
+### ネイティブ多言語カード検索
+```python
+# 日本語カード名をそのまま Scryfall API に渡す
+def _convert_card_names(self, text: str) -> str:
+    """Pass card names as-is to Scryfall.
+
+    Scryfall natively supports multilingual card names through
+    the printed_name field and lang: parameter.
+    """
+    return text  # No pre-translation needed
+
+# search.py で言語フィルタを追加
+if request.language and request.language != "en":
+    scryfall_query += f" lang:{request.language}"
+
+search_result = await client.search_cards(
+    query=scryfall_query,
+    include_multilingual=True,  # 多言語カードデータを取得
+)
+```
+- **完全カバレッジ**: 全27000+カードを自動サポート
+- **メンテナンスフリー**: 新セットの手動登録が不要
+- **ネイティブファジーマッチング**: Scryfallの高精度検索を活用
+
 ## 設計課題と実装状況
 
-### 1. 並行性の問題 ✅ **完了**
-**問題**: グローバルなロケール管理により、並行リクエスト間で言語設定が干渉
+### 1. 並行性の問題（完了）
+**問題**: グローバルなロケール管理により、並行リクエスト間で言語設定が干渉。
 
 **実装済み解決策**:
 - `contextvars`を使用したコンテキストスコープのロケール管理
@@ -80,8 +104,8 @@ def use_locale(locale_code: str):
         _current_locale_context.reset(token)
 ```
 
-### 2. 責任の混在 ✅ **完了**
-**問題**: `CardSearchTool.execute`メソッドに複数の責任が集中
+### 2. 責任の混在（完了）
+**問題**: `CardSearchTool.execute`メソッドに複数の責任が集中。
 
 **実装済み解決策**:
 - パーサー → クエリビルダー → プレゼンターのパイプライン分離
@@ -91,8 +115,8 @@ def use_locale(locale_code: str):
   - `presenter.py`: MCP出力フォーマット
   - `models.py`: データモデル定義
 
-### 3. 未実装のキャッシュシステム ✅ **完了**
-**以前の問題**: 設定にキャッシュ項目はあるが実装は空
+### 3. 未実装のキャッシュシステム（完了）
+**以前の問題**: 設定にキャッシュ項目はあるが実装は空。
 
 **実装済み解決策**:
 - メモリ + Redis の2層キャッシュシステム実装完了
@@ -102,18 +126,21 @@ def use_locale(locale_code: str):
 - 設定済みTTL（検索結果30分、カード詳細24時間、オートコンプリート15分）
 - Redis接続失敗時のグレースフルフォールバック
 
-### 4. 静的な日本語マッピング 🔄 **部分対応**
-**問題**:
-- 日本語カード名辞書は一部の有名カードのみ
-- 新カードへの対応が手動で困難
+### 4. 静的な日本語マッピング（完了）
+**以前の問題**:
+- 日本語カード名辞書は40カードのみ（全27000カードの0.15%）。
+- 新カードへの対応が手動で困難。
+- Scryfallのネイティブ多言語機能を活用していなかった。
 
-**改善案**（将来実装）:
-- 日本語トークナイザー（MeCab、SudachiPy）統合
-- ベクター検索による意図検出
-- 動的カード名ルックアップ
+**実装済み解決策**:
+- カード名の事前翻訳を廃止し、日本語のまま Scryfall API に渡す方式に変更
+- `lang:` パラメータによる言語フィルタリングを追加
+- `include_multilingual=True` で多言語カードデータを取得
+- Scryfallの `printed_name` フィールドとネイティブファジーマッチングを活用
+- 完全なカードカバレッジ（全27000+カード対応）、メンテナンスフリー
 
-### 5. MCP機能の未活用 ✅ **完了**
-**問題**: fastmcpの豊富なコンテンツタイプが文字列に変換される
+### 5. MCP機能の未活用（完了）
+**問題**: fastmcpの豊富なコンテンツタイプが文字列に変換される。
 
 **実装済み解決策**:
 - 構造化MCPレスポンスの実装完了
@@ -121,7 +148,7 @@ def use_locale(locale_code: str):
 - カスタムURIスキーマ（`card://scryfall/{id}`）による構造化データ
 - ImageContent、TextContent、EmbeddedResourceの適切な使い分け
 
-### 6. エラーハンドリング強化 ✅ **完了**
+### 6. エラーハンドリング強化（完了）
 **実装済み解決策**:
 - ステータス別詳細エラー情報（400/403/429/500+系）
 - 日本語・英語両方での実行可能なガイダンス
@@ -179,15 +206,16 @@ uv run pytest --cov=scryfall_mcp --cov-report=term-missing
 
 ## 開発優先順位
 
-### 完了済み ✅
-**High Priority タスク（すべて完了）**:
-- ✅ 並行ロケール管理の修正（contextvarsベース）
-- ✅ キャッシュシステムの実装（2層キャッシュ）
-- ✅ 構造化MCPレスポンス対応（EmbeddedResource）
+### 完了済み
+**High Priority タスク（すべて完了）**
+- 並行ロケール管理の修正（contextvarsベース）
+- キャッシュシステムの実装（2層キャッシュ）
+- 構造化MCPレスポンス対応（EmbeddedResource）
+- 日本語カード名検索のアーキテクチャ改善（Scryfallネイティブサポート活用）
 
-**Medium Priority タスク（すべて完了）**:
-- ✅ 検索ツールの責任分離（Parser → QueryBuilder → Presenter）
-- ✅ エラーハンドリング強化（ステータス別多言語対応）
+**Medium Priority タスク（すべて完了）**
+- 検索ツールの責任分離（Parser → QueryBuilder → Presenter）
+- エラーハンドリング強化（ステータス別多言語対応）
 
 ### 残存タスク
 

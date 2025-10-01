@@ -231,3 +231,154 @@ class TestCompositeCache:
         assert stats["type"] == "composite"
         assert "memory" in stats
         assert "redis" in stats
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_get_error_handling(self, mock_redis_from_url):
+        """Test Redis get error handling."""
+        # Setup mock Redis that fails on get
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.get.side_effect = Exception("Redis error")
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should handle error gracefully and return None
+        result = await cache.get("test_key")
+        assert result is None
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_set_error_handling(self, mock_redis_from_url):
+        """Test Redis set error handling."""
+        # Setup mock Redis that fails on set
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.setex.side_effect = Exception("Redis error")
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should handle error gracefully (no exception raised)
+        await cache.set("test_key", "test_value", ttl=60)
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_delete_error_handling(self, mock_redis_from_url):
+        """Test Redis delete error handling."""
+        # Setup mock Redis that fails on delete
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.delete.side_effect = Exception("Redis error")
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should handle error gracefully (no exception raised)
+        await cache.delete("test_key")
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_clear_error_handling(self, mock_redis_from_url):
+        """Test Redis clear error handling."""
+        # Setup mock Redis that fails on clear
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.keys.side_effect = Exception("Redis error")
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should handle error gracefully (no exception raised)
+        await cache.clear()
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_clear_with_keys(self, mock_redis_from_url):
+        """Test Redis clear when keys are found."""
+        # Setup mock Redis with keys to delete
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.keys.return_value = ["scryfall:key1", "scryfall:key2"]
+        mock_redis.delete = AsyncMock()
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should delete all matching keys
+        await cache.clear()
+        mock_redis.delete.assert_called_once_with("scryfall:key1", "scryfall:key2")
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_clear_with_no_keys(self, mock_redis_from_url):
+        """Test Redis clear when no keys are found."""
+        # Setup mock Redis with no keys
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.keys.return_value = []
+        mock_redis.delete = AsyncMock()
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Should not call delete when no keys found
+        await cache.clear()
+        mock_redis.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_redis_close(self, mock_redis_from_url):
+        """Test Redis connection close."""
+        # Setup mock Redis
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.close = AsyncMock()
+        mock_redis_from_url.return_value = mock_redis
+
+        cache = RedisCache()
+
+        # Initialize connection
+        await cache.get("test")
+
+        # Close should call redis close
+        await cache.close()
+        mock_redis.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_redis_close_without_connection(self):
+        """Test Redis close without active connection."""
+        cache = RedisCache()
+
+        # Should not raise error when closing without connection
+        await cache.close()
+
+    @pytest.mark.asyncio
+    @patch('redis.asyncio.from_url')
+    async def test_composite_cache_l2_writeback(self, mock_redis_from_url):
+        """Test L2 cache writeback to L1."""
+        # Setup mock Redis
+        mock_redis = AsyncMock()
+        mock_redis.ping.return_value = True
+        mock_redis.get.return_value = '"cached_value"'
+        mock_redis_from_url.return_value = mock_redis
+
+        memory_cache = MemoryCache(max_size=3)
+        redis_cache = RedisCache()
+        composite = CompositeCache(memory_cache, redis_cache)
+
+        # Get from L2 (Redis) should write back to L1 (memory)
+        result = await composite.get("test_key")
+        assert result == "cached_value"
+
+        # Should now be in L1
+        memory_result = await memory_cache.get("test_key")
+        assert memory_result == "cached_value"
+
+    @pytest.mark.asyncio
+    async def test_memory_cache_close(self):
+        """Test memory cache close (no-op)."""
+        cache = MemoryCache()
+        # Should not raise error
+        await cache.close()

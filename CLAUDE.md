@@ -10,7 +10,7 @@ Magic: The Gatheringのカード情報を提供するScryfall APIをMCP (Model C
 - カード価格情報の取得と通貨換算
 - デッキ構成の統計分析
 - 多言語カード名のサポート（日本語、英語、その他）
-- 地域別価格表示とタイムゾーン対応
+- 地域別の価格表示とタイムゾーン対応
 
 ## プロジェクト構造
 
@@ -184,9 +184,9 @@ operators = {"以下": "<=", "以上": ">=", "より大きい": ">"}
 colors = {"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g"}
 ```
 
-### 地域別価格対応
+### 地域別の価格対応
 - 通貨自動変換（USD → JPY, EUR等）
-- 地域別価格表示設定
+- 地域別の価格表示設定
 - タイムゾーン考慮した価格更新
 
 ## セキュリティ
@@ -213,7 +213,7 @@ colors = {"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g"}
 
 ## CI/CD
 
-GitHub Actionsで以下を実行:
+GitHub Actionsで以下を実行します。
 1. リント・フォーマットチェック
 2. 型チェック
 3. テスト実行
@@ -230,4 +230,4 @@ GitHub Actionsで以下を実行:
 - API-REFERENCE.md: MCPツール仕様とScryfall検索構文
 - CONFIGURATION.md: 環境変数設定ガイド
 - DEVELOPMENT.md: 開発環境セットアップと規約
-- INTERNATIONALIZATION.md: 多言語対応実装ガイド
+- INTERNATIONALIZATION.md: 多言語対応の実装ガイド

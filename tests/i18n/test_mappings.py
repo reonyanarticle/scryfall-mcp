@@ -226,20 +226,15 @@ class TestJapaneseMapping:
         assert phrases["タフネスが等しい"] == "tou="
 
     def test_japanese_card_names(self):
-        """Test Japanese card name mappings."""
-        # Test that JAPANESE_CARD_NAMES is properly defined
+        """Test Japanese card name mappings are deprecated.
+
+        The JAPANESE_CARD_NAMES dictionary is now deprecated because Scryfall
+        natively supports multilingual card names. Japanese card names are
+        passed directly to Scryfall API which handles the lookup automatically.
+        """
+        # Test that JAPANESE_CARD_NAMES exists but is empty (deprecated)
         assert isinstance(JAPANESE_CARD_NAMES, dict)
-        assert len(JAPANESE_CARD_NAMES) > 0
-
-        # Test some basic land names
-        assert JAPANESE_CARD_NAMES["平地"] == "Plains"
-        assert JAPANESE_CARD_NAMES["島"] == "Island"
-        assert JAPANESE_CARD_NAMES["沼"] == "Swamp"
-        assert JAPANESE_CARD_NAMES["山"] == "Mountain"
-        assert JAPANESE_CARD_NAMES["森"] == "Forest"
-
-        # Test some famous cards
-        assert JAPANESE_CARD_NAMES["稲妻"] == "Lightning Bolt"
+        assert len(JAPANESE_CARD_NAMES) == 0  # Should be empty - deprecated
 
         # All values should be valid English card names
         for ja_name, en_name in JAPANESE_CARD_NAMES.items():
@@ -319,12 +314,8 @@ class TestMappingValidation:
         for color in ja_colors:
             assert len(color) == 1, f"Japanese color should be single character: {color}"
 
-        # Test that basic lands are properly mapped
-        basic_lands_ja = ["平地", "島", "沼", "山", "森"]
-        basic_lands_en = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
-
-        for ja_land, en_land in zip(basic_lands_ja, basic_lands_en, strict=False):
-            assert JAPANESE_CARD_NAMES[ja_land] == en_land
+        # JAPANESE_CARD_NAMES is now deprecated - Scryfall handles multilingual names natively
+        # No need to validate card name mappings as they're no longer used
 
     def test_mapping_types_are_correct(self):
         """Test that all mapping values have correct types."""

@@ -124,15 +124,27 @@ class TestSearchProcessor:
         assert "Black Lotus" in entities["card_names"]
 
     def test_extract_entities_japanese_card_names(self, processor):
-        """Test extraction of Japanese card names."""
+        """Test that unquoted Japanese card names are NOT extracted as entities.
+
+        Japanese card names are no longer extracted as distinct entities since
+        we deprecated the static JAPANESE_CARD_NAMES dictionary. Unquoted card
+        names remain as part of the query text and Scryfall handles them natively.
+
+        Quoted card names (e.g., "稲妻") are still extracted.
+        """
         set_current_locale("ja")
         processor = SearchProcessor()
 
+        # Unquoted card names are NOT extracted
         query = "稲妻と平地を探して"
         entities = processor._extract_entities(query)
+        assert len(entities["card_names"]) == 0
 
-        assert "Lightning Bolt" in entities["card_names"]
-        assert "Plains" in entities["card_names"]
+        # But quoted card names ARE extracted
+        query_quoted = '"稲妻"と"平地"を探して'
+        entities_quoted = processor._extract_entities(query_quoted)
+        assert "稲妻" in entities_quoted["card_names"]
+        assert "平地" in entities_quoted["card_names"]
 
     def test_extract_entities_comprehensive(self, processor):
         """Test comprehensive entity extraction."""

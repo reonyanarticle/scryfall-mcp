@@ -2,7 +2,7 @@
 
 ## 概要
 
-Scryfall MCP Serverは、日本語と英語のバイリンガル対応を提供し、自然言語での検索クエリを適切なScryfall API構文に変換します。
+Scryfall MCP Serverは、日本語と英語のバイリンガル対応を提供し、自然言語での検索クエリを正しいScryfall API構文に変換します。
 
 ## 対応言語
 
@@ -45,19 +45,28 @@ from scryfall_mcp.i18n import set_current_locale
 set_current_locale("ja")
 ```
 
-## 日本語検索機能
+## 日本語の検索機能
 
-### カード名の変換
+### カード名のネイティブサポート
+
+日本語のカード名は、Scryfallの`printed_name`フィールドと`lang:`パラメータによるネイティブサポートにより、事前翻訳なしで直接検索できます。
 
 ```python
-# 日本語カード名 -> 英語カード名
-"稲妻" -> "Lightning Bolt"
-"平地" -> "Plains"
-"島" -> "Island"
-"沼" -> "Swamp"
-"山" -> "Mountain"
-"森" -> "Forest"
+# 日本語カード名をそのまま使用
+"稲妻" -> Scryfallが自動的に "Lightning Bolt" とマッチング
+"平地" -> Scryfallが自動的に "Plains" とマッチング
+"島" -> Scryfallが自動的に "Island" とマッチング
+
+# lang: パラメータで言語フィルタリング
+query = "稲妻 lang:ja"  # 日本語版のみ検索
+query = "Lightning Bolt lang:ja"  # 英語名で日本語版を検索
 ```
+
+**利点**:
+- 全27000+カードに自動対応
+- 新セットの手動登録が不要
+- Scryfallのファジーマッチングを活用
+- 複数言語の同時サポート
 
 ### 色の指定
 
@@ -136,11 +145,32 @@ JAPANESE_MAPPING = LanguageMapping(
         "以下": "<=",
         # ...
     },
-    card_names={
-        "稲妻": "Lightning Bolt",
-        "平地": "Plains",
-        # ...
-    }
+    # 注: card_names辞書は非推奨
+    # Scryfallがネイティブに多言語カード名をサポートするため、
+    # 事前翻訳辞書は不要になりました
+)
+```
+
+### カード名検索の実装
+
+```python
+# 旧方式（非推奨）: 静的辞書による事前翻訳
+# card_names = {"稲妻": "Lightning Bolt", ...}
+# translated = card_names.get(japanese_name)
+
+# 新方式（推奨）: Scryfallネイティブサポート
+def _convert_card_names(self, text: str) -> str:
+    """日本語カード名をそのまま渡す"""
+    return text  # Scryfallが自動的に多言語名を処理
+
+# 検索時にlang:パラメータを追加
+if language == "ja":
+    query += " lang:ja"
+
+# include_multilingual=Trueで多言語データを取得
+result = await client.search_cards(
+    query=query,
+    include_multilingual=True
 )
 ```
 
@@ -214,7 +244,7 @@ def extract_entities(text: str) -> dict[str, list[str]]:
     entities = {
         "colors": [],
         "types": [],
-        "card_names": [],
+        "card_names": [],  # 引用符で囲まれたカード名のみ
         "numbers": [],
     }
 
@@ -222,6 +252,13 @@ def extract_entities(text: str) -> dict[str, list[str]]:
     for ja_color, en_color in color_mapping.items():
         if ja_color in text:
             entities["colors"].append(en_color)
+
+    # 引用符で囲まれたカード名を抽出
+    quoted_names = re.findall(r'"([^"]+)"', text)
+    entities["card_names"].extend(quoted_names)
+
+    # 注: 引用符なしの日本語カード名は抽出しない
+    # Scryfallが検索時に自動的に処理する
 
     return entities
 ```
@@ -361,7 +398,7 @@ logger.debug(f"Translated query: {translated_query}")
 
 ## ベストプラクティス
 
-1. **段階的な翻訳**: 完璧な翻訳より段階的な改善
+1. **段階的な翻訳**: 完全な翻訳より段階的な改善
 2. **フォールバック**: 翻訳できない場合は英語で継続
 3. **ユーザーフィードバック**: 翻訳精度の改善に活用
 4. **文脈考慮**: 単語単位でなく文脈を考慮した翻訳

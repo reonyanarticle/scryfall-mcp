@@ -335,50 +335,19 @@ class JapaneseMapping(LanguageMapping):
 # Global instance
 japanese_mapping = JapaneseMapping()
 
-# Common Japanese card names mapping (frequently searched cards)
-JAPANESE_CARD_NAMES = {
-    # Lands
-    "平地": "Plains",
-    "島": "Island",
-    "沼": "Swamp",
-    "山": "Mountain",
-    "森": "Forest",
-
-    # Famous cards
-    "稲妻": "Lightning Bolt",
-    "対抗呪文": "Counterspell",
-    "暗黒の儀式": "Dark Ritual",
-    "巨大化": "Giant Growth",
-    "剣を鍬に": "Swords to Plowshares",
-    "蓮の花の花びら": "Lotus Petal",
-    "Black Lotus": "Black Lotus",
-    "時の歩み": "Time Walk",
-    "祖先の回想": "Ancestral Recall",
-    "タイムツイスター": "Timetwister",
-    "Mox Sapphire": "Mox Sapphire",
-    "Mox Ruby": "Mox Ruby",
-    "Mox Pearl": "Mox Pearl",
-    "Mox Emerald": "Mox Emerald",
-    "Mox Jet": "Mox Jet",
-
-    # Common creatures
-    "稲妻の天使": "Lightning Angel",
-    "タルモゴイフ": "Tarmogoyf",
-    "瞬唱の魔道士": "Snapcaster Mage",
-    "石鍛冶の神秘家": "Stoneforge Mystic",
-    "真の名の宿敵": "True-Name Nemesis",
-    "宝船の巡航": "Treasure Cruise",
-    "時を解す者、テフェリー": "Teferi, Time Raveler",
-
-    # Planeswalkers
-    "精神を刻む者、ジェイス": "Jace, the Mind Sculptor",
-    "炎の血族、チャンドラ": "Chandra, Fire of Kaladesh",
-    "死者の王、リリアナ": "Liliana of the Veil",
-    "自然の怒り、ガラク": "Garruk Wildspeaker",
-
-    # Artifacts
-    "太陽の指輪": "Sol Ring",
-    "精神石": "Mind Stone",
-    "統率者の宝球": "Commander's Sphere",
-    "敏捷なこそ泥": "Deft Duelist",
+# DEPRECATED: This static card name dictionary is no longer used.
+# Scryfall natively supports multilingual card names via the printed_name field
+# and lang: parameter. No pre-translation is needed.
+#
+# The query builder now passes Japanese card names directly to Scryfall,
+# which handles the lookup automatically. This provides:
+# - Complete coverage of all 27,000+ cards
+# - Zero maintenance burden
+# - Automatic support for new sets
+# - Native fuzzy matching in all languages
+#
+# For reference only (will be removed in future version):
+JAPANESE_CARD_NAMES: dict[str, str] = {
+    # This dictionary is no longer used by the codebase
+    # See: builder.py _convert_card_names() method
 }

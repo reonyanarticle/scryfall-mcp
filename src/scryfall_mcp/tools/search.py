@@ -7,18 +7,20 @@ using natural language queries with Japanese support.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mcp import Tool
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 from pydantic import BaseModel, Field
 
 from ..api.client import ScryfallAPIError, get_client
+from ..errors import ErrorCategory, ErrorContext, get_error_handler
 from ..i18n import get_current_mapping, use_locale
-from ..search.processor import SearchProcessor
+from ..search.builder import QueryBuilder
+from ..search.models import SearchOptions
+from ..search.parser import SearchParser
+from ..search.presenter import SearchPresenter
 
-if TYPE_CHECKING:
-    from ..api.models import Card
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ class CardSearchTool:
 
     @staticmethod
     async def execute(arguments: dict[str, Any]) -> list[TextContent | ImageContent | EmbeddedResource]:
-        """Execute the card search.
+        """Execute the card search using the refactored pipeline.
 
         Parameters
         ----------
@@ -65,159 +67,110 @@ class CardSearchTool:
 
             # Use context-based locale management
             with use_locale(request.language or "en"):
-                # Initialize processor and client
-                processor = SearchProcessor()
-                client = await get_client()
-
-                # Process the natural language query
-                processed = processor.process_query(request.query, request.language)
-                scryfall_query = processed["scryfall_query"]
-
+                # Get locale-aware components
+                mapping = get_current_mapping()
+                parser = SearchParser(mapping)
+                builder = QueryBuilder(mapping)
+                presenter = SearchPresenter(mapping)
+                
+                # Step 1: Parse the natural language query
+                parsed = parser.parse(request.query)
+                
+                # Step 2: Build the Scryfall query
+                built = builder.build(parsed)
+                
                 # Add format filter if specified
+                scryfall_query = built.scryfall_query
                 if request.format_filter:
                     scryfall_query += f" f:{request.format_filter}"
 
+                # Add language filter if specified (for multilingual card search)
+                if request.language and request.language != "en":
+                    scryfall_query += f" lang:{request.language}"
+
+                # Update the built query with the modified query
+                built.scryfall_query = scryfall_query
+
                 logger.info(f"Searching with query: {scryfall_query}")
 
-                # Search for cards
+                # Step 3: Execute the search
+                client = await get_client()
                 try:
                     search_result = await client.search_cards(
                         query=scryfall_query,
                         page=1,
+                        include_multilingual=True,  # Enable multilingual card data
                     )
                 except ScryfallAPIError as e:
-                    return [TextContent(
-                        type="text",
-                        text=f"検索エラー: {e}" if request.language == "ja" else f"Search error: {e}",
-                    )]
+                    # Use enhanced error handling
+                    error_handler = get_error_handler()
 
-                # Limit results
-                cards = search_result.data[:request.max_results]
+                    # Determine error category based on status code and context
+                    category = ErrorCategory.API_ERROR
+                    if e.status_code == 400:
+                        category = ErrorCategory.SEARCH_SYNTAX_ERROR
+                    elif e.status_code == 429:
+                        category = ErrorCategory.RATE_LIMIT_ERROR
+                    elif e.status_code in (500, 502, 503, 504):
+                        category = ErrorCategory.SERVICE_UNAVAILABLE
+                    elif "timeout" in e.context.get("category", ""):
+                        category = ErrorCategory.NETWORK_ERROR
+                    elif "network_error" in e.context.get("category", ""):
+                        category = ErrorCategory.NETWORK_ERROR
 
-                if not cards:
-                    mapping = get_current_mapping()
-                    no_results_msg = mapping.phrases.get("no results found", "No cards found.")
-                    return [TextContent(type="text", text=no_results_msg)]
+                    context = ErrorContext(
+                        category=category,
+                        status_code=e.status_code,
+                        original_error=str(e),
+                        user_query=request.query,
+                        language=request.language or "en",
+                        additional_info=e.context,
+                    )
 
-                # Format results
-                content_items: list[TextContent | ImageContent | EmbeddedResource] = []
+                    error_info = error_handler.handle_error(context)
+                    formatted_error = error_handler.format_error_message(error_info)
+                    return [TextContent(type="text", text=formatted_error)]
 
-                # Add search summary
-                summary = CardSearchTool._format_search_summary(
-                    processed, search_result.total_cards, len(cards), request.language,
+                # Handle no results with enhanced guidance
+                if not search_result.data:
+                    error_handler = get_error_handler()
+                    context = ErrorContext(
+                        category=ErrorCategory.NO_RESULTS_ERROR,
+                        original_error="No cards found",
+                        user_query=request.query,
+                        language=request.language or "en",
+                    )
+
+                    error_info = error_handler.handle_error(context)
+                    formatted_error = error_handler.format_error_message(error_info)
+                    return [TextContent(type="text", text=formatted_error)]
+
+                # Step 4: Present the results
+                search_options = SearchOptions(
+                    max_results=request.max_results,
+                    include_images=request.include_images,
+                    format_filter=request.format_filter,
+                    language=request.language
                 )
-                content_items.append(TextContent(type="text", text=summary))
-
-                # Add card results
-                for i, card in enumerate(cards, 1):
-                    card_text = CardSearchTool._format_card_result(card, i, request.language)
-                    content_items.append(TextContent(type="text", text=card_text))
-
-                    # Add card image if requested and available
-                    if request.include_images and card.image_uris and card.image_uris.normal:
-                        content_items.append(ImageContent(
-                            type="image",
-                            data=str(card.image_uris.normal),
-                            mimeType="image/jpeg",
-                        ))
-
-                # Add suggestions if available
-                if processed["suggestions"]:
-                    suggestions_text = "\n".join(processed["suggestions"])
-                    if request.language == "ja":
-                        suggestions_text = f"**提案:**\n{suggestions_text}"
-                    else:
-                        suggestions_text = f"**Suggestions:**\n{suggestions_text}"
-                    content_items.append(TextContent(type="text", text=suggestions_text))
-
-                return content_items
+                
+                return presenter.present_results(search_result, built, search_options)
 
         except Exception as e:
             logger.error(f"Error in card search: {e}", exc_info=True)
-            # Safe error handling without referencing potentially undefined 'request'
-            try:
-                error_msg = f"予期しないエラーが発生しました: {e}" if arguments.get("language") == "ja" else f"An unexpected error occurred: {e}"
-            except Exception:
-                error_msg = f"An unexpected error occurred: {e}"
-            return [TextContent(type="text", text=error_msg)]
 
-    @staticmethod
-    def _format_search_summary(
-        processed: dict[str, Any],
-        total_cards: int,
-        shown_cards: int,
-        language: str | None,
-    ) -> str:
-        """Format search summary."""
-        if language == "ja":
-            summary = "**検索結果**\n"
-            summary += f"元のクエリ: {processed['original_query']}\n"
-            summary += f"Scryfallクエリ: {processed['scryfall_query']}\n"
-            summary += f"総カード数: {total_cards}枚\n"
-            summary += f"表示: {shown_cards}枚\n"
-            if processed["detected_intent"] != "general_search":
-                summary += f"検索意図: {processed['detected_intent']}\n"
-        else:
-            summary = "**Search Results**\n"
-            summary += f"Original query: {processed['original_query']}\n"
-            summary += f"Scryfall query: {processed['scryfall_query']}\n"
-            summary += f"Total cards: {total_cards}\n"
-            summary += f"Showing: {shown_cards}\n"
-            if processed["detected_intent"] != "general_search":
-                summary += f"Intent: {processed['detected_intent']}\n"
+            # Use enhanced error handling for unexpected errors
+            error_handler = get_error_handler()
+            context = ErrorContext(
+                category=ErrorCategory.UNKNOWN_ERROR,
+                original_error=str(e),
+                user_query=arguments.get("query"),
+                language=arguments.get("language", "en"),
+                additional_info={"error_type": type(e).__name__},
+            )
 
-        return summary
-
-    @staticmethod
-    def _format_card_result(card: Card, index: int, language: str | None) -> str:
-        """Format a single card result."""
-        if language == "ja":
-            result = f"**{index}. {card.name}**\n"
-            result += f"マナコスト: {card.mana_cost or 'なし'}\n"
-            result += f"タイプ: {card.type_line}\n"
-
-            if card.oracle_text:
-                result += f"テキスト: {card.oracle_text}\n"
-
-            if card.power is not None and card.toughness is not None:
-                result += f"パワー/タフネス: {card.power}/{card.toughness}\n"
-            elif card.loyalty is not None:
-                result += f"忠誠度: {card.loyalty}\n"
-
-            result += f"レアリティ: {card.rarity}\n"
-            result += f"セット: {card.set_name} ({card.set.upper()})\n"
-
-            # Price information
-            if card.prices.usd:
-                result += f"価格: ${card.prices.usd} USD"
-                if card.prices.eur:
-                    result += f", €{card.prices.eur} EUR"
-                result += "\n"
-
-        else:
-            result = f"**{index}. {card.name}**\n"
-            result += f"Mana Cost: {card.mana_cost or 'None'}\n"
-            result += f"Type: {card.type_line}\n"
-
-            if card.oracle_text:
-                result += f"Text: {card.oracle_text}\n"
-
-            if card.power is not None and card.toughness is not None:
-                result += f"Power/Toughness: {card.power}/{card.toughness}\n"
-            elif card.loyalty is not None:
-                result += f"Loyalty: {card.loyalty}\n"
-
-            result += f"Rarity: {card.rarity}\n"
-            result += f"Set: {card.set_name} ({card.set.upper()})\n"
-
-            # Price information
-            if card.prices.usd:
-                result += f"Price: ${card.prices.usd} USD"
-                if card.prices.eur:
-                    result += f", €{card.prices.eur} EUR"
-                result += "\n"
-
-        return result
+            error_info = error_handler.handle_error(context)
+            formatted_error = error_handler.format_error_message(error_info)
+            return [TextContent(type="text", text=formatted_error)]
 
 
 class AutocompleteRequest(BaseModel):
@@ -281,12 +234,20 @@ class AutocompleteTool:
 
         except Exception as e:
             logger.error(f"Error in autocomplete: {e}", exc_info=True)
-            # Safe error handling without referencing potentially undefined 'request'
-            try:
-                error_msg = f"オートコンプリートエラー: {e}" if arguments.get("language") == "ja" else f"Autocomplete error: {e}"
-            except Exception:
-                error_msg = f"Autocomplete error: {e}"
-            return [TextContent(type="text", text=error_msg)]
+
+            # Use enhanced error handling for autocomplete errors
+            error_handler = get_error_handler()
+            context = ErrorContext(
+                category=ErrorCategory.UNKNOWN_ERROR,
+                original_error=str(e),
+                user_query=arguments.get("query"),
+                language=arguments.get("language", "en"),
+                additional_info={"error_type": type(e).__name__, "operation": "autocomplete"},
+            )
+
+            error_info = error_handler.handle_error(context)
+            formatted_error = error_handler.format_error_message(error_info)
+            return [TextContent(type="text", text=formatted_error)]
 
 
 # Export tools

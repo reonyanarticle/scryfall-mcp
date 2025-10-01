@@ -9,18 +9,60 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..i18n import JAPANESE_CARD_NAMES, get_current_mapping
+from ..i18n import LanguageMapping, get_current_mapping
+from .models import ParsedQuery, BuiltQuery
 
 
 class QueryBuilder:
-    """Builds Scryfall search queries from natural language input."""
+    """Builds Scryfall search queries from parsed natural language data."""
 
-    def __init__(self) -> None:
-        """Initialize the query builder."""
-        self._mapping = get_current_mapping()
+    def __init__(self, locale_mapping: LanguageMapping):
+        """Initialize the query builder with locale-specific mappings.
+
+        Parameters
+        ----------
+        locale_mapping : LanguageMapping
+            Language-specific mappings for query building
+        """
+        self._mapping = locale_mapping
+
+    def build(self, parsed: ParsedQuery) -> BuiltQuery:
+        """Build Scryfall query from parsed data.
+
+        Parameters
+        ----------
+        parsed : ParsedQuery
+            Parsed query data
+
+        Returns
+        -------
+        BuiltQuery
+            Built query with metadata and suggestions
+        """
+        # Start with normalized text and apply transformations
+        query = self._convert_basic_terms(parsed.normalized_text)
+        query = self._convert_colors(query)
+        query = self._convert_types(query)
+        query = self._convert_operators(query)
+        query = self._convert_card_names(query)
+        query = self._convert_phrases(query)
+        query = self._clean_query(query)
+
+        # Generate suggestions based on parsed data
+        suggestions = self._generate_suggestions(parsed)
+
+        # Extract query metadata
+        metadata = self._extract_metadata(parsed, query)
+
+        return BuiltQuery(
+            scryfall_query=query,
+            original_query=parsed.original_text,
+            suggestions=suggestions,
+            query_metadata=metadata
+        )
 
     def build_query(self, text: str, locale: str | None = None) -> str:
-        """Build a Scryfall query from natural language text.
+        """Legacy method for backward compatibility.
 
         Parameters
         ----------
@@ -34,8 +76,11 @@ class QueryBuilder:
         str
             Scryfall search query
         """
+        # This method is kept for backward compatibility
+        # In the refactored version, use Parser -> QueryBuilder -> Presenter flow
+        
+        # Update mapping if locale changed
         if locale and locale != self._mapping.language_code:
-            # Update mapping if locale changed
             from ..i18n import get_locale_manager
             manager = get_locale_manager()
             self._mapping = manager.get_mapping(locale)
@@ -262,7 +307,10 @@ class QueryBuilder:
         return text
 
     def _convert_card_names(self, text: str) -> str:
-        """Convert card names from local language to English.
+        """Pass card names as-is to Scryfall.
+
+        Scryfall natively supports multilingual card names through the printed_name
+        field and lang: parameter. No pre-translation is needed.
 
         Parameters
         ----------
@@ -272,13 +320,10 @@ class QueryBuilder:
         Returns
         -------
         str
-            Text with converted card names
+            Text unchanged (Scryfall handles multilingual names)
         """
-        if self._mapping.language_code == "ja":
-            # Convert Japanese card names to English
-            for ja_name, en_name in JAPANESE_CARD_NAMES.items():
-                text = text.replace(ja_name, f'"{en_name}"')
-
+        # No conversion needed - Scryfall supports multilingual card names natively
+        # The lang: parameter will be added during query execution
         return text
 
     def _convert_phrases(self, text: str) -> str:
@@ -325,8 +370,132 @@ class QueryBuilder:
 
         return query
 
+    def _generate_suggestions(self, parsed: ParsedQuery) -> list[str]:
+        """Generate suggestions based on parsed query data.
+
+        Parameters
+        ----------
+        parsed : ParsedQuery
+            Parsed query data
+
+        Returns
+        -------
+        list[str]
+            List of suggestions
+        """
+        suggestions = []
+        entities = parsed.entities
+        text = parsed.original_text
+
+        # Suggest more specific searches
+        if not entities["colors"] and not entities["types"]:
+            if self._mapping.language_code == "ja":
+                suggestions.append("色やカードタイプを指定すると、より具体的な検索ができます")
+            else:
+                suggestions.append("Try specifying colors or card types for more specific results")
+
+        # Suggest format restrictions for competitive queries
+        if any(word in text.lower() for word in ["tournament", "competitive", "meta", "tier"]):
+            if self._mapping.language_code == "ja":
+                suggestions.append("競技用検索には f:standard や f:modern などでフォーマットを指定してみてください")
+            else:
+                suggestions.append("For competitive searches, try adding format restrictions like f:standard or f:modern")
+
+        # Check for common misspellings in Japanese
+        if self._mapping.language_code == "ja":
+            common_mistakes = {
+                "くりーちゃー": "クリーチャー",
+                "いんすたんと": "インスタント",
+                "そーさりー": "ソーサリー",
+                "あーてぃふぁくと": "アーティファクト",
+                "えんちゃんと": "エンチャント",
+            }
+
+            for mistake, correction in common_mistakes.items():
+                if mistake in text.lower():
+                    suggestions.append(f"'{mistake}' を '{correction}' の間違いですか？")
+
+        return suggestions
+
+    def _extract_metadata(self, parsed: ParsedQuery, built_query: str) -> dict[str, Any]:
+        """Extract metadata from parsed query and built query.
+
+        Parameters
+        ----------
+        parsed : ParsedQuery
+            Parsed query data
+        built_query : str
+            Built Scryfall query
+
+        Returns
+        -------
+        dict
+            Query metadata
+        """
+        return {
+            "intent": parsed.intent,
+            "extracted_entities": parsed.entities,
+            "language": parsed.language,
+            "query_complexity": self._assess_complexity(built_query),
+            "estimated_results": self._estimate_results(built_query),
+        }
+
+    def _assess_complexity(self, query: str) -> str:
+        """Assess the complexity of a query.
+
+        Parameters
+        ----------
+        query : str
+            Scryfall query
+
+        Returns
+        -------
+        str
+            Complexity assessment
+        """
+        operator_count = len(re.findall(r"[<>=!]+", query))
+        field_count = len(re.findall(r"\w+:", query))
+        
+        if operator_count > 3 or field_count > 5:
+            return "complex"
+        elif operator_count > 1 or field_count > 2:
+            return "moderate"
+        else:
+            return "simple"
+
+    def _estimate_results(self, query: str) -> str:
+        """Estimate the number of results for a query.
+
+        Parameters
+        ----------
+        query : str
+            Scryfall query
+
+        Returns
+        -------
+        str
+            Result count estimation
+        """
+        # This is a simple heuristic - more specific queries usually return fewer results
+        specificity_score = 0
+        
+        # Count specific filters
+        specificity_score += len(re.findall(r"c:", query))  # Colors
+        specificity_score += len(re.findall(r"t:", query))  # Types
+        specificity_score += len(re.findall(r"p[<>=!]", query))  # Power
+        specificity_score += len(re.findall(r"tou[<>=!]", query))  # Toughness
+        specificity_score += len(re.findall(r"mv[<>=!]", query))  # Mana value
+        specificity_score += len(re.findall(r'"[^"]+"', query))  # Quoted names
+        
+        if specificity_score >= 4:
+            return "few"
+        elif specificity_score >= 2:
+            return "moderate"
+        else:
+            return "many"
+
     def suggest_corrections(self, text: str) -> list[str]:
-        """Suggest corrections for potentially misspelled terms.
+        """Legacy method for backward compatibility.
 
         Parameters
         ----------
@@ -338,6 +507,8 @@ class QueryBuilder:
         list[str]
             List of suggested corrections
         """
+        # This method is kept for backward compatibility
+        # In the refactored version, suggestions are generated in _generate_suggestions
         suggestions = []
 
         # Check for common misspellings in Japanese

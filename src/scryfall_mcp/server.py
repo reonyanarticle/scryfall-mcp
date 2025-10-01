@@ -11,6 +11,7 @@ import logging
 import sys
 
 from fastmcp import FastMCP
+from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 from .api.client import close_client
 from .i18n import detect_and_set_locale, get_locale_manager
@@ -91,7 +92,13 @@ class ScryfallMCPServer:
         include_images: bool = True,
         format_filter: str | None = None,
     ) -> str:
-        """Async implementation of card search."""
+        """Async implementation of card search.
+
+        Returns
+        -------
+        str
+            Combined text from all content items, for testing compatibility
+        """
         arguments = {
             "query": query,
             "language": language,
@@ -102,16 +109,18 @@ class ScryfallMCPServer:
 
         try:
             results = await CardSearchTool.execute(arguments)
-            # Convert MCP content to string for fastmcp
-            content_parts = []
-            for result in results:
-                if hasattr(result, "text"):
-                    content_parts.append(result.text)
-                elif hasattr(result, "data") and hasattr(result, "mimeType"):
-                    content_parts.append(f"[Image: {result.mimeType}]")
-            return "\n\n".join(content_parts)
+            # Extract text from results for return value
+            text_parts = []
+            for item in results:
+                if hasattr(item, "text"):
+                    text_parts.append(item.text)
+                elif hasattr(item, "mimeType"):
+                    # Image content
+                    text_parts.append(f"[Image: {item.mimeType}]")
+            return "\n".join(text_parts)
         except Exception as e:
             logger.exception("Error in search_cards")
+            error_msg = f"検索エラー: {e}" if language == "ja" else f"Search error: {e}"
             return f"Error: {e}"
 
     async def _autocomplete_async(
@@ -119,7 +128,13 @@ class ScryfallMCPServer:
         query: str,
         language: str | None = None,
     ) -> str:
-        """Async implementation of autocomplete."""
+        """Async implementation of autocomplete.
+
+        Returns
+        -------
+        str
+            Combined text from all content items, for testing compatibility
+        """
         arguments = {
             "query": query,
             "language": language,
@@ -127,14 +142,15 @@ class ScryfallMCPServer:
 
         try:
             results = await AutocompleteTool.execute(arguments)
-            # Convert MCP content to string for fastmcp
-            content_parts = []
-            for result in results:
-                if hasattr(result, "text"):
-                    content_parts.append(result.text)
-            return "\n\n".join(content_parts)
+            # Extract text from results for return value
+            text_parts = []
+            for item in results:
+                if hasattr(item, "text"):
+                    text_parts.append(item.text)
+            return "\n".join(text_parts)
         except Exception as e:
             logger.exception("Error in autocomplete")
+            error_msg = f"オートコンプリートエラー: {e}" if language == "ja" else f"Autocomplete error: {e}"
             return f"Error: {e}"
 
     async def run(self) -> None:
