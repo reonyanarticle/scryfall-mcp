@@ -6,7 +6,7 @@ terms and search syntax conversion.
 
 from __future__ import annotations
 
-from .common import LanguageMapping
+from ...models import LanguageMapping
 
 
 class JapaneseMapping(LanguageMapping):
@@ -18,7 +18,6 @@ class JapaneseMapping(LanguageMapping):
             language_code="ja",
             language_name="日本語",
             locale_code="ja_JP",
-
             colors={
                 "white": "w",
                 "blue": "u",
@@ -27,7 +26,6 @@ class JapaneseMapping(LanguageMapping):
                 "green": "g",
                 "colorless": "c",
             },
-
             types={
                 # Basic types
                 "artifact": "artifact",
@@ -37,19 +35,16 @@ class JapaneseMapping(LanguageMapping):
                 "land": "land",
                 "planeswalker": "planeswalker",
                 "sorcery": "sorcery",
-
                 # Supertypes
                 "basic": "basic",
                 "legendary": "legendary",
                 "snow": "snow",
-
                 # Common subtypes
                 "equipment": "equipment",
                 "aura": "aura",
                 "vehicle": "vehicle",
                 "token": "token",
             },
-
             operators={
                 "equals": "=",
                 "not_equals": "!=",
@@ -60,7 +55,6 @@ class JapaneseMapping(LanguageMapping):
                 "contains": ":",
                 "not_contains": "-",
             },
-
             formats={
                 "standard": "standard",
                 "pioneer": "pioneer",
@@ -73,7 +67,6 @@ class JapaneseMapping(LanguageMapping):
                 "alchemy": "alchemy",
                 "brawl": "brawl",
             },
-
             rarities={
                 "common": "common",
                 "uncommon": "uncommon",
@@ -82,7 +75,6 @@ class JapaneseMapping(LanguageMapping):
                 "special": "special",
                 "bonus": "bonus",
             },
-
             set_types={
                 "core": "core",
                 "expansion": "expansion",
@@ -103,7 +95,6 @@ class JapaneseMapping(LanguageMapping):
                 "spellbook": "spellbook",
                 "arsenal": "arsenal",
             },
-
             search_keywords={
                 # Colors
                 "白": "c:w",
@@ -118,7 +109,6 @@ class JapaneseMapping(LanguageMapping):
                 "赤い": "c:r",
                 "緑い": "c:g",
                 "無色の": "c:c",
-
                 # Basic search terms
                 "色": "c",
                 "カラー": "c",
@@ -148,7 +138,6 @@ class JapaneseMapping(LanguageMapping):
                 "年": "year",
                 "価格": "usd",
                 "言語": "lang",
-
                 # Card types (Japanese)
                 "アーティファクト": "t:artifact",
                 "クリーチャー": "t:creature",
@@ -159,18 +148,15 @@ class JapaneseMapping(LanguageMapping):
                 "プレインズウォーカー": "t:planeswalker",
                 "ソーサリー": "t:sorcery",
                 "部族": "t:tribal",
-
                 # Supertypes
                 "基本": "t:basic",
                 "伝説の": "t:legendary",
                 "雪": "t:snow",
-
                 # Subtypes
                 "装身具": "t:equipment",
                 "オーラ": "t:aura",
                 "機体": "t:vehicle",
                 "トークン": "t:token",
-
                 # Boolean terms
                 "である": "is",
                 "でない": "not",
@@ -178,7 +164,6 @@ class JapaneseMapping(LanguageMapping):
                 "または": "or",
                 "そして": "",
                 "でかつ": "",
-
                 # Special keywords
                 "多色": "multicolor",
                 "多色の": "multicolor",
@@ -197,7 +182,6 @@ class JapaneseMapping(LanguageMapping):
                 "使用可能": "legal",
                 "禁止": "banned",
                 "制限": "restricted",
-
                 # Formats (Japanese)
                 "スタンダード": "f:standard",
                 "パイオニア": "f:pioneer",
@@ -210,7 +194,6 @@ class JapaneseMapping(LanguageMapping):
                 "ヒストリック": "f:historic",
                 "アルケミー": "f:alchemy",
                 "ブロール": "f:brawl",
-
                 # Rarities (Japanese)
                 "コモン": "r:common",
                 "アンコモン": "r:uncommon",
@@ -218,7 +201,6 @@ class JapaneseMapping(LanguageMapping):
                 "神話レア": "r:mythic",
                 "特殊": "r:special",
                 "ボーナス": "r:bonus",
-
                 # Operators (Japanese)
                 "等しい": "=",
                 "と等しい": "=",
@@ -230,7 +212,6 @@ class JapaneseMapping(LanguageMapping):
                 "含む": ":",
                 "含まない": "-",
             },
-
             phrases={
                 # Common search phrases
                 "を持つカード": "",
@@ -242,7 +223,6 @@ class JapaneseMapping(LanguageMapping):
                 "を持つソーサリー": "t:sorcery",
                 "を持つプレインズウォーカー": "t:planeswalker",
                 "を持つ土地": "t:land",
-
                 # Power/toughness
                 "パワーが": "p=",
                 "パワーが等しい": "p=",
@@ -256,14 +236,12 @@ class JapaneseMapping(LanguageMapping):
                 "タフネスが未満": "tou<",
                 "タフネスが以上": "tou>=",
                 "タフネスが以下": "tou<=",
-
                 # Mana cost
                 "マナコスト": "m:",
                 "点数で見たマナコスト": "cmc:",
                 "マナ総量": "mv:",
                 "コストが": "m:",
                 "のマナを必要とする": "m:",
-
                 # Colors
                 "白のカード": "c:w",
                 "青のカード": "c:u",
@@ -271,22 +249,18 @@ class JapaneseMapping(LanguageMapping):
                 "赤のカード": "c:r",
                 "緑のカード": "c:g",
                 "無色のカード": "c:c",
-
                 # Formats
                 "で使用可能": "f:",
                 "で禁止": "banned:",
                 "で制限": "restricted:",
-
                 # Sets
                 "セットから": "s:",
                 "に収録": "s:",
                 "から": "s:",
-
                 # Text search
                 "テキストに": "o:",
                 "オラクルテキストに": "o:",
                 "フレーバーテキストに": "ft:",
-
                 # Price
                 "価格が": "usd<",
                 "価格未満": "usd<",
@@ -295,19 +269,16 @@ class JapaneseMapping(LanguageMapping):
                 "価格コストが": "usd<",
                 "より安い": "usd<",
                 "より高い": "usd>",
-
                 # Numeric expressions
                 "マナ": "",
                 "点": "",
                 "円": "",
                 "ドル": "",
-
                 # Common responses
                 "検索結果がありません": "検索にマッチするカードが見つかりませんでした。",
                 "結果が多すぎます": "結果が多すぎます。検索条件を絞り込んでください。",
                 "検索エラー": "検索でエラーが発生しました。",
                 "無効なクエリ": "無効な検索クエリです。",
-
                 # Card information
                 "マナコスト情報": "マナコスト",
                 "タイプ": "タイプ",
@@ -321,7 +292,6 @@ class JapaneseMapping(LanguageMapping):
                 "コレクター番号": "コレクター番号",
                 "価格": "価格",
                 "リーガル情報": "使用可能フォーマット",
-
                 # Currency
                 "通貨ドル": "USD",
                 "ユーロ": "EUR",

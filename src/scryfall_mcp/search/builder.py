@@ -7,14 +7,35 @@ from natural language (especially Japanese) to Scryfall search syntax.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..i18n import LanguageMapping, get_current_mapping
-from .models import ParsedQuery, BuiltQuery
+from ..models import BuiltQuery, ParsedQuery
+
+if TYPE_CHECKING:
+    from ..i18n import LanguageMapping
 
 
 class QueryBuilder:
     """Builds Scryfall search queries from parsed natural language data."""
+
+    # Japanese operator mappings (shared across all numeric comparisons)
+    _JA_OPERATOR_MAP = {
+        "以上": ">=",
+        "以下": "<=",
+        "より大きい": ">",
+        "未満": "<",
+        "等しい": "=",
+        "と等しい": "=",
+    }
+
+    # Japanese common misspellings (shared across suggestion methods)
+    _JA_COMMON_MISTAKES = {
+        "くりーちゃー": "クリーチャー",
+        "いんすたんと": "インスタント",
+        "そーさりー": "ソーサリー",
+        "あーてぃふぁくと": "アーティファクト",
+        "えんちゃんと": "エンチャント",
+    }
 
     def __init__(self, locale_mapping: LanguageMapping):
         """Initialize the query builder with locale-specific mappings.
@@ -58,7 +79,7 @@ class QueryBuilder:
             scryfall_query=query,
             original_query=parsed.original_text,
             suggestions=suggestions,
-            query_metadata=metadata
+            query_metadata=metadata,
         )
 
     def build_query(self, text: str, locale: str | None = None) -> str:
@@ -78,10 +99,11 @@ class QueryBuilder:
         """
         # This method is kept for backward compatibility
         # In the refactored version, use Parser -> QueryBuilder -> Presenter flow
-        
+
         # Update mapping if locale changed
         if locale and locale != self._mapping.language_code:
             from ..i18n import get_locale_manager
+
             manager = get_locale_manager()
             self._mapping = manager.get_mapping(locale)
 
@@ -141,8 +163,16 @@ class QueryBuilder:
             Text with half-width numbers
         """
         fullwidth_to_halfwidth = {
-            "０": "0", "１": "1", "２": "2", "３": "3", "４": "4",
-            "５": "5", "６": "6", "７": "7", "８": "8", "９": "9",
+            "０": "0",
+            "１": "1",
+            "２": "2",
+            "３": "3",
+            "４": "4",
+            "５": "5",
+            "６": "6",
+            "７": "7",
+            "８": "8",
+            "９": "9",
         }
 
         for fw, hw in fullwidth_to_halfwidth.items():
@@ -192,7 +222,12 @@ class QueryBuilder:
             def replace_color_type(match: Any) -> str:
                 color_ja, type_ja = match.groups()
                 color_code = {
-                    "白": "w", "青": "u", "黒": "b", "赤": "r", "緑": "g", "無色": "c",
+                    "白": "w",
+                    "青": "u",
+                    "黒": "b",
+                    "赤": "r",
+                    "緑": "g",
+                    "無色": "c",
                 }.get(color_ja, "")
 
                 type_code = {
@@ -248,32 +283,20 @@ class QueryBuilder:
 
             def replace_power(match: Any) -> str:
                 number, operator_ja = match.groups()
-                operator = {
-                    "以上": ">=",
-                    "以下": "<=",
-                    "より大きい": ">",
-                    "未満": "<",
-                    "等しい": "=",
-                    "と等しい": "=",
-                }.get(operator_ja or "等しい", "=")
+                operator = self._JA_OPERATOR_MAP.get(operator_ja or "等しい", "=")
 
                 return f"p{operator}{number}"
 
             text = re.sub(power_pattern, replace_power, text)
 
             # Similar for toughness
-            toughness_pattern = r"タフネスが?(\d+)(以上|以下|より大きい|未満|と?等しい)?"
+            toughness_pattern = (
+                r"タフネスが?(\d+)(以上|以下|より大きい|未満|と?等しい)?"
+            )
 
             def replace_toughness(match: Any) -> str:
                 number, operator_ja = match.groups()
-                operator = {
-                    "以上": ">=",
-                    "以下": "<=",
-                    "より大きい": ">",
-                    "未満": "<",
-                    "等しい": "=",
-                    "と等しい": "=",
-                }.get(operator_ja or "等しい", "=")
+                operator = self._JA_OPERATOR_MAP.get(operator_ja or "等しい", "=")
 
                 return f"tou{operator}{number}"
 
@@ -291,14 +314,7 @@ class QueryBuilder:
                 elif cost_type == "マナコスト":
                     field = "m"
 
-                operator = {
-                    "以上": ">=",
-                    "以下": "<=",
-                    "より大きい": ">",
-                    "未満": "<",
-                    "等しい": "=",
-                    "と等しい": "=",
-                }.get(operator_ja or "等しい", "=")
+                operator = self._JA_OPERATOR_MAP.get(operator_ja or "等しい", "=")
 
                 return f"{field}{operator}{number}"
 
@@ -390,34 +406,41 @@ class QueryBuilder:
         # Suggest more specific searches
         if not entities["colors"] and not entities["types"]:
             if self._mapping.language_code == "ja":
-                suggestions.append("色やカードタイプを指定すると、より具体的な検索ができます")
+                suggestions.append(
+                    "色やカードタイプを指定すると、より具体的な検索ができます"
+                )
             else:
-                suggestions.append("Try specifying colors or card types for more specific results")
+                suggestions.append(
+                    "Try specifying colors or card types for more specific results"
+                )
 
         # Suggest format restrictions for competitive queries
-        if any(word in text.lower() for word in ["tournament", "competitive", "meta", "tier"]):
+        if any(
+            word in text.lower()
+            for word in ["tournament", "competitive", "meta", "tier"]
+        ):
             if self._mapping.language_code == "ja":
-                suggestions.append("競技用検索には f:standard や f:modern などでフォーマットを指定してみてください")
+                suggestions.append(
+                    "競技用検索には f:standard や f:modern などでフォーマットを指定してみてください"
+                )
             else:
-                suggestions.append("For competitive searches, try adding format restrictions like f:standard or f:modern")
+                suggestions.append(
+                    "For competitive searches, try adding format restrictions like f:standard or f:modern"
+                )
 
         # Check for common misspellings in Japanese
         if self._mapping.language_code == "ja":
-            common_mistakes = {
-                "くりーちゃー": "クリーチャー",
-                "いんすたんと": "インスタント",
-                "そーさりー": "ソーサリー",
-                "あーてぃふぁくと": "アーティファクト",
-                "えんちゃんと": "エンチャント",
-            }
-
-            for mistake, correction in common_mistakes.items():
+            for mistake, correction in self._JA_COMMON_MISTAKES.items():
                 if mistake in text.lower():
-                    suggestions.append(f"'{mistake}' を '{correction}' の間違いですか？")
+                    suggestions.append(
+                        f"'{mistake}' を '{correction}' の間違いですか？"
+                    )
 
         return suggestions
 
-    def _extract_metadata(self, parsed: ParsedQuery, built_query: str) -> dict[str, Any]:
+    def _extract_metadata(
+        self, parsed: ParsedQuery, built_query: str
+    ) -> dict[str, Any]:
         """Extract metadata from parsed query and built query.
 
         Parameters
@@ -455,7 +478,7 @@ class QueryBuilder:
         """
         operator_count = len(re.findall(r"[<>=!]+", query))
         field_count = len(re.findall(r"\w+:", query))
-        
+
         if operator_count > 3 or field_count > 5:
             return "complex"
         elif operator_count > 1 or field_count > 2:
@@ -478,7 +501,7 @@ class QueryBuilder:
         """
         # This is a simple heuristic - more specific queries usually return fewer results
         specificity_score = 0
-        
+
         # Count specific filters
         specificity_score += len(re.findall(r"c:", query))  # Colors
         specificity_score += len(re.findall(r"t:", query))  # Types
@@ -486,7 +509,7 @@ class QueryBuilder:
         specificity_score += len(re.findall(r"tou[<>=!]", query))  # Toughness
         specificity_score += len(re.findall(r"mv[<>=!]", query))  # Mana value
         specificity_score += len(re.findall(r'"[^"]+"', query))  # Quoted names
-        
+
         if specificity_score >= 4:
             return "few"
         elif specificity_score >= 2:
@@ -513,17 +536,11 @@ class QueryBuilder:
 
         # Check for common misspellings in Japanese
         if self._mapping.language_code == "ja":
-            common_mistakes = {
-                "くりーちゃー": "クリーチャー",
-                "いんすたんと": "インスタント",
-                "そーさりー": "ソーサリー",
-                "あーてぃふぁくと": "アーティファクト",
-                "えんちゃんと": "エンチャント",
-            }
-
-            for mistake, correction in common_mistakes.items():
+            for mistake, correction in self._JA_COMMON_MISTAKES.items():
                 if mistake in text.lower():
-                    suggestions.append(f"'{mistake}' を '{correction}' の間違いですか？")
+                    suggestions.append(
+                        f"'{mistake}' を '{correction}' の間違いですか？"
+                    )
 
         return suggestions
 

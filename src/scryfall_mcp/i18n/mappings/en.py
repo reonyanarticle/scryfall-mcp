@@ -6,7 +6,7 @@ terms and search syntax. This serves as the fallback language.
 
 from __future__ import annotations
 
-from .common import LanguageMapping
+from ...models import LanguageMapping
 
 
 class EnglishMapping(LanguageMapping):
@@ -18,7 +18,6 @@ class EnglishMapping(LanguageMapping):
             language_code="en",
             language_name="English",
             locale_code="en_US",
-
             colors={
                 "white": "w",
                 "blue": "u",
@@ -27,7 +26,6 @@ class EnglishMapping(LanguageMapping):
                 "green": "g",
                 "colorless": "c",
             },
-
             types={
                 # Basic types
                 "artifact": "artifact",
@@ -37,19 +35,16 @@ class EnglishMapping(LanguageMapping):
                 "land": "land",
                 "planeswalker": "planeswalker",
                 "sorcery": "sorcery",
-
                 # Supertypes
                 "basic": "basic",
                 "legendary": "legendary",
                 "snow": "snow",
-
                 # Common subtypes
                 "equipment": "equipment",
                 "aura": "aura",
                 "vehicle": "vehicle",
                 "token": "token",
             },
-
             operators={
                 "equals": "=",
                 "not_equals": "!=",
@@ -60,7 +55,6 @@ class EnglishMapping(LanguageMapping):
                 "contains": ":",
                 "not_contains": "-",
             },
-
             formats={
                 "standard": "standard",
                 "pioneer": "pioneer",
@@ -73,7 +67,6 @@ class EnglishMapping(LanguageMapping):
                 "alchemy": "alchemy",
                 "brawl": "brawl",
             },
-
             rarities={
                 "common": "common",
                 "uncommon": "uncommon",
@@ -82,7 +75,6 @@ class EnglishMapping(LanguageMapping):
                 "special": "special",
                 "bonus": "bonus",
             },
-
             set_types={
                 "core": "core",
                 "expansion": "expansion",
@@ -103,7 +95,6 @@ class EnglishMapping(LanguageMapping):
                 "spellbook": "spellbook",
                 "arsenal": "arsenal",
             },
-
             search_keywords={
                 # Basic search terms
                 "color": "c",
@@ -133,13 +124,11 @@ class EnglishMapping(LanguageMapping):
                 "year": "year",
                 "price": "usd",
                 "language": "lang",
-
                 # Boolean terms
                 "is": "is",
                 "not": "not",
                 "and": "",  # implicit in Scryfall
                 "or": "or",
-
                 # Special keywords
                 "multicolor": "multicolor",
                 "multicolored": "multicolor",
@@ -160,7 +149,6 @@ class EnglishMapping(LanguageMapping):
                 "banned": "banned",
                 "restricted": "restricted",
             },
-
             phrases={
                 # Common search phrases
                 "cards with": "",
@@ -172,7 +160,6 @@ class EnglishMapping(LanguageMapping):
                 "sorceries with": "t:sorcery",
                 "planeswalkers with": "t:planeswalker",
                 "lands with": "t:land",
-
                 # Power/toughness
                 "power equal to": "p=",
                 "power greater than": "p>",
@@ -180,13 +167,11 @@ class EnglishMapping(LanguageMapping):
                 "toughness equal to": "tou=",
                 "toughness greater than": "tou>",
                 "toughness less than": "tou<",
-
                 # Mana cost
                 "mana cost": "m:",
                 "converted mana cost": "cmc:",
                 "mana value": "mv:",
                 "costs": "m:",
-
                 # Colors
                 "white cards": "c:w",
                 "blue cards": "c:u",
@@ -194,35 +179,29 @@ class EnglishMapping(LanguageMapping):
                 "red cards": "c:r",
                 "green cards": "c:g",
                 "colorless cards": "c:c",
-
                 # Formats
                 "legal in": "f:",
                 "banned in": "banned:",
                 "restricted in": "restricted:",
-
                 # Sets
                 "from set": "s:",
                 "in set": "s:",
                 "from": "s:",
-
                 # Text search
                 "with text": "o:",
                 "oracle text": "o:",
                 "flavor text": "ft:",
-
                 # Price
                 "price under": "usd<",
                 "price over": "usd>",
                 "price exactly": "usd:",
                 "costs under": "usd<",
                 "costs over": "usd>",
-
                 # Common responses
                 "no results found": "No cards found matching your search.",
                 "too many results": "Too many results. Please refine your search.",
                 "search error": "There was an error with your search.",
                 "invalid query": "Invalid search query.",
-
                 # Card information
                 "mana cost info": "Mana Cost",
                 "type line": "Type",
@@ -236,7 +215,6 @@ class EnglishMapping(LanguageMapping):
                 "collector number": "Collector Number",
                 "price": "Price",
                 "legalities": "Legalities",
-
                 # Currency
                 "usd": "USD",
                 "eur": "EUR",

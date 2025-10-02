@@ -83,7 +83,7 @@ class RateLimiter:
         # Apply exponential backoff for specific error codes
         if status_code in (429, 503, 502, 504):
             backoff_seconds = min(
-                2 ** self._consecutive_failures,
+                2**self._consecutive_failures,
                 self._max_backoff_seconds,
             )
             self._backoff_until = time.time() + backoff_seconds

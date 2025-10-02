@@ -6,49 +6,22 @@ for the Scryfall MCP Server internationalization system.
 
 from __future__ import annotations
 
+import contextvars
 import locale
 import logging
 import os
-from typing import TYPE_CHECKING
+from contextlib import contextmanager
 
-from pydantic import BaseModel, field_validator
-
+from ..models import LanguageMapping, LocaleInfo
 from ..settings import get_settings
 from .mappings.en import english_mapping
 from .mappings.ja import japanese_mapping
-
-if TYPE_CHECKING:
-    from .mappings.common import LanguageMapping
-
-import contextvars
-from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 # Context variable for per-request locale management
 _current_locale_context: contextvars.ContextVar[str] = contextvars.ContextVar(
     "current_locale", default="en"
 )
-
-
-class LocaleInfo(BaseModel):
-    """Information about a locale."""
-
-    code: str
-    language: str
-    language_code: str
-    country: str | None = None
-    country_code: str | None = None
-    encoding: str | None = None
-    is_default: bool = False
-    is_fallback: bool = False
-
-    @field_validator("code")
-    @classmethod
-    def validate_locale_code(cls, v: str) -> str:
-        """Validate locale code format."""
-        if not v or len(v) < 2:
-            raise ValueError("Invalid locale code")
-        return v.lower()
 
 
 class LocaleManager:
@@ -287,20 +260,21 @@ class LocaleManager:
             language_code=locale_code,
         )
 
+
 @contextmanager
 def use_locale(locale_code: str):
     """Context manager for setting locale in current context.
-    
+
     Parameters
     ----------
     locale_code : str
         Locale code to set
-        
+
     Yields
     ------
     str
         The locale code that was set
-        
+
     Raises
     ------
     ValueError

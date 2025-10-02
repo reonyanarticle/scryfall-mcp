@@ -15,16 +15,17 @@ from urllib.parse import urljoin
 
 import httpx
 
-from ..settings import get_settings
-from ..cache import get_cache, CACHE_TTL_SEARCH, CACHE_TTL_CARD, CACHE_TTL_AUTOCOMPLETE
-from .models import (
+from ..cache import CACHE_TTL_AUTOCOMPLETE, CACHE_TTL_CARD, CACHE_TTL_SEARCH, get_cache
+from ..models import (
     BulkData,
     Card,
     Catalog,
     Ruling,
     SearchResult,
     Set,
+    ScryfallError,
 )
+from ..settings import get_settings
 from .rate_limiter import (
     CircuitBreakerOpenError,
     get_circuit_breaker,
@@ -41,7 +42,7 @@ class ScryfallAPIError(Exception):
         self,
         message: str,
         status_code: int | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the API error.
 
@@ -177,8 +178,10 @@ class ScryfallAPIClient:
                     f"Retryable error {response.status_code}, "
                     f"retry {retry_count + 1}/{self._max_retries}",
                 )
-                await asyncio.sleep(2 ** retry_count)  # Exponential backoff
-                return await self._make_request(method, endpoint, params, retry_count + 1)
+                await asyncio.sleep(2**retry_count)  # Exponential backoff
+                return await self._make_request(
+                    method, endpoint, params, retry_count + 1
+                )
 
             # Handle API errors
             if "object" in error_data and error_data["object"] == "error":
@@ -224,9 +227,13 @@ class ScryfallAPIClient:
         except httpx.TimeoutException:
             self._rate_limiter.record_failure()
             if retry_count < self._max_retries:
-                logger.warning(f"Request timeout, retry {retry_count + 1}/{self._max_retries}")
-                await asyncio.sleep(2 ** retry_count)
-                return await self._make_request(method, endpoint, params, retry_count + 1)
+                logger.warning(
+                    f"Request timeout, retry {retry_count + 1}/{self._max_retries}"
+                )
+                await asyncio.sleep(2**retry_count)
+                return await self._make_request(
+                    method, endpoint, params, retry_count + 1
+                )
 
             context = {
                 "category": "timeout",
@@ -355,7 +362,9 @@ class ScryfallAPIClient:
 
         # Cache the result
         if cache:
-            await cache.set("card_by_id", result.model_dump(), ttl=CACHE_TTL_CARD, card_id=card_id)
+            await cache.set(
+                "card_by_id", result.model_dump(), ttl=CACHE_TTL_CARD, card_id=card_id
+            )
 
         return result
 
@@ -512,7 +521,9 @@ class ScryfallAPIClient:
 
         # Cache the result
         if cache:
-            await cache.set("autocomplete", result, ttl=CACHE_TTL_AUTOCOMPLETE, query=query)
+            await cache.set(
+                "autocomplete", result, ttl=CACHE_TTL_AUTOCOMPLETE, query=query
+            )
 
         return result
 

@@ -11,7 +11,6 @@ import logging
 import sys
 
 from fastmcp import FastMCP
-from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 from .api.client import close_client
 from .i18n import detect_and_set_locale, get_locale_manager
@@ -38,6 +37,7 @@ class ScryfallMCPServer:
 
     def _setup_tools(self) -> None:
         """Set up MCP tools using fastmcp decorators."""
+
         # Search cards tool
         @self.app.tool()
         async def search_cards(
@@ -60,7 +60,11 @@ class ScryfallMCPServer:
                 Formatted search results with card information
             """
             return await self._search_cards_async(
-                query, language, max_results, include_images, format_filter,
+                query,
+                language,
+                max_results,
+                include_images,
+                format_filter,
             )
 
         # Autocomplete tool
@@ -80,7 +84,8 @@ class ScryfallMCPServer:
             """
             logger.info(
                 "autocomplete_card_names called with query='%s', language='%s'",
-                query, language,
+                query,
+                language,
             )
             return await self._autocomplete_async(query, language)
 
@@ -150,7 +155,11 @@ class ScryfallMCPServer:
             return "\n".join(text_parts)
         except Exception as e:
             logger.exception("Error in autocomplete")
-            error_msg = f"オートコンプリートエラー: {e}" if language == "ja" else f"Autocomplete error: {e}"
+            error_msg = (
+                f"オートコンプリートエラー: {e}"
+                if language == "ja"
+                else f"Autocomplete error: {e}"
+            )
             return f"Error: {e}"
 
     async def run(self) -> None:

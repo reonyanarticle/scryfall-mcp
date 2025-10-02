@@ -73,7 +73,9 @@ class CacheManager:
         key = self.build_key(namespace, **params)
         return await self.cache.get(key)
 
-    async def set(self, namespace: str, value: Any, ttl: int | None = None, **params: Any) -> None:
+    async def set(
+        self, namespace: str, value: Any, ttl: int | None = None, **params: Any
+    ) -> None:
         """Set a cached value.
 
         Parameters
@@ -113,7 +115,7 @@ class CacheManager:
 
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
-        if hasattr(self.cache, 'get_stats'):
+        if hasattr(self.cache, "get_stats"):
             return self.cache.get_stats()
         return {"type": "unknown"}
 
@@ -155,8 +157,7 @@ def _create_cache_manager() -> CacheManager:
 
     # Create memory cache (L1)
     memory_cache = MemoryCache(
-        max_size=settings.cache_max_size,
-        default_ttl=settings.cache_ttl_default
+        max_size=settings.cache_max_size, default_ttl=settings.cache_ttl_default
     )
 
     # Create Redis cache (L2) if configured
@@ -164,8 +165,7 @@ def _create_cache_manager() -> CacheManager:
     if settings.cache_backend in ["redis", "composite"] and settings.cache_redis_url:
         try:
             redis_cache = RedisCache(
-                redis_url=settings.cache_redis_url,
-                key_prefix="scryfall_mcp:"
+                redis_url=settings.cache_redis_url, key_prefix="scryfall_mcp:"
             )
             logger.info("Redis cache initialized")
         except Exception as e:
@@ -198,9 +198,12 @@ async def close_cache() -> None:
         _cache_manager = None
 
 
-# Cache TTL constants based on data type
-CACHE_TTL_SEARCH = 30 * 60  # 30 minutes for search results
-CACHE_TTL_CARD = 24 * 60 * 60  # 24 hours for card details
-CACHE_TTL_PRICE = 6 * 60 * 60  # 6 hours for price information
-CACHE_TTL_SET = 7 * 24 * 60 * 60  # 1 week for set information
-CACHE_TTL_AUTOCOMPLETE = 60 * 60  # 1 hour for autocomplete results
+# Cache TTL constants are now managed in settings.py
+# Import them from settings for backward compatibility
+
+_settings = get_settings()
+CACHE_TTL_SEARCH = _settings.cache_ttl_search
+CACHE_TTL_CARD = _settings.cache_ttl_card
+CACHE_TTL_PRICE = _settings.cache_ttl_price
+CACHE_TTL_SET = _settings.cache_ttl_set
+CACHE_TTL_AUTOCOMPLETE = _settings.cache_ttl_default  # Using default for autocomplete

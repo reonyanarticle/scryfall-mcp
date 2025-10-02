@@ -9,13 +9,27 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent, TextResourceC
 from pydantic import AnyUrl
 
 if TYPE_CHECKING:
-    from ..api.models import Card, SearchResult
     from ..i18n import LanguageMapping
-    from .models import BuiltQuery, SearchOptions
+    from ..models import BuiltQuery, Card, SearchOptions, SearchResult
 
 
 class SearchPresenter:
     """Presents search results in MCP-compatible format."""
+
+    # Rarity translations (language-independent constants)
+    _RARITY_JA = {
+        "common": "コモン",
+        "uncommon": "アンコモン",
+        "rare": "レア",
+        "mythic": "神話レア",
+    }
+
+    _RARITY_EN = {
+        "common": "Common",
+        "uncommon": "Uncommon",
+        "rare": "Rare",
+        "mythic": "Mythic Rare",
+    }
 
     def __init__(self, locale_mapping: LanguageMapping):
         """Initialize the presenter with locale-specific mappings.
@@ -31,7 +45,7 @@ class SearchPresenter:
         self,
         search_result: SearchResult,
         built_query: BuiltQuery,
-        search_options: SearchOptions
+        search_options: SearchOptions,
     ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Format search results for MCP presentation.
 
@@ -57,8 +71,7 @@ class SearchPresenter:
 
         # Add card results
         card_items = self._format_cards(
-            search_result.data[:search_options.max_results],
-            search_options
+            search_result.data[: search_options.max_results], search_options
         )
         content_items.extend(card_items)
 
@@ -74,7 +87,9 @@ class SearchPresenter:
 
         return content_items
 
-    def _create_summary(self, search_result: SearchResult, built_query: BuiltQuery) -> TextContent:
+    def _create_summary(
+        self, search_result: SearchResult, built_query: BuiltQuery
+    ) -> TextContent:
         """Create search summary content.
 
         Parameters
@@ -120,9 +135,7 @@ class SearchPresenter:
         return TextContent(type="text", text=summary_text)
 
     def _format_cards(
-        self,
-        cards: list[Card],
-        options: SearchOptions
+        self, cards: list[Card], options: SearchOptions
     ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Format individual card results.
 
@@ -154,13 +167,15 @@ class SearchPresenter:
                 image_content = ImageContent(
                     type="image",
                     data=str(card.image_uris.normal),
-                    mimeType="image/jpeg"
+                    mimeType="image/jpeg",
                 )
                 content_items.append(image_content)
 
         return content_items
 
-    def _format_single_card(self, card: Card, index: int, options: SearchOptions) -> TextContent:  # noqa: ARG002
+    def _format_single_card(
+        self, card: Card, index: int, options: SearchOptions
+    ) -> TextContent:  # noqa: ARG002
         """Format a single card result.
 
         Parameters
@@ -217,13 +232,12 @@ class SearchPresenter:
                 card_text += f"**Set**: {card.set_name}"
 
             if card.rarity:
-                rarity_translations = {
-                    "common": "コモン" if self._mapping.language_code == "ja" else "Common",
-                    "uncommon": "アンコモン" if self._mapping.language_code == "ja" else "Uncommon",
-                    "rare": "レア" if self._mapping.language_code == "ja" else "Rare",
-                    "mythic": "神話レア" if self._mapping.language_code == "ja" else "Mythic Rare",
-                }
-                rarity_display = rarity_translations.get(card.rarity, card.rarity.title())
+                rarity_map = (
+                    self._RARITY_JA
+                    if self._mapping.language_code == "ja"
+                    else self._RARITY_EN
+                )
+                rarity_display = rarity_map.get(card.rarity, card.rarity.title())
                 card_text += f" ({rarity_display})"
 
         # Add prices if available
@@ -331,15 +345,29 @@ class SearchPresenter:
             for entity_type, entity_list in entities.items():
                 if entity_list:
                     entity_names = {
-                        "colors": "色" if self._mapping.language_code == "ja" else "Colors",
-                        "types": "タイプ" if self._mapping.language_code == "ja" else "Types",
-                        "numbers": "数値" if self._mapping.language_code == "ja" else "Numbers",
-                        "card_names": "カード名" if self._mapping.language_code == "ja" else "Card Names",
-                        "sets": "セット" if self._mapping.language_code == "ja" else "Sets",
-                        "formats": "フォーマット" if self._mapping.language_code == "ja" else "Formats",
+                        "colors": "色"
+                        if self._mapping.language_code == "ja"
+                        else "Colors",
+                        "types": "タイプ"
+                        if self._mapping.language_code == "ja"
+                        else "Types",
+                        "numbers": "数値"
+                        if self._mapping.language_code == "ja"
+                        else "Numbers",
+                        "card_names": "カード名"
+                        if self._mapping.language_code == "ja"
+                        else "Card Names",
+                        "sets": "セット"
+                        if self._mapping.language_code == "ja"
+                        else "Sets",
+                        "formats": "フォーマット"
+                        if self._mapping.language_code == "ja"
+                        else "Formats",
                     }
                     entity_name = entity_names.get(entity_type, entity_type)
-                    explanation_text += f"• **{entity_name}**: {', '.join(entity_list)}\n"
+                    explanation_text += (
+                        f"• **{entity_name}**: {', '.join(entity_list)}\n"
+                    )
 
         return TextContent(type="text", text=explanation_text)
 
@@ -383,9 +411,15 @@ class SearchPresenter:
             "digital": card.digital,
             "prices": card.prices.model_dump() if card.prices else None,
             "legalities": card.legalities.model_dump(),
-            "image_uris": self._serialize_urls(card.image_uris.model_dump()) if card.image_uris else None,
-            "purchase_uris": self._serialize_urls(card.purchase_uris.model_dump()) if card.purchase_uris else None,
-            "related_uris": self._serialize_urls(card.related_uris.model_dump()) if card.related_uris else None,
+            "image_uris": self._serialize_urls(card.image_uris.model_dump())
+            if card.image_uris
+            else None,
+            "purchase_uris": self._serialize_urls(card.purchase_uris.model_dump())
+            if card.purchase_uris
+            else None,
+            "related_uris": self._serialize_urls(card.related_uris.model_dump())
+            if card.related_uris
+            else None,
             "scryfall_uri": str(card.scryfall_uri),
             "uri": str(card.uri),
             "edhrec_rank": card.edhrec_rank,
@@ -403,8 +437,7 @@ class SearchPresenter:
         # Add card faces for double-faced cards
         if card.card_faces:
             face_data: list[dict[str, Any]] = [
-                face.model_dump()
-                for face in card.card_faces
+                face.model_dump() for face in card.card_faces
             ]
             card_metadata["card_faces"] = face_data
 
@@ -413,8 +446,8 @@ class SearchPresenter:
             resource=TextResourceContents(
                 uri=AnyUrl(f"card://scryfall/{card.id}"),
                 mimeType="application/json",
-                text=json.dumps(card_metadata, indent=2, ensure_ascii=False)
-            )
+                text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
+            ),
         )
 
     def _serialize_urls(self, data: dict[str, Any]) -> dict[str, str | None]:

@@ -9,10 +9,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..i18n import get_current_mapping, LanguageMapping
+from ..i18n import LanguageMapping, get_current_mapping
+from ..models import BuiltQuery, ParsedQuery
 from .builder import QueryBuilder
 from .parser import SearchParser
-from .models import ParsedQuery, BuiltQuery
 
 
 class SearchProcessor:
@@ -48,6 +48,7 @@ class SearchProcessor:
         # Update mapping if locale changed
         if locale and locale != self._mapping.language_code:
             from ..i18n import get_locale_manager
+
             manager = get_locale_manager()
             self._mapping = manager.get_mapping(locale)
             self._parser = SearchParser(self._mapping)
@@ -174,15 +175,27 @@ class SearchProcessor:
 
         if self._mapping.language_code == "ja":
             if color_matches:
-                color_names = {"w": "白", "u": "青", "b": "黒", "r": "赤", "g": "緑", "c": "無色"}
-                colors = [color_names.get(c, c) for match in color_matches for c in match]
+                color_names = {
+                    "w": "白",
+                    "u": "青",
+                    "b": "黒",
+                    "r": "赤",
+                    "g": "緑",
+                    "c": "無色",
+                }
+                colors = [
+                    color_names.get(c, c) for match in color_matches for c in match
+                ]
                 parts.append(f"色: {', '.join(colors)}")
 
             if type_matches:
                 type_names = {
-                    "creature": "クリーチャー", "artifact": "アーティファクト",
-                    "enchantment": "エンチャント", "instant": "インスタント",
-                    "sorcery": "ソーサリー", "land": "土地",
+                    "creature": "クリーチャー",
+                    "artifact": "アーティファクト",
+                    "enchantment": "エンチャント",
+                    "instant": "インスタント",
+                    "sorcery": "ソーサリー",
+                    "land": "土地",
                     "planeswalker": "プレインズウォーカー",
                 }
                 types = [type_names.get(t.lower(), t) for t in type_matches]
@@ -190,18 +203,38 @@ class SearchProcessor:
 
             if power_matches:
                 for op, val in power_matches:
-                    op_name = {">=": "以上", "<=": "以下", ">": "より大きい", "<": "未満", "=": "等しい"}.get(op, op)
+                    op_name = {
+                        ">=": "以上",
+                        "<=": "以下",
+                        ">": "より大きい",
+                        "<": "未満",
+                        "=": "等しい",
+                    }.get(op, op)
                     parts.append(f"パワー{val}{op_name}")
 
             if toughness_matches:
                 for op, val in toughness_matches:
-                    op_name = {">=": "以上", "<=": "以下", ">": "より大きい", "<": "未満", "=": "等しい"}.get(op, op)
+                    op_name = {
+                        ">=": "以上",
+                        "<=": "以下",
+                        ">": "より大きい",
+                        "<": "未満",
+                        "=": "等しい",
+                    }.get(op, op)
                     parts.append(f"タフネス{val}{op_name}")
 
             if mana_matches:
                 for field, op, val in mana_matches:
-                    field_name = {"mv": "マナ総量", "cmc": "点数で見たマナコスト"}.get(field, field)
-                    op_name = {">=": "以上", "<=": "以下", ">": "より大きい", "<": "未満", "=": "等しい"}.get(op, op)
+                    field_name = {"mv": "マナ総量", "cmc": "点数で見たマナコスト"}.get(
+                        field, field
+                    )
+                    op_name = {
+                        ">=": "以上",
+                        "<=": "以下",
+                        ">": "より大きい",
+                        "<": "未満",
+                        "=": "等しい",
+                    }.get(op, op)
                     parts.append(f"{field_name}{val}{op_name}")
 
             return "、".join(parts) if parts else "一般的な検索"
@@ -223,7 +256,9 @@ class SearchProcessor:
 
         if mana_matches:
             for field, op, val in mana_matches:
-                field_name = {"mv": "Mana Value", "cmc": "CMC"}.get(field, field.upper())
+                field_name = {"mv": "Mana Value", "cmc": "CMC"}.get(
+                    field, field.upper()
+                )
                 parts.append(f"{field_name} {op} {val}")
 
         return ", ".join(parts) if parts else "General search"

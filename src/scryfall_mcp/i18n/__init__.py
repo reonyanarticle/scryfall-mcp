@@ -6,8 +6,8 @@ Japanese language support for Magic: The Gathering card searches.
 
 from __future__ import annotations
 
+from ..models import LanguageMapping, LocaleInfo
 from .locales import (
-    LocaleInfo,
     LocaleManager,
     detect_and_set_locale,
     get_current_mapping,
@@ -15,7 +15,6 @@ from .locales import (
     set_current_locale,
     use_locale,
 )
-from .mappings.common import LanguageMapping
 from .mappings.en import english_mapping
 from .mappings.ja import JAPANESE_CARD_NAMES, japanese_mapping
 

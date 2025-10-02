@@ -14,9 +14,9 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, Dict, Optional
+from typing import Any
 
-from pydantic import BaseModel
+from ..models import CacheEntry
 
 logger = logging.getLogger(__name__)
 
@@ -72,20 +72,6 @@ class CacheProtocol(ABC):
         """Close the cache backend and clean up resources."""
 
 
-class CacheEntry(BaseModel):
-    """Cache entry with metadata."""
-
-    value: Any
-    expires_at: float | None = None
-    created_at: float
-
-    def is_expired(self) -> bool:
-        """Check if the entry has expired."""
-        if self.expires_at is None:
-            return False
-        return time.time() > self.expires_at
-
-
 class MemoryCache(CacheProtocol):
     """In-memory LRU cache with TTL support."""
 
@@ -128,11 +114,7 @@ class MemoryCache(CacheProtocol):
             ttl = ttl or self.default_ttl
             expires_at = now + ttl if ttl is not None else None
 
-            entry = CacheEntry(
-                value=value,
-                expires_at=expires_at,
-                created_at=now
-            )
+            entry = CacheEntry(value=value, expires_at=expires_at, created_at=now)
 
             # Add/update entry
             self._cache[key] = entry
@@ -156,7 +138,7 @@ class MemoryCache(CacheProtocol):
         """Close memory cache (no-op)."""
         pass
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "type": "memory",
@@ -169,7 +151,9 @@ class MemoryCache(CacheProtocol):
 class RedisCache(CacheProtocol):
     """Redis-based distributed cache."""
 
-    def __init__(self, redis_url: str = "redis://localhost:6379", key_prefix: str = "scryfall:"):
+    def __init__(
+        self, redis_url: str = "redis://localhost:6379", key_prefix: str = "scryfall:"
+    ):
         """Initialize Redis cache.
 
         Parameters
@@ -189,6 +173,7 @@ class RedisCache(CacheProtocol):
         if self._redis is None:
             try:
                 import redis.asyncio as redis
+
                 self._redis = redis.from_url(self.redis_url, decode_responses=True)
                 # Test connection
                 await self._redis.ping()
@@ -263,7 +248,7 @@ class RedisCache(CacheProtocol):
         if self._redis:
             await self._redis.close()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "type": "redis",
@@ -275,7 +260,9 @@ class RedisCache(CacheProtocol):
 class CompositeCache(CacheProtocol):
     """Multi-layer cache combining memory (L1) and Redis (L2)."""
 
-    def __init__(self, memory_cache: MemoryCache, redis_cache: RedisCache | None = None):
+    def __init__(
+        self, memory_cache: MemoryCache, redis_cache: RedisCache | None = None
+    ):
         """Initialize composite cache.
 
         Parameters
@@ -330,7 +317,7 @@ class CompositeCache(CacheProtocol):
         if self.redis_cache:
             await self.redis_cache.close()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get statistics from both cache layers."""
         stats = {
             "type": "composite",

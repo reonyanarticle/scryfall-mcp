@@ -11,28 +11,16 @@ from typing import Any
 
 from mcp import Tool
 from mcp.types import EmbeddedResource, ImageContent, TextContent
-from pydantic import BaseModel, Field
 
 from ..api.client import ScryfallAPIError, get_client
 from ..errors import ErrorCategory, ErrorContext, get_error_handler
 from ..i18n import get_current_mapping, use_locale
+from ..models import AutocompleteRequest, SearchCardsRequest, SearchOptions
 from ..search.builder import QueryBuilder
-from ..search.models import SearchOptions
 from ..search.parser import SearchParser
 from ..search.presenter import SearchPresenter
 
-
 logger = logging.getLogger(__name__)
-
-
-class SearchCardsRequest(BaseModel):
-    """Request model for card search."""
-
-    query: str = Field(description="Natural language search query (supports Japanese)")
-    language: str | None = Field(default=None, description="Language code (ja, en)")
-    max_results: int | None = Field(default=20, ge=1, le=175, description="Maximum number of results")
-    include_images: bool | None = Field(default=True, description="Include card images in results")
-    format_filter: str | None = Field(default=None, description="Filter by Magic format (standard, modern, etc.)")
 
 
 class CardSearchTool:
@@ -48,7 +36,9 @@ class CardSearchTool:
         )
 
     @staticmethod
-    async def execute(arguments: dict[str, Any]) -> list[TextContent | ImageContent | EmbeddedResource]:
+    async def execute(
+        arguments: dict[str, Any],
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Execute the card search using the refactored pipeline.
 
         Parameters
@@ -72,13 +62,13 @@ class CardSearchTool:
                 parser = SearchParser(mapping)
                 builder = QueryBuilder(mapping)
                 presenter = SearchPresenter(mapping)
-                
+
                 # Step 1: Parse the natural language query
                 parsed = parser.parse(request.query)
-                
+
                 # Step 2: Build the Scryfall query
                 built = builder.build(parsed)
-                
+
                 # Add format filter if specified
                 scryfall_query = built.scryfall_query
                 if request.format_filter:
@@ -113,9 +103,9 @@ class CardSearchTool:
                         category = ErrorCategory.RATE_LIMIT_ERROR
                     elif e.status_code in (500, 502, 503, 504):
                         category = ErrorCategory.SERVICE_UNAVAILABLE
-                    elif "timeout" in e.context.get("category", ""):
-                        category = ErrorCategory.NETWORK_ERROR
-                    elif "network_error" in e.context.get("category", ""):
+                    elif "timeout" in e.context.get(
+                        "category", ""
+                    ) or "network_error" in e.context.get("category", ""):
                         category = ErrorCategory.NETWORK_ERROR
 
                     context = ErrorContext(
@@ -150,9 +140,9 @@ class CardSearchTool:
                     max_results=request.max_results,
                     include_images=request.include_images,
                     format_filter=request.format_filter,
-                    language=request.language
+                    language=request.language,
                 )
-                
+
                 return presenter.present_results(search_result, built, search_options)
 
         except Exception as e:
@@ -171,13 +161,6 @@ class CardSearchTool:
             error_info = error_handler.handle_error(context)
             formatted_error = error_handler.format_error_message(error_info)
             return [TextContent(type="text", text=formatted_error)]
-
-
-class AutocompleteRequest(BaseModel):
-    """Request model for card name autocomplete."""
-
-    query: str = Field(description="Partial card name")
-    language: str | None = Field(default=None, description="Language code (ja, en)")
 
 
 class AutocompleteTool:
@@ -218,7 +201,9 @@ class AutocompleteTool:
 
                 if not suggestions:
                     mapping = get_current_mapping()
-                    no_results_msg = mapping.phrases.get("no results found", "No suggestions found.")
+                    no_results_msg = mapping.phrases.get(
+                        "no results found", "No suggestions found."
+                    )
                     return [TextContent(type="text", text=no_results_msg)]
 
                 # Format suggestions
@@ -242,7 +227,10 @@ class AutocompleteTool:
                 original_error=str(e),
                 user_query=arguments.get("query"),
                 language=arguments.get("language", "en"),
-                additional_info={"error_type": type(e).__name__, "operation": "autocomplete"},
+                additional_info={
+                    "error_type": type(e).__name__,
+                    "operation": "autocomplete",
+                },
             )
 
             error_info = error_handler.handle_error(context)

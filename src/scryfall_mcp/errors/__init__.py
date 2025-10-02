@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from .handlers import (
+    EnhancedErrorHandler,
     ErrorCategory,
     ErrorContext,
-    EnhancedErrorHandler,
     get_error_handler,
 )
 

@@ -186,7 +186,9 @@ class EnhancedErrorHandler:
         dict[str, str]
             Dictionary with 'message', 'guidance', 'examples', and 'technical' fields
         """
-        lang_messages = self._error_messages.get(context.language, self._error_messages["en"])
+        lang_messages = self._error_messages.get(
+            context.language, self._error_messages["en"]
+        )
 
         # Try to get specific error message based on status code or category
         error_info = None
@@ -252,7 +254,9 @@ class EnhancedErrorHandler:
             if language == "ja":
                 suggestions.append("• 日本語の引用符を英語の引用符に変更してください")
             else:
-                suggestions.append("• Try using English quotes instead of Japanese quotes")
+                suggestions.append(
+                    "• Try using English quotes instead of Japanese quotes"
+                )
 
         if self._has_complex_syntax(query):
             if language == "ja":
@@ -292,7 +296,9 @@ class EnhancedErrorHandler:
 
         return not has_operators and not has_fields and is_reasonable_length
 
-    def format_error_message(self, error_info: dict[str, str], include_technical: bool = False) -> str:
+    def format_error_message(
+        self, error_info: dict[str, str], include_technical: bool = False
+    ) -> str:
         """Format error information into a user-friendly message.
 
         Parameters
@@ -315,15 +321,28 @@ class EnhancedErrorHandler:
 
         # Add guidance
         if "guidance" in error_info:
-            message_parts.append(f"\n💡 **ガイド:**\n{error_info['guidance']}" if "ガイド" in error_info['guidance'] or "guide" not in error_info['guidance'].lower() else f"\n💡 **Guide:**\n{error_info['guidance']}")
+            message_parts.append(
+                f"\n💡 **ガイド:**\n{error_info['guidance']}"
+                if "ガイド" in error_info["guidance"]
+                or "guide" not in error_info["guidance"].lower()
+                else f"\n💡 **Guide:**\n{error_info['guidance']}"
+            )
 
         # Add examples
         if "examples" in error_info:
-            message_parts.append(f"\n📝 **例:** {error_info['examples']}" if "例:" in error_info.get("examples", "") else f"\n📝 **Examples:** {error_info['examples']}")
+            message_parts.append(
+                f"\n📝 **例:** {error_info['examples']}"
+                if "例:" in error_info.get("examples", "")
+                else f"\n📝 **Examples:** {error_info['examples']}"
+            )
 
         # Add technical details if requested
         if include_technical and "technical" in error_info:
-            message_parts.append(f"\n🔧 **詳細:** {error_info['technical']}" if "詳細" in error_info.get("technical", "") else f"\n🔧 **Technical:** {error_info['technical']}")
+            message_parts.append(
+                f"\n🔧 **詳細:** {error_info['technical']}"
+                if "詳細" in error_info.get("technical", "")
+                else f"\n🔧 **Technical:** {error_info['technical']}"
+            )
 
         return "\n".join(message_parts)
 

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from ..i18n import LanguageMapping
-from .models import ParsedQuery
+from ..models import ParsedQuery
 
 
 class SearchParser:
@@ -44,7 +43,7 @@ class SearchParser:
             normalized_text=normalized_text,
             intent=intent,
             entities=entities,
-            language=self._mapping.language_code
+            language=self._mapping.language_code,
         )
 
     def _normalize_text(self, text: str) -> str:
@@ -61,7 +60,7 @@ class SearchParser:
             Normalized text
         """
         # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text.strip())
+        text = re.sub(r"\s+", " ", text.strip())
 
         # Normalize quotes
         text = text.replace('"', '"').replace('"', '"')
@@ -94,13 +93,17 @@ class SearchParser:
             if any(word in text for word in ["デッキ", "構築", "採用"]):
                 return "deck_building"
         # Card search patterns
-        elif any(phrase in text_lower for phrase in ["find", "search", "show me", "get"]):
+        elif any(
+            phrase in text_lower for phrase in ["find", "search", "show me", "get"]
+        ):
             return "card_search"
         # Price inquiry patterns
         elif any(phrase in text_lower for phrase in ["price of", "how much", "cost"]):
             return "price_inquiry"
         # Rules inquiry patterns
-        elif any(phrase in text_lower for phrase in ["what does", "rules for", "how does"]):
+        elif any(
+            phrase in text_lower for phrase in ["what does", "rules for", "how does"]
+        ):
             return "rules_inquiry"
         # Deck building patterns
         elif any(phrase in text_lower for phrase in ["deck with", "build a deck"]):
@@ -137,8 +140,12 @@ class SearchParser:
         # Extract colors
         if self._mapping.language_code == "ja":
             color_mapping = {
-                "白": "white", "青": "blue", "黒": "black",
-                "赤": "red", "緑": "green", "無色": "colorless",
+                "白": "white",
+                "青": "blue",
+                "黒": "black",
+                "赤": "red",
+                "緑": "green",
+                "無色": "colorless",
             }
             for ja_color, en_color in color_mapping.items():
                 if ja_color in text:
@@ -165,8 +172,13 @@ class SearchParser:
                     entities["types"].append(en_type)
         else:
             type_words = [
-                "creature", "artifact", "enchantment", "instant",
-                "sorcery", "land", "planeswalker",
+                "creature",
+                "artifact",
+                "enchantment",
+                "instant",
+                "sorcery",
+                "land",
+                "planeswalker",
             ]
             for card_type in type_words:
                 if card_type in text.lower():
@@ -201,9 +213,13 @@ class SearchParser:
         # Suggest more specific searches
         if not entities["colors"] and not entities["types"]:
             if self._mapping.language_code == "ja":
-                suggestions.append("色やカードタイプを指定すると、より具体的な検索ができます")
+                suggestions.append(
+                    "色やカードタイプを指定すると、より具体的な検索ができます"
+                )
             else:
-                suggestions.append("Try specifying colors or card types for more specific results")
+                suggestions.append(
+                    "Try specifying colors or card types for more specific results"
+                )
 
         # Suggest using quotes for card names (English only)
         # Note: Japanese card name suggestions removed since we no longer maintain
@@ -213,14 +229,23 @@ class SearchParser:
             potential_names = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)
             for name in potential_names:
                 if f'"{name}"' not in text:
-                    suggestions.append(f"Use quotes around '{name}' if it's a card name")
+                    suggestions.append(
+                        f"Use quotes around '{name}' if it's a card name"
+                    )
 
         # Suggest format restrictions for competitive queries
-        if any(word in text.lower() for word in ["tournament", "competitive", "meta", "tier"]):
+        if any(
+            word in text.lower()
+            for word in ["tournament", "competitive", "meta", "tier"]
+        ):
             if self._mapping.language_code == "ja":
-                suggestions.append("競技用検索には f:standard や f:modern などでフォーマットを指定してみてください")
+                suggestions.append(
+                    "競技用検索には f:standard や f:modern などでフォーマットを指定してみてください"
+                )
             else:
-                suggestions.append("For competitive searches, try adding format restrictions like f:standard or f:modern")
+                suggestions.append(
+                    "For competitive searches, try adding format restrictions like f:standard or f:modern"
+                )
 
         return suggestions
 

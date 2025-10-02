@@ -9,7 +9,9 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 __author__ = "Scryfall MCP Server Team"
-__description__ = "Magic: The Gathering card information via MCP protocol with Japanese support"
+__description__ = (
+    "Magic: The Gathering card information via MCP protocol with Japanese support"
+)
 
 from .server import ScryfallMCPServer, main, sync_main
 
