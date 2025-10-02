@@ -170,6 +170,7 @@ class Settings(BaseSettings):
     def validate_supported_locales(cls, v: list[str]) -> list[str]:
         """Validate that all supported locales are valid ISO 639-1 codes."""
         import re
+
         pattern = re.compile(r"^[a-z]{2}$")
         for locale in v:
             if not pattern.match(locale):
@@ -181,6 +182,7 @@ class Settings(BaseSettings):
     def validate_supported_currencies(cls, v: list[str]) -> list[str]:
         """Validate that all supported currencies are valid ISO 4217 codes."""
         import re
+
         pattern = re.compile(r"^[A-Z]{3}$")
         for currency in v:
             if not pattern.match(currency):
@@ -192,15 +194,27 @@ class Settings(BaseSettings):
         """Ensure default locales and currencies are in their supported lists."""
         # Validate default locale
         if self.supported_locales and self.default_locale not in self.supported_locales:
-            raise ValueError(f"Default locale {self.default_locale} not in supported locales {self.supported_locales}")
+            raise ValueError(
+                f"Default locale {self.default_locale} not in supported locales {self.supported_locales}"
+            )
 
         # Validate fallback locale
-        if self.supported_locales and self.fallback_locale not in self.supported_locales:
-            raise ValueError(f"Fallback locale {self.fallback_locale} not in supported locales {self.supported_locales}")
+        if (
+            self.supported_locales
+            and self.fallback_locale not in self.supported_locales
+        ):
+            raise ValueError(
+                f"Fallback locale {self.fallback_locale} not in supported locales {self.supported_locales}"
+            )
 
         # Validate default currency
-        if self.supported_currencies and self.default_currency not in self.supported_currencies:
-            raise ValueError(f"Default currency {self.default_currency} not in supported currencies {self.supported_currencies}")
+        if (
+            self.supported_currencies
+            and self.default_currency not in self.supported_currencies
+        ):
+            raise ValueError(
+                f"Default currency {self.default_currency} not in supported currencies {self.supported_currencies}"
+            )
 
         return self
 
@@ -237,3 +251,209 @@ def reload_settings() -> Settings:
     global settings
     settings = Settings()
     return settings
+
+
+# ============================================================================
+# Internationalization Constants (from i18n/mappings/common.py)
+# ============================================================================
+
+# Common Scryfall search keywords that don't need translation
+SCRYFALL_KEYWORDS: set[str] = {
+    # Basic search syntax
+    "c",
+    "color",
+    "ci",
+    "id",
+    "identity",
+    "m",
+    "mana",
+    "cmc",
+    "mv",
+    "manavalue",
+    "t",
+    "type",
+    "o",
+    "oracle",
+    "p",
+    "power",
+    "tou",
+    "toughness",
+    "loy",
+    "loyalty",
+    "r",
+    "rarity",
+    "s",
+    "set",
+    "e",
+    "edition",
+    "b",
+    "block",
+    "f",
+    "format",
+    "banned",
+    "restricted",
+    "legal",
+    "a",
+    "artist",
+    "fl",
+    "flavor",
+    "ft",
+    "flavortext",
+    "w",
+    "watermark",
+    "border",
+    "frame",
+    "is",
+    "not",
+    "year",
+    "date",
+    "usd",
+    "eur",
+    "tix",
+    "price",
+    "new",
+    "old",
+    "reprint",
+    "firstprint",
+    "lang",
+    "language",
+    "foreign",
+    # Operators
+    "=",
+    "!=",
+    "<",
+    "<=",
+    ">",
+    ">=",
+    ":",
+    "and",
+    "or",
+    "-",
+    # Special values
+    "multicolor",
+    "monocolor",
+    "colorless",
+    "spell",
+    "permanent",
+    "historic",
+    "vanilla",
+    "french",
+    "hybrid",
+    "phyrexian",
+    "split",
+    "flip",
+    "transform",
+    "meld",
+    "leveler",
+    "commander",
+    "partner",
+    "companions",
+    "digital",
+    "paper",
+    "mtgo",
+    "arena",
+    "foil",
+    "nonfoil",
+    "etched",
+    "glossy",
+    "promo",
+    "booster",
+    "unique",
+    "funny",
+    "acorn",
+    "silver",
+    "gold",
+}
+
+# Colors in WUBRG order (standard Magic color ordering)
+MAGIC_COLORS: list[str] = ["W", "U", "B", "R", "G"]
+
+# All Magic card types (comprehensive list)
+MAGIC_TYPES: set[str] = {
+    # Basic types
+    "Artifact",
+    "Creature",
+    "Enchantment",
+    "Instant",
+    "Land",
+    "Planeswalker",
+    "Sorcery",
+    "Tribal",
+    "Conspiracy",
+    "Phenomenon",
+    "Plane",
+    "Scheme",
+    "Vanguard",
+    "Dungeon",
+    "Battle",
+    # Supertypes
+    "Basic",
+    "Elite",
+    "Host",
+    "Legendary",
+    "Ongoing",
+    "Snow",
+    "World",
+    # Artifact subtypes
+    "Clue",
+    "Contraption",
+    "Equipment",
+    "Food",
+    "Fortification",
+    "Gold",
+    "Treasure",
+    "Vehicle",
+    # Enchantment subtypes
+    "Aura",
+    "Background",
+    "Cartouche",
+    "Case",
+    "Class",
+    "Curse",
+    "Role",
+    "Rune",
+    "Saga",
+    "Shrine",
+    # Land subtypes
+    "Cave",
+    "Desert",
+    "Forest",
+    "Gate",
+    "Island",
+    "Lair",
+    "Locus",
+    "Mine",
+    "Mountain",
+    "Plains",
+    "Power-Plant",
+    "Sphere",
+    "Swamp",
+    "Tower",
+    "Urza's",
+    # Planeswalker subtypes (just a few examples)
+    "Ajani",
+    "Chandra",
+    "Jace",
+    "Liliana",
+    "Nissa",
+    "Vraska",
+    # Spell subtypes
+    "Adventure",
+    "Arcane",
+    "Lesson",
+    "Trap",
+}
+
+# Common search patterns that need special handling
+SEARCH_PATTERNS: dict[str, str] = {
+    # Mana cost patterns
+    "mana_cost_pattern": r"\{[WUBRGCXYZ0-9]+\}",
+    "hybrid_mana_pattern": r"\{[WUBRG]/[WUBRGCP]\}",
+    "phyrexian_mana_pattern": r"\{[WUBRG]/P\}",
+    # Numeric patterns
+    "number_pattern": r"\d+",
+    "comparison_pattern": r"[<>=!]+",
+    # Text patterns
+    "quoted_text_pattern": r'"[^"]*"',
+    "card_name_pattern": r"![^!]*!",
+}
