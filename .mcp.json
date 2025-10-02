@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "scryfall": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "scryfall-mcp"
+      ],
+      "env": {}
+    },
+    "textlint": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "textlint",
+        "--mcp"
+      ],
+      "env": {}
+    }
+  }
+}
