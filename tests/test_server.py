@@ -30,14 +30,15 @@ class TestScryfallMCPServer:
 
     def test_setup_tools_registration(self) -> None:
         """Test that tools are properly registered with fastmcp."""
-        with patch("scryfall_mcp.server.FastMCP") as mock_fastmcp:
+        with patch("scryfall_mcp.server.FastMCP") as mock_fastmcp, \
+             patch("scryfall_mcp.server._create_lifespan") as mock_lifespan:
             mock_app = Mock()
             mock_fastmcp.return_value = mock_app
 
             server = ScryfallMCPServer()
 
-            # Verify that FastMCP was called with correct name
-            mock_fastmcp.assert_called_once_with("scryfall-mcp")
+            # Verify that FastMCP was called with correct name and lifespan
+            mock_fastmcp.assert_called_once_with("scryfall-mcp", lifespan=mock_lifespan)
 
             # Verify that tool decorators were called
             assert mock_app.tool.call_count >= 2  # At least search_cards and autocomplete
@@ -164,86 +165,34 @@ if __name__ == "__main__":
 
             mock_sync_main.assert_called_once()
 
-
-    @pytest.mark.asyncio
-    async def test_search_cards_async(self) -> None:
-        """Test the async search cards method."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute:
-            # Mock the execute method to return MCP content
-            mock_content = Mock()
-            mock_content.text = "Test search result"
-            mock_execute.return_value = [mock_content]
-
-            result = await server._search_cards_async("Lightning Bolt")
-            assert result == "Test search result"
-            mock_execute.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_search_cards_async_with_image(self) -> None:
-        """Test the async search cards method with image content."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute:
-            # Mock text and image content
-            mock_text_content = Mock()
-            mock_text_content.text = "Test search result"
-            mock_image_content = Mock()
-            mock_image_content.data = "base64data"
-            mock_image_content.mimeType = "image/jpeg"
-            # Simulate image content without text attribute
-            del mock_image_content.text
-            mock_execute.return_value = [mock_text_content, mock_image_content]
-
-            result = await server._search_cards_async("Lightning Bolt")
-            assert "Test search result" in result
-            assert "[Image: image/jpeg]" in result
-            mock_execute.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_search_cards_async_error(self) -> None:
-        """Test the async search cards method with error."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute:
-            mock_execute.side_effect = Exception("Test error")
-
-            result = await server._search_cards_async("Lightning Bolt")
-            assert result.startswith("Error:")
-            assert "Test error" in result
-
-    @pytest.mark.asyncio
-    async def test_autocomplete_async(self) -> None:
-        """Test the async autocomplete method."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute:
-            # Mock the execute method to return MCP content
-            mock_content = Mock()
-            mock_content.text = "Lightning Bolt\nLightning Strike\nLightning Helix"
-            mock_execute.return_value = [mock_content]
-
-            result = await server._autocomplete_async("Light")
-            assert result == "Lightning Bolt\nLightning Strike\nLightning Helix"
-            mock_execute.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_autocomplete_async_error(self) -> None:
-        """Test the async autocomplete method with error."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute:
-            mock_execute.side_effect = Exception("Test error")
-
-            result = await server._autocomplete_async("Light")
-            assert result.startswith("Error:")
-            assert "Test error" in result
-
     @pytest.mark.asyncio
     async def test_server_run(self) -> None:
         """Test server run method."""
         server = ScryfallMCPServer()
+
+        # Mock the app.run_stdio_async method to be async
+        server.app.run_stdio_async = AsyncMock()
+
+        await server.run()
+
+        # Verify run_stdio_async was called
+        server.app.run_stdio_async.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_server_run_with_error(self) -> None:
+        """Test server run method with error."""
+        server = ScryfallMCPServer()
+
+        # Mock the app.run_stdio_async method to raise an exception
+        server.app.run_stdio_async = AsyncMock(side_effect=Exception("Test error"))
+
+        with pytest.raises(Exception, match="Test error"):
+            await server.run()
+
+    @pytest.mark.asyncio
+    async def test_lifespan_context_manager(self) -> None:
+        """Test the lifespan context manager."""
+        from scryfall_mcp.server import _create_lifespan
 
         with patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect, \
              patch("scryfall_mcp.server.get_locale_manager") as mock_get_locale, \
@@ -254,31 +203,15 @@ if __name__ == "__main__":
             mock_locale_manager.get_supported_locale_codes.return_value = ["en", "ja"]
             mock_get_locale.return_value = mock_locale_manager
 
-            # Mock the app.run_stdio_async method to be async
-            server.app.run_stdio_async = AsyncMock()
+            # Test lifespan startup and shutdown
+            async with _create_lifespan():
+                # Verify startup was called
+                mock_detect.assert_called_once()
+                mock_get_locale.assert_called_once()
+                # close_client should not be called yet
+                mock_close.assert_not_called()
 
-            await server.run()
-
-            mock_detect.assert_called_once()
-            mock_get_locale.assert_called_once()
-            server.app.run_stdio_async.assert_called_once()
-            mock_close.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_server_run_with_error(self) -> None:
-        """Test server run method with error."""
-        server = ScryfallMCPServer()
-
-        with patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect, \
-             patch("scryfall_mcp.server.close_client") as mock_close:
-
-            mock_detect.return_value = "en"
-            # Mock the app.run_stdio_async method to raise an exception
-            server.app.run_stdio_async = AsyncMock(side_effect=Exception("Test error"))
-
-            with pytest.raises(Exception, match="Test error"):
-                await server.run()
-
+            # Verify cleanup was called on exit
             mock_close.assert_called_once()
 
 

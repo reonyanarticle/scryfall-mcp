@@ -77,10 +77,11 @@ class Settings(BaseSettings):
     )
 
     # Cache TTL Settings (in seconds)
+    # Scryfall recommends caching data for at least 24 hours
     cache_ttl_search: int = Field(
-        default=1800,  # 30 minutes
-        ge=60,
-        description="TTL for search results",
+        default=86400,  # 24 hours (Scryfall recommendation)
+        ge=86400,  # Minimum 24 hours per Scryfall guidelines
+        description="TTL for search results (min 24h per Scryfall guidelines)",
     )
     cache_ttl_card: int = Field(
         default=86400,  # 24 hours
@@ -98,9 +99,9 @@ class Settings(BaseSettings):
         description="TTL for set information",
     )
     cache_ttl_default: int = Field(
-        default=3600,  # 1 hour
-        ge=300,
-        description="Default TTL for cached items",
+        default=86400,  # 24 hours (Scryfall recommendation)
+        ge=86400,  # Minimum 24 hours per Scryfall guidelines
+        description="Default TTL for cached items (autocomplete, etc.)",
     )
 
     # Internationalization

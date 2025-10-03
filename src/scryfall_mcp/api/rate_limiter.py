@@ -36,30 +36,34 @@ class RateLimiter:
         self._backoff_until: float = 0.0
         self._consecutive_failures: int = 0
         self._max_backoff_seconds: float = 300.0  # 5 minutes max
+        self._lock = asyncio.Lock()  # Protect shared state from concurrent access  # 5 minutes max
 
     async def acquire(self) -> None:
         """Acquire permission to make a request.
 
         This method will block until it's safe to make a request, considering
         both rate limiting and any active exponential backoff.
+        
+        Thread-safe: Uses asyncio.Lock to prevent race conditions.
         """
-        now = time.time()
-
-        # Handle exponential backoff
-        if self._backoff_until > now:
-            wait_time = self._backoff_until - now
-            await asyncio.sleep(wait_time)
+        async with self._lock:
             now = time.time()
 
-        # Handle regular rate limiting
-        time_since_last = now - self._last_request_time
-        required_interval = self._rate_limit_ms / 1000.0
+            # Handle exponential backoff
+            if self._backoff_until > now:
+                wait_time = self._backoff_until - now
+                await asyncio.sleep(wait_time)
+                now = time.time()
 
-        if time_since_last < required_interval:
-            wait_time = required_interval - time_since_last
-            await asyncio.sleep(wait_time)
+            # Handle regular rate limiting
+            time_since_last = now - self._last_request_time
+            required_interval = self._rate_limit_ms / 1000.0
 
-        self._last_request_time = time.time()
+            if time_since_last < required_interval:
+                wait_time = required_interval - time_since_last
+                await asyncio.sleep(wait_time)
+
+            self._last_request_time = time.time()
 
     def record_success(self) -> None:
         """Record a successful request.
