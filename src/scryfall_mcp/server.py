@@ -82,7 +82,7 @@ class ScryfallMCPServer:
             ctx: Context,
             query: str,
             language: str | None = None,
-            max_results: int = 20,
+            max_results: int = 10,
             include_images: bool = True,
             format_filter: str | None = None,
         ) -> list[TextContent | ImageContent | EmbeddedResource]:
@@ -92,7 +92,7 @@ class ScryfallMCPServer:
                 ctx: FastMCP context for progress reporting and logging
                 query: Search query (natural language or Scryfall syntax)
                 language: Language code ("en", "ja")
-                max_results: Maximum number of results (1-175)
+                max_results: Maximum number of results (1-175, default: 10)
                 include_images: Whether to include card images
                 format_filter: Format filter ("standard", "modern", etc.)
 

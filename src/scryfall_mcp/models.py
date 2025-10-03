@@ -39,9 +39,23 @@ class BuiltQuery(BaseModel):
 
 
 class SearchOptions(BaseModel):
-    """Search presentation options."""
+    """Search presentation options.
 
-    max_results: int = 20
+    Attributes
+    ----------
+    max_results : int
+        Maximum number of results to return (default: 10).
+        Reduced from 20 to prevent BrokenPipeError with large responses.
+        Users can override to request up to 175 results.
+    include_images : bool
+        Whether to include card images in results (default: True)
+    format_filter : str | None
+        Optional format filter (e.g., "standard", "modern")
+    language : str | None
+        Optional language code for search (e.g., "en", "ja")
+    """
+
+    max_results: int = 10  # Reduced from 20 to prevent pipe overflow
     include_images: bool = True
     format_filter: str | None = None
     language: str | None = None
