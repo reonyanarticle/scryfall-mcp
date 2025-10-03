@@ -99,7 +99,7 @@ class ScryfallMCPServer:
             Returns:
                 List of MCP content items (text, images, embedded resources)
             """
-            ctx.info(
+            await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"
             )
 
@@ -112,13 +112,13 @@ class ScryfallMCPServer:
             }
 
             try:
-                ctx.report_progress(0, 100, "Searching for cards...")
+                await ctx.report_progress(0, 100, "Searching for cards...")
                 # Return structured MCP content directly
                 result = await CardSearchTool.execute(arguments)
-                ctx.report_progress(100, 100, "Search complete")
+                await ctx.report_progress(100, 100, "Search complete")
                 return result
             except Exception as e:
-                ctx.error(f"Error in search_cards: {e}")
+                await ctx.error(f"Error in search_cards: {e}")
                 logger.exception("Error in search_cards")
                 error_msg = (
                     f"検索エラー: {e}" if language == "ja" else f"Search error: {e}"
@@ -142,7 +142,7 @@ class ScryfallMCPServer:
             Returns:
                 List of MCP text content with suggestions
             """
-            ctx.info(f"Autocomplete called: query='{query}', language={language}")
+            await ctx.info(f"Autocomplete called: query='{query}', language={language}")
 
             arguments = {
                 "query": query,
@@ -150,13 +150,13 @@ class ScryfallMCPServer:
             }
 
             try:
-                ctx.report_progress(0, 100, "Getting autocomplete suggestions...")
+                await ctx.report_progress(0, 100, "Getting autocomplete suggestions...")
                 # Return structured MCP content directly
                 result = await AutocompleteTool.execute(arguments)
-                ctx.report_progress(100, 100, "Autocomplete complete")
+                await ctx.report_progress(100, 100, "Autocomplete complete")
                 return result
             except Exception as e:
-                ctx.error(f"Error in autocomplete: {e}")
+                await ctx.error(f"Error in autocomplete: {e}")
                 logger.exception("Error in autocomplete")
                 error_msg = (
                     f"オートコンプリートエラー: {e}"

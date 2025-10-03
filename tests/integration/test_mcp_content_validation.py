@@ -54,11 +54,31 @@ def validate_mcp_content(content_items: list) -> tuple[bool, list[str]]:
 
 
 def send_request(proc: subprocess.Popen, request: dict) -> dict | None:
-    """Send a JSON-RPC request and get response."""
+    """Send a JSON-RPC request and get response.
+
+    Skips notification messages and waits for the actual response.
+    """
     proc.stdin.write(json.dumps(request) + "\n")
     proc.stdin.flush()
-    response_line = proc.stdout.readline()
-    return json.loads(response_line) if response_line else None
+
+    # Read responses until we get one with matching ID or result
+    while True:
+        response_line = proc.stdout.readline()
+        if not response_line:
+            return None
+
+        response = json.loads(response_line)
+
+        # Skip notifications (messages without 'id')
+        if "method" in response and response.get("method") == "notifications/message":
+            continue
+
+        # Skip notifications/progress
+        if "method" in response and "notifications" in response.get("method", ""):
+            continue
+
+        # Return actual response (has 'id' or 'result')
+        return response
 
 
 def test_content_validation() -> None:
