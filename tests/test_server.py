@@ -193,6 +193,7 @@ if __name__ == "__main__":
     async def test_lifespan_context_manager(self) -> None:
         """Test the lifespan context manager."""
         from scryfall_mcp.server import _create_lifespan
+        from fastmcp import FastMCP
 
         with patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect, \
              patch("scryfall_mcp.server.get_locale_manager") as mock_get_locale, \
@@ -203,8 +204,11 @@ if __name__ == "__main__":
             mock_locale_manager.get_supported_locale_codes.return_value = ["en", "ja"]
             mock_get_locale.return_value = mock_locale_manager
 
+            # Create a mock FastMCP app
+            mock_app = Mock(spec=FastMCP)
+
             # Test lifespan startup and shutdown
-            async with _create_lifespan():
+            async with _create_lifespan(mock_app):
                 # Verify startup was called
                 mock_detect.assert_called_once()
                 mock_get_locale.assert_called_once()

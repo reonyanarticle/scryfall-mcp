@@ -33,8 +33,11 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def _create_lifespan() -> AsyncIterator[None]:
+async def _create_lifespan(app: FastMCP) -> AsyncIterator[None]:
     """Lifecycle manager for the MCP server.
+
+    Args:
+        app: FastMCP application instance
 
     Handles startup and shutdown operations including:
     - Locale detection and initialization
