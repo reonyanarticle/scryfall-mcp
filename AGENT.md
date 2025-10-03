@@ -84,9 +84,88 @@ search_result = await client.search_cards(
 - **メンテナンスフリー**: 新セットの手動登録が不要
 - **ネイティブファジーマッチング**: Scryfallの高精度検索を活用
 
-## 最近の改善（2025-10-03）
+## 最近の改善（2025-10-03/04）
 
-### テストカバレッジの向上
+### MCP仕様準拠とプロトコル修正（2025-10-04）
+
+#### Critical: Lifespan Context Manager修正
+**問題**: FastMCPがlifespanコンテキストマネージャーに`app`引数を渡すが、実装が受け取っていなかった。
+```
+TypeError: _create_lifespan() takes 0 positional arguments but 1 was given
+```
+
+**実装済み解決策**:
+- `_create_lifespan(app: FastMCP) -> AsyncIterator[None]` に修正
+- FastMCPのlifespanプロトコルに準拠
+- サーバーが正常にstdioモードで起動可能に
+
+#### MCP Content型の構造化出力（Critical修正完了）
+**問題**: ツールがMCP Content型（TextContent、ImageContent、EmbeddedResource）を文字列に変換していた。
+
+**実装済み解決策**:
+- ツールが直接`list[TextContent | ImageContent | EmbeddedResource]`を返すように修正
+- MCPプロトコル準拠の構造化データ出力
+- `tests/integration/test_mcp_content_validation.py`で検証完了
+
+#### FastMCP Context注入
+**追加機能**:
+- 全ツールに`Context`パラメータを追加
+- `ctx.info()`: ログ出力
+- `ctx.report_progress()`: 進捗報告
+- `ctx.error()`: エラーログ
+- より良い可観測性とユーザーフィードバック
+
+#### Asynccontextmanagerベースのライフサイクル管理
+**実装完了**:
+```python
+@asynccontextmanager
+async def _create_lifespan(app: FastMCP) -> AsyncIterator[None]:
+    """Lifecycle manager for the MCP server."""
+    # Startup
+    detected_locale = detect_and_set_locale()
+    logger.info("Detected and set locale: %s", detected_locale)
+
+    try:
+        yield
+    finally:
+        # Shutdown/cleanup
+        await close_client()
+        logger.info("Scryfall MCP Server stopped")
+```
+- 起動/シャットダウンロジックの一元化
+- リソースの適切なクリーンアップ
+- FastMCPのlifespanプロトコルに準拠
+
+#### Cache TTL Scryfall推奨値対応
+**問題**: キャッシュTTLが30分/1時間（Scryfall推奨は最低24時間）
+
+**実装済み解決策**:
+- `cache_ttl_search`: 30分 → 86400秒（24時間）
+- `cache_ttl_default`: 1時間 → 86400秒（24時間）
+- Scryfall APIガイドライン準拠
+
+#### RateLimiterのスレッドセーフ化
+**問題**: 共有状態が保護されておらず、並行リクエストでレート制限違反の可能性。
+
+**実装済み解決策**:
+```python
+def __init__(self):
+    self._lock = asyncio.Lock()  # 共有状態を保護
+
+async def acquire(self) -> None:
+    async with self._lock:
+        # レート制限ロジック
+```
+
+#### MCP統合テスト追加
+**新規テスト**: `tests/integration/test_mcp_content_validation.py`
+- TextContent構造検証（`type: "text"`, `text: str`）
+- ImageContent構造検証（`type: "image"`, `data: str`, `mimeType: str`）
+- EmbeddedResource構造検証（`type: "resource"`, `resource: dict`）
+- エラーレスポンスの検証
+- 全357テスト成功
+
+### テストカバレッジの向上（2025-10-03）
 **問題**: Codex分析により、リクエストモデルとバリデーション周りのテストカバレッジ不足が判明。
 
 **実装済み解決策**:
@@ -98,7 +177,7 @@ search_result = await client.search_cards(
   - 必須フィールドの検証
 - 全360テスト成功、カバレッジ向上
 
-### 定数の分離
+### 定数の分離（2025-10-03）
 **問題**: settings.pyに実行時設定と静的な語彙データが混在し、モジュールの責務が不明瞭。
 
 **実装済み解決策**:

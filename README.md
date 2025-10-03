@@ -9,10 +9,13 @@ Scryfall MCP Serverは、Magic: The Gatheringのカード検索と情報取得�
 ## 主要機能
 
 - **自然言語カード検索**: 日本語・英語での自然な検索クエリに対応
-- **レート制限**: Scryfall API制限に準拠した安全なリクエスト管理
+- **MCP準拠の構造化出力**: TextContent、ImageContent、EmbeddedResourceによる高品質なデータ提供
+- **リアルタイム進捗報告**: FastMCP Context注入による詳細なログとプログレス通知
+- **レート制限**: Scryfall API制限に準拠した安全なリクエスト管理（スレッドセーフ実装）
 - **サーキットブレーカー**: 障害時の自動復旧機能
 - **自動補完**: カード名の入力補助機能
 - **高精度検索**: Scryfall検索構文への自動変換
+- **Scryfall推奨キャッシュ**: 最低24時間のキャッシュTTLでAPI負荷を軽減
 
 ## クイックスタート
 
@@ -156,11 +159,12 @@ scryfall-mcp/
 
 ### 主要コンポーネント
 
-- **API Client**: レート制限・リトライ・サーキットブレーカー搭載
-- **Cache System**: L1 (Memory) + L2 (Redis) の2層キャッシュ
+- **API Client**: レート制限・リトライ・サーキットブレーカー搭載（asyncio.Lockによるスレッドセーフ実装）
+- **Cache System**: L1 (Memory) + L2 (Redis) の2層キャッシュ（24時間TTL、Scryfall推奨値準拠）
 - **Search Pipeline**: Parser → Builder → Presenter の責務分離
 - **i18n System**: contextvarsベースの並行安全なロケール管理
-- **MCP Tools**: 構造化レスポンス対応の検索・補完ツール
+- **MCP Tools**: 構造化レスポンス対応の検索・補完ツール（Context注入による進捗報告機能付き）
+- **Lifecycle Management**: asynccontextmanagerベースの起動・シャットダウン処理
 
 ## 設定
 
@@ -173,9 +177,11 @@ SCRYFALL_MCP_RATE_LIMIT_MS=100
 # 言語設定
 SCRYFALL_MCP_DEFAULT_LOCALE=ja
 
-# キャッシュ設定
+# キャッシュ設定（Scryfall推奨: 最低24時間）
 SCRYFALL_MCP_CACHE_ENABLED=true
 SCRYFALL_MCP_CACHE_BACKEND=memory
+SCRYFALL_MCP_CACHE_TTL_SEARCH=86400  # 24時間（秒）
+SCRYFALL_MCP_CACHE_TTL_DEFAULT=86400 # 24時間（秒）
 ```
 
 詳細は [設定ガイド](docs/CONFIGURATION.md) を参照してください。
@@ -185,11 +191,14 @@ SCRYFALL_MCP_CACHE_BACKEND=memory
 ### テスト実行
 
 ```bash
-# 全テスト実行
+# 全テスト実行（357テスト）
 uv run pytest
 
 # カバレッジ付きテスト
 uv run pytest --cov=scryfall_mcp
+
+# MCP統合テスト（Content構造検証）
+uv run pytest tests/integration/test_mcp_content_validation.py -v
 
 # 特定テストのみ
 uv run pytest tests/api/test_client.py -v
@@ -207,6 +216,30 @@ uv run ruff format src/ tests/
 # 型チェック
 uv run mypy src/
 ```
+
+## MCP仕様準拠
+
+このサーバーは[Model Context Protocol仕様](https://modelcontextprotocol.io/)に完全準拠しています：
+
+### プロトコル対応
+- **MCPバージョン**: 2024-11-05
+- **通信方式**: stdio (標準入出力)
+- **コンテンツタイプ**: TextContent、ImageContent、EmbeddedResource
+- **ライフサイクル管理**: asynccontextmanagerベースの起動・シャットダウン
+
+### 構造化レスポンス
+- カード情報を`EmbeddedResource`として構造化
+- カスタムURIスキーマ: `card://scryfall/{id}`
+- 画像データを`ImageContent`として提供
+- エラーメッセージを多言語対応の`TextContent`として返却
+
+### 観測可能性
+- FastMCP Context注入による進捗報告
+- `ctx.info()`: 詳細ログ出力
+- `ctx.report_progress()`: リアルタイム進捗通知
+- `ctx.error()`: エラーログ記録
+
+詳細な実装については [AI開発者ガイド](AGENT.md) を参照してください。
 
 ## ドキュメント
 
