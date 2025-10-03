@@ -80,7 +80,8 @@ scryfall-mcp/
 │   ├── search/           # 検索クエリ処理
 │   ├── tools/            # MCPツール実装
 │   ├── server.py         # MCPサーバーメイン
-│   └── settings.py       # 設定管理
+│   ├── settings.py       # 設定管理・定数定義
+│   └── models.py         # データモデル・型定義
 ├── tests/                # テストスイート
 └── docs/                 # ドキュメント
 ```

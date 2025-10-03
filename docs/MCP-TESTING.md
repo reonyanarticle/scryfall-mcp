@@ -49,6 +49,8 @@ uv run python tests/integration/test_mcp_connection.py
 - Server name: scryfall-mcp
 - Server capabilities (tools, prompts, resources)
 
+が表示されます。
+
 #### 3.2 ツール一覧の取得
 
 利用可能なツールの一覧を取得:
@@ -60,6 +62,8 @@ uv run python tests/integration/test_mcp_tools_list.py
 期待される出力:
 - `search_cards`: カード検索ツール
 - `autocomplete_card_names`: カード名の自動補完
+
+が表示されます。
 
 #### 3.3 ツール呼び出しテスト
 
@@ -149,7 +153,7 @@ npx @modelcontextprotocol/inspector --cli --transport stdio uv run scryfall-mcp
 }
 ```
 
-期待される動作: `c:r t:creature lang:ja` に変換されて検索
+期待される動作: `c:r t:creature lang:ja` に変換されて検索されます。
 
 ### オートコンプリート
 
@@ -178,20 +182,20 @@ npx @modelcontextprotocol/inspector --cli --transport stdio uv run scryfall-mcp
 
 ### API エラー
 
-1. ネットワーク接続を確認
-2. Scryfall APIの状態を確認: https://scryfall.com/docs/api
-3. レート制限に注意（100ms間隔）
+1. ネットワーク接続を確認してください
+2. Scryfall APIの状態を確認してください: https://scryfall.com/docs/api
+3. レート制限に注意してください（100ms間隔）
 
 ## テスト結果の確認
 
-すべてのテストが成功すると、以下が確認できます:
+すべてのテストが成功すると、以下が確認できます。
 
-✓ MCPプロトコルでの通信が正常
-✓ 2つのツール（search_cards, autocomplete_card_names）が利用可能
-✓ 英語・日本語両方のカード検索が動作
-✓ 自然言語クエリがScryfallクエリに正しく変換
-✓ 日本語カード名がネイティブサポートで検索可能（lang:パラメータ自動追加）
-✓ オートコンプリート機能が動作
+✓ MCPプロトコルでの通信が正常に動作する
+✓ 2つのツール（search_cards, autocomplete_card_names）が利用可能である
+✓ 英語・日本語両方のカード検索が動作する
+✓ 自然言語クエリがScryfallクエリに正しく変換される
+✓ 日本語カード名がネイティブサポートで検索可能である（lang:パラメータ自動追加）
+✓ オートコンプリート機能が動作する
 
 ## CI/CDでのテスト
 

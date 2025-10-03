@@ -32,10 +32,10 @@ scryfall-mcp/
 ├── src/scryfall_mcp/           # メインパッケージ
 │   ├── __init__.py
 │   ├── server.py               # MCPサーバーエントリポイント
-│   ├── settings.py             # 設定管理
+│   ├── settings.py             # 設定管理・定数定義
+│   ├── models.py               # データモデル・型定義（統合）
 │   ├── api/                    # Scryfall APIクライアント
 │   │   ├── client.py           # HTTPクライアント
-│   │   ├── models.py           # データモデル
 │   │   └── rate_limiter.py     # レート制限とサーキットブレーカー
 │   ├── cache/                  # キャッシュシステム
 │   ├── i18n/                   # 国際化サポート
