@@ -20,6 +20,7 @@ Scryfall MCP Serverは、Magic: The Gatheringのカード検索と情報取得�
 
 - Python 3.11+
 - uv (推奨) または pip
+- Claude Desktop または MCP対応AIアシスタント
 
 ### インストール
 
@@ -35,15 +36,70 @@ uv sync
 uv run pytest
 ```
 
-### 基本的な使用方法
+### MCP サーバーとしての使用
+
+#### 1. Claude Desktop での設定
+
+Claude Desktop の設定ファイル (`claude_desktop_config.json`) に以下を追加:
+
+**macOS/Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "scryfall": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/scryfall-mcp",
+        "run",
+        "scryfall-mcp"
+      ]
+    }
+  }
+}
+```
+
+#### 2. 利用可能なツール
+
+Claude Desktop で以下のツールが利用可能になります:
+
+**search_cards**
+- カード検索（日本語・英語対応）
+- 自然言語クエリからScryfall構文への自動変換
+- 最大175件の結果を取得
+
+**autocomplete_card_names**
+- カード名の入力補完
+- 部分一致検索
+- 多言語対応
+
+#### 3. 使用例
+
+Claude Desktop で以下のように質問できます:
+
+```
+# 日本語での検索
+「赤いクリーチャーを検索して」
+「稲妻のカード情報を教えて」
+
+# 英語での検索
+"Search for blue counterspells"
+"Find Lightning Bolt card details"
+
+# 自動補完
+「Light で始まるカード名を教えて」
+```
+
+### スタンドアロンでの使用
 
 ```bash
-# MCPサーバーの起動
-uv run python -m scryfall_mcp
+# MCPサーバーの起動（stdio mode）
+uv run scryfall-mcp
 
-# Claude等のAIアシスタントから以下のツールが利用可能:
-# - search_cards: カード検索
-# - autocomplete_card_names: カード名補完
+# または開発モードで起動
+SCRYFALL_MCP_DEBUG=true SCRYFALL_MCP_LOG_LEVEL=DEBUG uv run scryfall-mcp
 ```
 
 ## 📖 使用例
@@ -75,16 +131,36 @@ autocomplete_card_names(query="Light")
 scryfall-mcp/
 ├── src/scryfall_mcp/
 │   ├── api/              # Scryfall API クライアント
-│   ├── cache/            # キャッシュシステム
+│   │   ├── client.py     # HTTPクライアント実装
+│   │   └── rate_limiter.py # レート制限・サーキットブレーカー
+│   ├── cache/            # 2層キャッシュシステム
+│   │   ├── backends.py   # Memory/Redis/Composite
+│   │   └── manager.py    # キャッシュマネージャー
 │   ├── i18n/             # 国際化・多言語対応
-│   ├── search/           # 検索クエリ処理
+│   │   ├── constants.py  # 静的語彙データ (NEW)
+│   │   ├── locales.py    # ロケール管理
+│   │   └── mappings/     # 言語マッピング
+│   ├── search/           # 検索パイプライン
+│   │   ├── parser.py     # 自然言語解析
+│   │   ├── builder.py    # クエリ構築
+│   │   └── presenter.py  # MCP出力フォーマット
 │   ├── tools/            # MCPツール実装
-│   ├── server.py         # MCPサーバーメイン
-│   ├── settings.py       # 設定管理・定数定義
+│   │   └── search.py     # 検索ツール
+│   ├── server.py         # MCPサーバーエントリポイント
+│   ├── settings.py       # 実行時設定管理
 │   └── models.py         # データモデル・型定義
-├── tests/                # テストスイート
-└── docs/                 # ドキュメント
+├── tests/                # テストスイート (360 tests)
+├── docs/                 # ドキュメント
+└── AGENT.md              # AI開発者向けガイド
 ```
+
+### 主要コンポーネント
+
+- **API Client**: レート制限・リトライ・サーキットブレーカー搭載
+- **Cache System**: L1 (Memory) + L2 (Redis) の2層キャッシュ
+- **Search Pipeline**: Parser → Builder → Presenter の責務分離
+- **i18n System**: contextvarsベースの並行安全なロケール管理
+- **MCP Tools**: 構造化レスポンス対応の検索・補完ツール
 
 ## 設定
 
@@ -134,10 +210,12 @@ uv run mypy src/
 
 ## ドキュメント
 
-- [API仕様書](docs/API-REFERENCE.md)
-- [多言語対応ガイド](docs/INTERNATIONALIZATION.md)
-- [開発者ガイド](docs/DEVELOPMENT.md)
-- [設定ガイド](docs/CONFIGURATION.md)
+- [API仕様書](docs/API-REFERENCE.md) - MCPツール詳細仕様
+- [多言語対応ガイド](docs/INTERNATIONALIZATION.md) - i18n実装詳細
+- [開発者ガイド](docs/DEVELOPMENT.md) - 開発環境・コーディング規約
+- [設定ガイド](docs/CONFIGURATION.md) - 環境変数・設定項目
+- [MCPテストガイド](docs/MCP-TESTING.md) - MCP統合テスト方法
+- [AI開発者ガイド](AGENT.md) - 設計思想・技術的制約
 
 ## コントリビューション
 

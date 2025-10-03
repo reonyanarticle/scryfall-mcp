@@ -84,6 +84,33 @@ search_result = await client.search_cards(
 - **メンテナンスフリー**: 新セットの手動登録が不要
 - **ネイティブファジーマッチング**: Scryfallの高精度検索を活用
 
+## 最近の改善（2025-10-03）
+
+### テストカバレッジの向上
+**問題**: Codex分析により、リクエストモデルとバリデーション周りのテストカバレッジ不足が判明。
+
+**実装済み解決策**:
+- リクエストモデル（SearchCardsRequest、AutocompleteRequest）の包括的テストを追加
+- バリデーションテスト追加:
+  - URL検証（ImageUris、Card）
+  - 境界値検証（max_results: 1-175）
+  - ネストされた構造の検証
+  - 必須フィールドの検証
+- 全360テスト成功、カバレッジ向上
+
+### 定数の分離
+**問題**: settings.pyに実行時設定と静的な語彙データが混在し、モジュールの責務が不明瞭。
+
+**実装済み解決策**:
+- `src/scryfall_mcp/i18n/constants.py` を新規作成
+- 分離した定数:
+  - `SCRYFALL_KEYWORDS` - 検索構文キーワード
+  - `MAGIC_COLORS` - 色コード (WUBRG)
+  - `MAGIC_TYPES` - カードタイプとサブタイプ
+  - `SEARCH_PATTERNS` - 正規表現パターン
+- `settings.py` は実行時設定のみに集中
+- モジュールの責務が明確化
+
 ## 設計課題と実装状況
 
 ### 1. 並行性の問題（完了）
