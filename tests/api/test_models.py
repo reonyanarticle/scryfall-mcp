@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from scryfall_mcp.models import (
+    AutocompleteRequest,
     BulkData,
     Card,
     CardFace,
@@ -18,6 +19,7 @@ from scryfall_mcp.models import (
     Prices,
     Ruling,
     ScryfallError,
+    SearchCardsRequest,
     SearchResult,
     Set,
 )
@@ -47,6 +49,23 @@ class TestImageUris:
         assert image_uris.normal is None
         assert image_uris.large is None
         assert image_uris.png is None
+
+    def test_invalid_url_validation(self):
+        """Test that invalid URLs raise ValidationError."""
+        # Invalid URL format
+        with pytest.raises(ValidationError) as exc_info:
+            ImageUris(small="not a url")
+        assert "url" in str(exc_info.value).lower()
+
+        # Non-HTTP(S) URL
+        with pytest.raises(ValidationError) as exc_info:
+            ImageUris(normal="ftp://example.com/image.jpg")
+        assert "url" in str(exc_info.value).lower()
+
+        # Malformed URL
+        with pytest.raises(ValidationError) as exc_info:
+            ImageUris(large="http://")
+        assert "url" in str(exc_info.value).lower()
 
 
 class TestLegalities:
@@ -201,6 +220,74 @@ class TestCard:
         # Test that UUIDs are properly validated
         with pytest.raises(ValidationError):
             Card(id="invalid-uuid")
+
+    def test_card_url_validation(self):
+        """Test that invalid URLs in card data raise ValidationError."""
+        with pytest.raises(ValidationError) as exc_info:
+            Card(
+                id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                oracle_id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                name="Test Card",
+                lang="en",
+                released_at="2020-01-01",
+                uri="not a valid url",  # Invalid URL
+                scryfall_uri="https://scryfall.com/card/test",
+                layout="normal",
+                type_line="Creature",
+                legalities=Legalities(),
+                set_id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                set="tst",
+                set_name="Test Set",
+                set_type="core",
+                set_uri="https://api.scryfall.com/sets/tst",
+                set_search_uri="https://api.scryfall.com/cards/search?q=set:tst",
+                scryfall_set_uri="https://scryfall.com/sets/tst",
+                rulings_uri="https://api.scryfall.com/cards/test/rulings",
+                prints_search_uri="https://api.scryfall.com/cards/search?q=name:test",
+                collector_number="1",
+                rarity="common",
+                border_color="black",
+                frame="2015",
+                prices=Prices(),
+                related_uris={},
+                purchase_uris={},
+            )
+        assert "url" in str(exc_info.value).lower()
+
+    def test_card_nested_validation(self):
+        """Test validation of nested structures in card data."""
+        # Test invalid image_uris
+        with pytest.raises(ValidationError) as exc_info:
+            Card(
+                id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                oracle_id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                name="Test Card",
+                lang="en",
+                released_at="2020-01-01",
+                uri="https://api.scryfall.com/cards/test",
+                scryfall_uri="https://scryfall.com/card/test",
+                layout="normal",
+                type_line="Creature",
+                legalities=Legalities(),
+                set_id="8f05b5e7-c1aa-4a6c-b832-9d53ac0e3bc3",
+                set="tst",
+                set_name="Test Set",
+                set_type="core",
+                set_uri="https://api.scryfall.com/sets/tst",
+                set_search_uri="https://api.scryfall.com/cards/search?q=set:tst",
+                scryfall_set_uri="https://scryfall.com/sets/tst",
+                rulings_uri="https://api.scryfall.com/cards/test/rulings",
+                prints_search_uri="https://api.scryfall.com/cards/search?q=name:test",
+                collector_number="1",
+                rarity="common",
+                border_color="black",
+                frame="2015",
+                prices=Prices(),
+                related_uris={},
+                purchase_uris={},
+                image_uris=ImageUris(small="invalid url"),  # Invalid nested URL
+            )
+        assert "url" in str(exc_info.value).lower()
 
 
 class TestSearchResult:
@@ -362,3 +449,86 @@ class TestBulkData:
         assert bulk_data.size == 50000000
         assert bulk_data.content_type == "application/json"
         assert bulk_data.content_encoding == "gzip"
+
+
+
+class TestSearchCardsRequest:
+    """Test SearchCardsRequest model."""
+
+    def test_valid_request(self):
+        """Test valid search request."""
+        request = SearchCardsRequest(
+            query="Lightning Bolt",
+            language="en",
+            max_results=10,
+            include_images=True,
+            format_filter="modern",
+        )
+
+        assert request.query == "Lightning Bolt"
+        assert request.language == "en"
+        assert request.max_results == 10
+        assert request.include_images is True
+        assert request.format_filter == "modern"
+
+    def test_minimal_request(self):
+        """Test minimal search request with defaults."""
+        request = SearchCardsRequest(query="test")
+
+        assert request.query == "test"
+        assert request.language is None
+        assert request.max_results == 20  # Default
+        assert request.include_images is True  # Default
+        assert request.format_filter is None
+
+    def test_max_results_validation(self):
+        """Test max_results boundary validation."""
+        # Valid boundaries
+        request = SearchCardsRequest(query="test", max_results=1)
+        assert request.max_results == 1
+
+        request = SearchCardsRequest(query="test", max_results=175)
+        assert request.max_results == 175
+
+        # Invalid: less than 1
+        with pytest.raises(ValidationError) as exc_info:
+            SearchCardsRequest(query="test", max_results=0)
+        assert "greater than or equal to 1" in str(exc_info.value)
+
+        # Invalid: greater than 175
+        with pytest.raises(ValidationError) as exc_info:
+            SearchCardsRequest(query="test", max_results=176)
+        assert "less than or equal to 175" in str(exc_info.value)
+
+    def test_required_query(self):
+        """Test that query is required."""
+        with pytest.raises(ValidationError) as exc_info:
+            SearchCardsRequest()
+        assert "query" in str(exc_info.value)
+
+
+class TestAutocompleteRequest:
+    """Test AutocompleteRequest model."""
+
+    def test_valid_request(self):
+        """Test valid autocomplete request."""
+        request = AutocompleteRequest(
+            query="Light",
+            language="en",
+        )
+
+        assert request.query == "Light"
+        assert request.language == "en"
+
+    def test_minimal_request(self):
+        """Test minimal request."""
+        request = AutocompleteRequest(query="Bol")
+
+        assert request.query == "Bol"
+        assert request.language is None
+
+    def test_required_query(self):
+        """Test that query is required."""
+        with pytest.raises(ValidationError) as exc_info:
+            AutocompleteRequest()
+        assert "query" in str(exc_info.value)
