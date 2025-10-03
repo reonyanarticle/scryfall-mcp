@@ -8,7 +8,7 @@ import pytest
 from mcp.types import TextContent
 
 from scryfall_mcp.api.client import ScryfallAPIError
-from scryfall_mcp.api.models import SearchResult
+from scryfall_mcp.models import SearchResult
 from scryfall_mcp.tools.search import (
     AutocompleteRequest,
     AutocompleteTool,

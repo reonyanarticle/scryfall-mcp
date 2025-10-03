@@ -11,10 +11,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from scryfall_mcp.api.models import (
-    Card,
-    SearchResult,
-)
+from scryfall_mcp.models import Card, SearchResult
 from scryfall_mcp.settings import Settings
 
 

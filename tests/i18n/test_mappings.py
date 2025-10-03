@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from scryfall_mcp.i18n.mappings.common import (
+from scryfall_mcp.models import LanguageMapping
+from scryfall_mcp.settings import (
     MAGIC_COLORS,
     MAGIC_TYPES,
     SCRYFALL_KEYWORDS,
     SEARCH_PATTERNS,
-    LanguageMapping,
 )
 from scryfall_mcp.i18n.mappings.en import english_mapping
 from scryfall_mcp.i18n.mappings.ja import JAPANESE_CARD_NAMES, japanese_mapping

@@ -15,7 +15,7 @@ from scryfall_mcp.api.client import (
     close_client,
     get_client,
 )
-from scryfall_mcp.api.models import Card, SearchResult
+from scryfall_mcp.models import Card, SearchResult
 
 
 class TestScryfallAPIClient:

@@ -7,9 +7,15 @@ from uuid import uuid4
 import pytest
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 
-from scryfall_mcp.api.models import Card, CardFace, ImageUris, SearchResult
+from scryfall_mcp.models import (
+    BuiltQuery,
+    Card,
+    CardFace,
+    ImageUris,
+    SearchOptions,
+    SearchResult,
+)
 from scryfall_mcp.i18n import english_mapping, japanese_mapping
-from scryfall_mcp.search.models import BuiltQuery, SearchOptions
 from scryfall_mcp.search.presenter import SearchPresenter
 
 

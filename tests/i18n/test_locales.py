@@ -199,7 +199,7 @@ class TestLocaleManager:
 
     def test_add_mapping(self, locale_manager):
         """Test adding new language mapping."""
-        from scryfall_mcp.i18n.mappings.common import LanguageMapping
+        from scryfall_mcp.models import LanguageMapping
 
         # Create a mock mapping
         new_mapping = LanguageMapping(
@@ -242,7 +242,7 @@ class TestLocaleManager:
         original_count = len(locale_manager._mappings)
 
         # Add a temporary mapping
-        from scryfall_mcp.i18n.mappings.common import LanguageMapping
+        from scryfall_mcp.models import LanguageMapping
         temp_mapping = LanguageMapping(
             language_code="temp",
             language_name="Temporary",

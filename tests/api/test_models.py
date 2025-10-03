@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from scryfall_mcp.api.models import (
+from scryfall_mcp.models import (
     BulkData,
     Card,
     CardFace,
