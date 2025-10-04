@@ -273,6 +273,7 @@ uv run mypy src/
 
 ## ドキュメント
 
+- [コントリビューションガイド](docs/CONTRIBUTING.md) - PR受け付けルール・コーディング規約
 - [API仕様書](docs/API-REFERENCE.md) - MCPツール詳細仕様
 - [多言語対応ガイド](docs/INTERNATIONALIZATION.md) - i18n実装詳細
 - [開発者ガイド](docs/DEVELOPMENT.md) - 開発環境・コーディング規約
@@ -282,11 +283,26 @@ uv run mypy src/
 
 ## コントリビューション
 
+Scryfall MCP Serverへのコントリビューションを歓迎します。
+
+### クイックスタート
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+### 詳細ガイド
+
+プルリクエストの受け付けルール、コーディング規約、テスト要件などの詳細は [コントリビューションガイドライン](docs/CONTRIBUTING.md) を参照してください。
+
+**重要な要件**:
+- 全テスト合格 (357 tests)
+- 型チェック (`mypy`) 合格
+- リント (`ruff`) 合格
+- NumPy styleのdocstring必須
+- カバレッジ90%以上
 
 ## ライセンス
 
