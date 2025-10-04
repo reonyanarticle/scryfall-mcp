@@ -77,7 +77,7 @@ jobs:
     - name: Test MCP Inspector compatibility
       run: |
         # Test tools/list endpoint
-        timeout 30s npx -y @modelcontextprotocol/inspector --cli --transport stdio "uv run python -m scryfall_mcp" --method tools/list > inspector_tools_list.json 2>&1 || echo "Inspector test completed"
+        timeout 30s npx -y @modelcontextprotocol/inspector --cli --transport stdio "uv" "run" "scryfall-mcp" --method tools/list > inspector_tools_list.json 2>&1 || echo "Inspector test completed"
 
         # Check if we got valid JSON output
         if [ -f inspector_tools_list.json ]; then
