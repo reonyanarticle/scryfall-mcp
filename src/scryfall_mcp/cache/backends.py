@@ -174,9 +174,10 @@ class RedisCache(CacheProtocol):
             try:
                 import redis.asyncio as redis
 
-                self._redis = redis.from_url(self.redis_url, decode_responses=True)
+                self._redis = redis.from_url(self.redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
                 # Test connection
-                await self._redis.ping()
+                if self._redis is not None:
+                    await self._redis.ping()
                 self._available = True
                 logger.info(f"Connected to Redis at {self.redis_url}")
             except Exception as e:

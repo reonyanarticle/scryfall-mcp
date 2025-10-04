@@ -116,7 +116,8 @@ class CacheManager:
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         if hasattr(self.cache, "get_stats"):
-            return self.cache.get_stats()
+            stats: dict[str, Any] = self.cache.get_stats()
+            return stats
         return {"type": "unknown"}
 
 

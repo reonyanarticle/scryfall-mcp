@@ -159,7 +159,8 @@ def load_config() -> dict[str, str] | None:
 
     try:
         with config_file.open() as f:
-            return json.load(f)
+            config_data: dict[str, str] = json.load(f)
+            return config_data
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         return None

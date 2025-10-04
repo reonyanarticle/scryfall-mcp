@@ -511,7 +511,8 @@ class ScryfallAPIClient:
         if cache:
             cached = await cache.get("autocomplete", query=query)
             if cached:
-                return cached
+                cached_list: list[str] = cached
+                return cached_list
 
         params = {"q": query}
         data = await self._make_request("GET", "/cards/autocomplete", params)
