@@ -55,6 +55,17 @@ class MCPTester:
             self.process.terminate()
             await self.process.wait()
 
+    async def send_message(self, message: dict[str, Any]) -> None:
+        """Send a JSON-RPC message (notification) to the server."""
+        if not self.process or not self.process.stdin:
+            print("❌ Process or stdin not available")
+            return
+
+        message_json = json.dumps(message) + "\n"
+        print(f"📤 Sending notification: {message_json.strip()}")
+        self.process.stdin.write(message_json.encode())
+        await self.process.stdin.drain()
+
     async def send_request(
         self, request: dict[str, Any], timeout: float = 5.0
     ) -> dict[str, Any] | None:
