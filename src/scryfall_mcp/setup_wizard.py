@@ -95,6 +95,43 @@ def validate_contact_info(contact: str) -> bool:
     return False
 
 
+def save_config(contact: str) -> dict[str, str]:
+    """Save contact information to configuration file.
+
+    Parameters
+    ----------
+    contact : str
+        Contact information (email or URL)
+
+    Returns
+    -------
+    dict[str, str]
+        Configuration dictionary with user settings
+
+    Raises
+    ------
+    ValueError
+        If contact information is invalid
+    """
+    if not validate_contact_info(contact):
+        raise ValueError("Invalid contact information format")
+
+    # Build User-Agent string
+    user_agent = f"Scryfall-MCP-Server/0.1.0 ({contact})"
+
+    config = {"user_agent": user_agent, "contact": contact}
+
+    # Save configuration with owner-only permissions to protect PII
+    config_file = get_config_file()
+    with config_file.open("w") as f:
+        json.dump(config, f, indent=2)
+    # Set file permissions to 0o600 (owner read/write only)
+    config_file.chmod(0o600)
+
+    logger.info(f"Configuration saved to: {config_file}")
+    return config
+
+
 def run_setup_wizard() -> dict[str, str]:
     """Run the interactive setup wizard.
 

@@ -19,6 +19,7 @@ from ..models import AutocompleteRequest, SearchCardsRequest, SearchOptions
 from ..search.builder import QueryBuilder
 from ..search.parser import SearchParser
 from ..search.presenter import SearchPresenter
+from ..settings import is_user_agent_configured
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,25 @@ class CardSearchTool:
         list
             List of MCP content items
         """
+        # Check if User-Agent is configured before allowing search
+        if not is_user_agent_configured():
+            config_message = (
+                "⚠️ **Configuration Required**\n\n"
+                "Before searching for cards, you need to configure your contact information "
+                "for Scryfall API compliance.\n\n"
+                "**Please use the `configure_user_agent` tool first:**\n\n"
+                "Provide your email address or repository URL:\n"
+                "• Email: `yourname@example.com`\n"
+                "• GitHub: `https://github.com/username/repo`\n"
+                "• Other HTTPS URL where you can be reached\n\n"
+                "**Example:**\n"
+                "```\n"
+                "configure_user_agent(contact=\"yourname@example.com\")\n"
+                "```\n\n"
+                "This is required by Scryfall API guidelines to prevent throttling."
+            )
+            return [TextContent(type="text", text=config_message)]
+
         try:
             # Validate arguments
             request = SearchCardsRequest(**arguments)

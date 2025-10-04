@@ -44,7 +44,7 @@ uv run pytest
 
 ### 初回セットアップ
 
-初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の入力が必要です。
+初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の設定を**強く推奨**します。
 
 ```bash
 uv run scryfall-mcp setup
@@ -61,6 +61,12 @@ uv run scryfall-mcp setup
 - **Windows**: `%APPDATA%\Local\scryfall-mcp\config.json`
 
 **セキュリティ**: 設定ファイルと設定ディレクトリは、所有者のみがアクセス可能な権限（0o600/0o700）で保護されています。
+
+**注意**: 設定せずに起動した場合、デフォルトのUser-Agentで動作しますが、Scryfall APIから制限を受ける可能性があります。起動時に以下の警告が表示されます。
+```
+WARNING: User-Agent not configured. Run 'scryfall-mcp setup' to add contact info.
+Using default User-Agent. Scryfall API guidelines recommend including contact information.
+```
 
 **設定コマンド**:
 ```bash

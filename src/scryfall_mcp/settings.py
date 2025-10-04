@@ -291,3 +291,30 @@ def reload_settings() -> Settings:
     global _settings
     _settings = None  # Reset to trigger reload
     return get_settings()
+
+
+
+def is_user_agent_configured() -> bool:
+    """Check if User-Agent has been properly configured.
+
+    Returns
+    -------
+    bool
+        True if User-Agent contains contact information, False if using default
+
+    Notes
+    -----
+    Returns False if User-Agent is empty or contains the default placeholder
+    "setup-recommended", indicating the user should run configuration.
+    """
+    settings = get_settings()
+    user_agent = settings.user_agent.strip() if settings.user_agent else ""
+
+    if not user_agent:
+        return False
+
+    # Check if it's the default placeholder value
+    if "setup-recommended" in user_agent.lower():
+        return False
+
+    return True
