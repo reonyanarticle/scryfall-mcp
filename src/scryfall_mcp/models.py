@@ -67,12 +67,18 @@ class SearchOptions(BaseModel):
 
 
 class SearchCardsRequest(BaseModel):
-    """Request model for card search."""
+    """Request model for card search.
+
+    Note
+    ----
+    max_results defaults to 10 (reduced from 20) to prevent BrokenPipeError
+    on macOS systems with 16KB pipe buffer limits. Users can override up to 175.
+    """
 
     query: str = Field(description="Natural language search query (supports Japanese)")
     language: str | None = Field(default=None, description="Language code (ja, en)")
     max_results: int | None = Field(
-        default=20, ge=1, le=175, description="Maximum number of results"
+        default=10, ge=1, le=175, description="Maximum number of results"
     )
     include_images: bool | None = Field(
         default=True, description="Include card images in results"

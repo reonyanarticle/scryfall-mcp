@@ -477,7 +477,7 @@ class TestSearchCardsRequest:
 
         assert request.query == "test"
         assert request.language is None
-        assert request.max_results == 20  # Default
+        assert request.max_results == 10  # Default (reduced from 20 for macOS compatibility)
         assert request.include_images is True  # Default
         assert request.format_filter is None
 

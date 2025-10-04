@@ -37,14 +37,25 @@ class TestSearchCardsRequest:
         assert request.format_filter == "modern"
 
     def test_minimal_request(self):
-        """Test minimal search request."""
+        """Test minimal search request with default values."""
         request = SearchCardsRequest(query="test")
 
         assert request.query == "test"
         assert request.language is None
-        assert request.max_results == 20  # Default
+        assert request.max_results == 10  # Default (reduced from 20 for macOS pipe buffer)
         assert request.include_images is True  # Default
         assert request.format_filter is None
+
+    def test_default_max_results_prevents_pipe_overflow(self):
+        """Test that default max_results is 10 to prevent BrokenPipeError on macOS.
+
+        macOS has 16KB pipe buffer limit. At ~1KB per card, 10 cards = 10KB is safe,
+        but 20 cards = 20KB would exceed the buffer and cause BrokenPipeError.
+        """
+        request = SearchCardsRequest(query="any query")
+        assert request.max_results == 10, (
+            f"Default max_results should be 10 for macOS compatibility, got {request.max_results}"
+        )
 
     def test_validation_errors(self):
         """Test request validation."""
