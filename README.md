@@ -35,8 +35,38 @@ cd scryfall-mcp
 # 依存関係のインストール
 uv sync
 
+# 初回セットアップ（User-Agent設定）
+uv run scryfall-mcp setup
+
 # テストの実行
 uv run pytest
+```
+
+### 初回セットアップ
+
+初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の入力が必要です：
+
+```bash
+uv run scryfall-mcp setup
+```
+
+以下のいずれかを入力してください：
+- メールアドレス（例: `yourname@example.com`）
+- GitHubリポジトリURL（例: `github.com/username/repo`）
+- その他連絡可能なURL
+
+設定は `~/Library/Application Support/scryfall-mcp/config.json` (macOS) に保存されます。
+
+**設定コマンド**:
+```bash
+# 設定の表示
+uv run scryfall-mcp config
+
+# 設定のリセット（再設定）
+uv run scryfall-mcp reset
+
+# ヘルプ表示
+uv run scryfall-mcp --help
 ```
 
 ### MCP サーバーとしての使用

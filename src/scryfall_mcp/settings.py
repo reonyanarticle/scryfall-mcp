@@ -6,6 +6,8 @@ Supports multiple locales and provides secure configuration management.
 
 from __future__ import annotations
 
+import sys
+
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -39,7 +41,7 @@ class Settings(BaseSettings):
 
     # HTTP Headers
     user_agent: str = Field(
-        default="Scryfall-MCP-Server/0.1.0 (contact@example.com)",
+        default="",  # Will be loaded from setup wizard or environment variable
         description="User-Agent header for API requests",
     )
     accept_header: str = Field(
@@ -227,18 +229,47 @@ class Settings(BaseSettings):
 
 
 # Global settings instance
-settings = Settings()
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
     """Get the global settings instance.
+
+    On first call, loads User-Agent from setup wizard if not set via environment.
 
     Returns
     -------
     Settings
         The configured settings instance
     """
-    return settings
+    global _settings
+
+    if _settings is None:
+        _settings = Settings()
+
+        # Load User-Agent from setup wizard if not provided via environment
+        if not _settings.user_agent:
+            # Only run setup wizard in interactive mode (not in Claude Desktop stdio mode)
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                from .setup_wizard import get_user_agent
+
+                _settings.user_agent = get_user_agent()
+            else:
+                # In non-interactive mode, check for saved config
+                from .setup_wizard import load_config
+
+                config = load_config()
+                if config:
+                    _settings.user_agent = config.get(
+                        "user_agent", "Scryfall-MCP-Server/0.1.0 (unconfigured)"
+                    )
+                else:
+                    # No config found - use placeholder that will trigger warning
+                    _settings.user_agent = (
+                        "Scryfall-MCP-Server/0.1.0 (unconfigured - run setup)"
+                    )
+
+    return _settings
 
 
 def reload_settings() -> Settings:
@@ -249,6 +280,6 @@ def reload_settings() -> Settings:
     Settings
         The reloaded settings instance
     """
-    global settings
-    settings = Settings()
-    return settings
+    global _settings
+    _settings = None  # Reset to trigger reload
+    return get_settings()

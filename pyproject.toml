@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-scryfall-mcp = "scryfall_mcp:sync_main"
+scryfall-mcp = "scryfall_mcp.__main__:main"
 
 [dependency-groups]
 dev = [
