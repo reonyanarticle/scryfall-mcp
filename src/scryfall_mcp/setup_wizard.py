@@ -21,6 +21,10 @@ def get_config_dir() -> Path:
     -------
     Path
         Path to configuration directory
+
+    Notes
+    -----
+    Directory is created with 0o700 permissions (owner-only) to protect PII.
     """
     # Use XDG Base Directory specification
     if sys.platform == "darwin":
@@ -31,7 +35,7 @@ def get_config_dir() -> Path:
         xdg_config_home = Path.home() / ".config"
         config_dir = xdg_config_home / "scryfall-mcp"
 
-    config_dir.mkdir(parents=True, exist_ok=True)
+    config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     return config_dir
 
 
@@ -134,10 +138,12 @@ def run_setup_wizard() -> dict[str, str]:
 
     config = {"user_agent": user_agent, "contact": contact}
 
-    # Save configuration
+    # Save configuration with owner-only permissions to protect PII
     config_file = get_config_file()
     with config_file.open("w") as f:
         json.dump(config, f, indent=2)
+    # Set file permissions to 0o600 (owner read/write only)
+    config_file.chmod(0o600)
 
     print(f"✅ Configuration saved to: {config_file}")
     print("\n" + "=" * 70)

@@ -248,7 +248,11 @@ def get_settings() -> Settings:
         _settings = Settings()
 
         # Load User-Agent from setup wizard if not provided via environment
-        if not _settings.user_agent:
+        # Validate that it's not empty/whitespace and not a placeholder
+        user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
+        is_placeholder = "unconfigured" in user_agent_val.lower()
+
+        if not user_agent_val or is_placeholder:
             # Only run setup wizard in interactive mode (not in Claude Desktop stdio mode)
             if sys.stdin.isatty() and sys.stdout.isatty():
                 from .setup_wizard import get_user_agent
