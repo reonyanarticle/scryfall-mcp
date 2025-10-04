@@ -2,7 +2,7 @@
 """Test MCP server tools directly."""
 
 import asyncio
-import sys
+
 from scryfall_mcp.server import ScryfallMCPServer
 
 

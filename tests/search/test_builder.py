@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from scryfall_mcp.i18n import set_current_locale, get_current_mapping
+from scryfall_mcp.i18n import get_current_mapping, set_current_locale
 from scryfall_mcp.search.builder import QueryBuilder
 
 

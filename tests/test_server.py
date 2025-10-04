@@ -203,8 +203,9 @@ if __name__ == "__main__":
     @pytest.mark.asyncio
     async def test_lifespan_context_manager(self) -> None:
         """Test the lifespan context manager."""
-        from scryfall_mcp.server import _create_lifespan
         from fastmcp import FastMCP
+
+        from scryfall_mcp.server import _create_lifespan
 
         with (
             patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect,

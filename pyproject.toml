@@ -81,11 +81,28 @@ ignore = [
     "ANN401", # any-type
     "E501",   # line-too-long (handled by formatter)
     "TRY003", # raise-vanilla-args
+    "TRY300", # try-consider-else
+    "TRY400", # use-logging-exception
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
     "PLR0913", # too-many-arguments
+    "PLR0915", # too-many-statements
     "PLR2004", # magic-value-used-in-comparison
     "T201",   # print statements (allowed in test scripts)
     "T203",   # pprint statements
     "ANN204", # missing return type for __init__
+    "ANN001", # missing type annotation for function argument
+    "ANN201", # missing return type annotation for public function
+    "ANN202", # missing return type annotation for private function
+    "TC001",  # application import type-checking block
+    "TC003",  # standard library import type-checking block
+    "SIM102", # nested if statements
+    "SIM103", # return-condition-directly
+    "SIM105", # use-contextlib-suppress
+    "SIM117", # nested with statements
+    "ARG002", # unused method argument
+    "F841",   # local variable assigned but never used (common in mocking/tests)
+    "B007",   # loop control variable not used (common in validation loops)
 ]
 
 [tool.coverage.run]

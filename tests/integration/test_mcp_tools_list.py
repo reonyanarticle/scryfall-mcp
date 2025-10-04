@@ -3,7 +3,6 @@
 
 import json
 import subprocess
-import sys
 
 
 def send_request(proc, request):

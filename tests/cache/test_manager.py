@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from scryfall_mcp.cache.manager import CacheManager, get_cache, _create_cache_manager
+import pytest
+
 from scryfall_mcp.cache.backends import MemoryCache
+from scryfall_mcp.cache.manager import CacheManager, _create_cache_manager, get_cache
 
 
 class TestCacheManager:
@@ -188,6 +189,7 @@ class TestCacheIntegration:
     async def test_concurrent_access(self):
         """Test concurrent cache access."""
         import asyncio
+
         from scryfall_mcp.cache.backends import MemoryCache
 
         cache = MemoryCache(max_size=10)

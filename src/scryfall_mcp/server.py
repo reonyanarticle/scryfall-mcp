@@ -10,7 +10,7 @@ import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastmcp import Context, FastMCP
 from mcp.types import EmbeddedResource, ImageContent, TextContent

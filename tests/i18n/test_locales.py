@@ -477,7 +477,8 @@ class TestContextvarLocale:
     async def test_concurrent_locale_contexts(self):
         """Test that different locales work concurrently without interference."""
         import asyncio
-        from scryfall_mcp.i18n import use_locale, get_current_mapping
+
+        from scryfall_mcp.i18n import get_current_mapping, use_locale
 
         results = []
 
@@ -510,7 +511,7 @@ class TestContextvarLocale:
 
     def test_locale_context_isolation(self):
         """Test that locale context is properly isolated."""
-        from scryfall_mcp.i18n import use_locale, get_locale_manager
+        from scryfall_mcp.i18n import get_locale_manager, use_locale
 
         manager = get_locale_manager()
 
@@ -532,8 +533,9 @@ class TestContextvarLocale:
 
     def test_use_locale_error_handling(self):
         """Test error handling in use_locale context manager."""
-        from scryfall_mcp.i18n import use_locale, get_locale_manager
         import pytest
+
+        from scryfall_mcp.i18n import get_locale_manager, use_locale
 
         manager = get_locale_manager()
 
@@ -546,10 +548,9 @@ class TestContextvarLocale:
         assert manager.get_current_locale() == "en"
 
         # Test exception within context
-        with pytest.raises(RuntimeError):
-            with use_locale("ja"):
-                assert manager.get_current_locale() == "ja"
-                raise RuntimeError("Test error")
+        with pytest.raises(RuntimeError), use_locale("ja"):
+            assert manager.get_current_locale() == "ja"
+            raise RuntimeError("Test error")
 
         # Should still revert to default
         assert manager.get_current_locale() == "en"

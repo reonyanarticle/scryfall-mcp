@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import time
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from scryfall_mcp.cache.backends import (
     CacheEntry,
+    CompositeCache,
     MemoryCache,
     RedisCache,
-    CompositeCache,
 )
 
 

@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 import pytest
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 
+from scryfall_mcp.i18n import english_mapping, japanese_mapping
 from scryfall_mcp.models import (
     BuiltQuery,
     Card,
-    CardFace,
-    ImageUris,
     SearchOptions,
     SearchResult,
 )
-from scryfall_mcp.i18n import english_mapping, japanese_mapping
 from scryfall_mcp.search.presenter import SearchPresenter
 
 
@@ -538,7 +534,7 @@ class TestSearchPresenter:
         rarities = ["common", "uncommon", "rare", "mythic"]
         expected = ["Common", "Uncommon", "Rare", "Mythic Rare"]
 
-        for rarity, expected_text in zip(rarities, expected):
+        for rarity, expected_text in zip(rarities, expected, strict=False):
             data = sample_card_data.copy()
             data["rarity"] = rarity
             card = Card(**data)
@@ -553,7 +549,7 @@ class TestSearchPresenter:
         rarities = ["common", "uncommon", "rare", "mythic"]
         expected = ["コモン", "アンコモン", "レア", "神話レア"]
 
-        for rarity, expected_text in zip(rarities, expected):
+        for rarity, expected_text in zip(rarities, expected, strict=False):
             data = sample_card_data.copy()
             data["rarity"] = rarity
             card = Card(**data)

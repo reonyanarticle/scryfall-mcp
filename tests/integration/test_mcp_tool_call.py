@@ -3,7 +3,6 @@
 
 import json
 import subprocess
-import sys
 
 
 def send_request(proc, request):
@@ -75,7 +74,7 @@ def test_tool_call():
                     if "text" in item:
                         print(f"  Preview: {item['text'][:200]}...")
             else:
-                print(f"  ✗ No content in response")
+                print("  ✗ No content in response")
         else:
             print(f"  ✗ Error: {response}")
         print()
@@ -100,7 +99,7 @@ def test_tool_call():
                     if "text" in item:
                         print(f"  Preview: {item['text'][:200]}...")
             else:
-                print(f"  ✗ No content in response")
+                print("  ✗ No content in response")
         else:
             print(f"  ✗ Error: {response}")
         print()
@@ -125,7 +124,7 @@ def test_tool_call():
                     if "text" in item:
                         print(f"  Preview: {item['text'][:150]}...")
             else:
-                print(f"  ✗ No content in response")
+                print("  ✗ No content in response")
         else:
             print(f"  ✗ Error: {response}")
         print()
