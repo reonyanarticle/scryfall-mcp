@@ -315,8 +315,9 @@ async def main() -> None:
     """Main test runner."""
     # Test configuration
     working_dir = Path(__file__).parent.parent
+    server_command = ["uv", "run", "scryfall-mcp"]
 
-    tester = MCPTester(working_dir)
+    tester = MCPTester(server_command, str(working_dir))
     success = await tester.run_all_tests()
 
     if not success:
