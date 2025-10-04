@@ -37,10 +37,14 @@ jobs:
         uv run mypy src
 
     - name: Run unit tests with coverage
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
       run: |
         uv run pytest --cov=scryfall_mcp --cov-report=xml --cov-report=term-missing tests/
 
     - name: Run MCP integration tests
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
       run: |
         uv run python scripts/mcp_test.py
 
@@ -75,6 +79,8 @@ jobs:
         node-version: '20'
 
     - name: Test MCP Inspector compatibility
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
       run: |
         # Test tools/list endpoint
         timeout 30s npx -y @modelcontextprotocol/inspector --cli --transport stdio "uv" "run" "scryfall-mcp" --method tools/list > inspector_tools_list.json 2>&1 || echo "Inspector test completed"
