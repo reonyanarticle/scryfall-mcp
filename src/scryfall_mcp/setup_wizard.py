@@ -72,8 +72,8 @@ def validate_contact_info(contact: str) -> bool:
 
     Notes
     -----
-    URLs must start with https:// or http:// for proper User-Agent compliance.
-    Bare domain names like "github.com/user" are not accepted.
+    URLs must start with https:// for proper User-Agent compliance and security.
+    HTTP URLs and bare domain names like "github.com/user" are not accepted.
     """
     contact = contact.strip()
 
@@ -84,8 +84,8 @@ def validate_contact_info(contact: str) -> bool:
         if len(parts) == 2 and all(parts) and "." in parts[1]:
             return True
 
-    # Check if it's a full URL with protocol
-    if contact.startswith("http://") or contact.startswith("https://"):
+    # Check if it's a full HTTPS URL (required for security compliance)
+    if contact.startswith("https://"):
         return True
 
     return False

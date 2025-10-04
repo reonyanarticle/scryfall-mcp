@@ -9,7 +9,7 @@ Scryfall MCP Serverは、Magic: The Gatheringのカード検索と情報取得�
 ## 主要機能
 
 - **自然言語カード検索**: 日本語・英語での自然な検索クエリに対応
-- **MCP準拠の構造化出力**: TextContent、ImageContent、EmbeddedResourceによる高品質なデータ提供
+- **MCP準拠の構造化出力**: TextContent、EmbeddedResourceによる高品質なデータ提供
 - **リアルタイム進捗報告**: FastMCP Context注入による詳細なログとプログレス通知
 - **レート制限**: Scryfall API制限に準拠した安全なリクエスト管理（スレッドセーフ実装）
 - **サーキットブレーカー**: 障害時の自動復旧機能
