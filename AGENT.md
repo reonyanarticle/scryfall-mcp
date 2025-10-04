@@ -53,7 +53,7 @@ def use_locale(locale_code: str):
 ### 構造化MCPレスポンス
 - **EmbeddedResource**: カードメタデータをJSONで構造化保持
 - **カスタムURIスキーマ**: `card://scryfall/{id}` による一意識別
-- **適切なコンテンツタイプ**: TextContent、ImageContent、EmbeddedResourceの使い分け
+- **MCP標準準拠**: TextContentとEmbeddedResourceのみ使用（ImageContentは非標準のため削除）
 
 ### 多言語エラーハンドリング
 - **ステータス別対応**: 400/403/429/500+系の詳細ガイダンス
@@ -84,7 +84,50 @@ search_result = await client.search_cards(
 - **メンテナンスフリー**: 新セットの手動登録が不要
 - **ネイティブファジーマッチング**: Scryfallの高精度検索を活用
 
-## 改善
+## v0.1.0での主要な改善
+
+### セキュリティ強化（2025-10-04）
+
+#### User-Agent設定ウィザード
+**実装内容**:
+- 初回起動時の対話式セットアップウィザード
+- メールアドレス・HTTPS URLのバリデーション
+- プラットフォーム固有の設定ディレクトリ
+  - macOS: `~/Library/Application Support/scryfall-mcp/`
+  - Linux: `~/.config/scryfall-mcp/`
+  - Windows: `%APPDATA%\Local\scryfall-mcp\`
+- CLIコマンド: `setup`, `config`, `reset`, `--help`
+
+#### PII保護とファイルパーミッション
+**実装済みセキュリティ対策**:
+- 設定ディレクトリ: `mode=0o700` (所有者のみアクセス可能)
+- 設定ファイル: `chmod(0o600)` (所有者のみ読み書き可能)
+- User-Agent検証強化:
+  - 空白文字・プレースホルダー値のバリデーション
+  - 非対話モードでの起動時チェック（未設定時はエラー終了）
+- 機密情報のログ出力防止:
+  - Redis認証情報・連絡先情報を含む設定のログ出力を削除
+  - 必要最小限の情報のみログに記録
+
+```python
+# setup_wizard.py
+def get_config_dir() -> Path:
+    # PII保護: 所有者のみアクセス可能
+    config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return config_dir
+
+# settings.py
+def get_settings() -> Settings:
+    # 起動時検証: User-Agent必須
+    user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
+    is_placeholder = "unconfigured" in user_agent_val.lower()
+
+    if not user_agent_val or is_placeholder:
+        if not sys.stdin.isatty():
+            # 非対話モードで未設定 → エラー終了
+            print("ERROR: User-Agent not configured. Run 'scryfall-mcp setup' first.", file=sys.stderr)
+            sys.exit(1)
+```
 
 ### MCP仕様準拠とプロトコル修正
 
@@ -100,10 +143,12 @@ TypeError: _create_lifespan() takes 0 positional arguments but 1 was given
 - サーバーが正常にstdioモードで起動可能に
 
 #### MCP Content型の構造化出力（Critical修正完了）
-**問題**: ツールがMCP Content型（TextContent、ImageContent、EmbeddedResource）を文字列に変換していた。
+**問題**: ツールがMCP Content型を文字列に変換していた。また、ImageContentがMCP仕様に存在しない。
 
 **実装済み解決策**:
-- ツールが直接`list[TextContent | ImageContent | EmbeddedResource]`を返すように修正
+- ツールが直接`list[TextContent | EmbeddedResource]`を返すように修正
+- **ImageContent削除**: MCP仕様に存在しないため削除（v0.1.0破壊的変更）
+- 画像データの代わりに画像URLをtext内に含める
 - MCPプロトコル準拠の構造化データ出力
 - `tests/integration/test_mcp_content_validation.py`で検証完了
 
@@ -160,10 +205,10 @@ async def acquire(self) -> None:
 #### MCP統合テスト追加
 **新規テスト**: `tests/integration/test_mcp_content_validation.py`
 - TextContent構造検証（`type: "text"`, `text: str`）
-- ImageContent構造検証（`type: "image"`, `data: str`, `mimeType: str`）
 - EmbeddedResource構造検証（`type: "resource"`, `resource: dict`）
+- ImageContent非存在の検証（MCP仕様準拠確認）
 - エラーレスポンスの検証
-- 全389テスト成功
+- 全389テスト成功、カバレッジ95%達成
 
 ### テストカバレッジの向上（2025-10-03）
 **問題**: Codex分析により、リクエストモデルとバリデーション周りのテストカバレッジ不足が判明。
@@ -252,7 +297,8 @@ def use_locale(locale_code: str):
 - 構造化MCPレスポンスの実装完了
 - `EmbeddedResource`によるメタデータ保持
 - カスタムURIスキーマ（`card://scryfall/{id}`）による構造化データ
-- ImageContent、TextContent、EmbeddedResourceの適切な使い分け
+- TextContentとEmbeddedResourceの適切な使い分け
+- **ImageContent削除**: MCP仕様に存在しないため削除（画像URLで代替）
 
 ### 6. エラーハンドリング強化（完了）
 **実装済み解決策**:

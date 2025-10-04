@@ -55,7 +55,12 @@ uv run scryfall-mcp setup
 - GitHubリポジトリURL（例: `https://github.com/username/repo`）
 - その他連絡可能なURL（HTTPS必須）
 
-設定は `~/Library/Application Support/scryfall-mcp/config.json` (macOS) に保存されます。
+設定は以下のディレクトリに保存されます。
+- **macOS**: `~/Library/Application Support/scryfall-mcp/config.json`
+- **Linux**: `~/.config/scryfall-mcp/config.json`
+- **Windows**: `%APPDATA%\Local\scryfall-mcp\config.json`
+
+**セキュリティ**: 設定ファイルと設定ディレクトリは、所有者のみがアクセス可能な権限（0o600/0o700）で保護されています。
 
 **設定コマンド**:
 ```bash
@@ -245,6 +250,26 @@ uv run ruff format src/ tests/
 
 # 型チェック
 uv run mypy src/
+```
+
+### CI/CD
+
+GitHub Actionsで以下のチェックを自動実行。
+
+**テストスイート**:
+- Python 3.11, 3.12マトリックステスト
+- 389テスト、95%カバレッジ
+- MCP統合テスト（stdio transport）
+- MCP Inspector互換性テスト
+
+**品質チェック**:
+- Ruff linter（全コード）
+- Mypy strict mode type check
+- Bandit + Safety セキュリティスキャン
+
+**環境変数**: CIでは`SCRYFALL_MCP_USER_AGENT`を設定必須。
+```bash
+export SCRYFALL_MCP_USER_AGENT="GitHub-Actions-CI/1.0 (github-actions@github.com)"
 ```
 
 ## MCP仕様準拠
