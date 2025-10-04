@@ -63,8 +63,8 @@ class SearchParser:
         text = re.sub(r"\s+", " ", text.strip())
 
         # Normalize smart quotes to ASCII quotes
-        text = text.replace('"', '"').replace('"', '"')
-        text = text.replace("'", "'").replace("'", "'")
+        text = text.replace("“", '"').replace("”", '"')
+        text = text.replace("‘", "'").replace("’", "'")
 
         return text
 

@@ -69,6 +69,11 @@ def validate_contact_info(contact: str) -> bool:
     -------
     bool
         True if valid, False otherwise
+
+    Notes
+    -----
+    URLs must start with https:// or http:// for proper User-Agent compliance.
+    Bare domain names like "github.com/user" are not accepted.
     """
     contact = contact.strip()
 
@@ -79,11 +84,8 @@ def validate_contact_info(contact: str) -> bool:
         if len(parts) == 2 and all(parts) and "." in parts[1]:
             return True
 
-    # Check if it's a URL (GitHub, GitLab, etc.)
-    if any(
-        contact.startswith(prefix)
-        for prefix in ["http://", "https://", "github.com/", "gitlab.com/"]
-    ):
+    # Check if it's a full URL with protocol
+    if contact.startswith("http://") or contact.startswith("https://"):
         return True
 
     return False
@@ -111,8 +113,8 @@ def run_setup_wizard() -> dict[str, str]:
     while not contact or not validate_contact_info(contact):
         print("Please provide your contact information:")
         print("  • Your email address (e.g., yourname@example.com)")
-        print("  • Your GitHub repository (e.g., github.com/username/repo)")
-        print("  • Or any other URL where you can be reached\n")
+        print("  • Your repository URL (e.g., https://github.com/username/repo)")
+        print("  • Or any other URL where you can be reached (must include https://)\n")
 
         contact = input("Contact info: ").strip()
 

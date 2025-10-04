@@ -254,13 +254,13 @@ uv run mypy src/
 ### プロトコル対応
 - **MCPバージョン**: 2024-11-05
 - **通信方式**: stdio (標準入出力)
-- **コンテンツタイプ**: TextContent、ImageContent、EmbeddedResource
+- **コンテンツタイプ**: TextContent、EmbeddedResource
 - **ライフサイクル管理**: asynccontextmanagerベースの起動・シャットダウン
 
 ### 構造化レスポンス
 - カード情報を`EmbeddedResource`として構造化
 - カスタムURIスキーマ: `card://scryfall/{id}`
-- 画像データを`ImageContent`として提供
+- 画像URLをテキストとして提供（MCP仕様準拠のため）
 - エラーメッセージを多言語対応の`TextContent`として返却
 
 ### 観測可能性
