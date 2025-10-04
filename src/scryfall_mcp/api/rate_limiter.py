@@ -36,14 +36,16 @@ class RateLimiter:
         self._backoff_until: float = 0.0
         self._consecutive_failures: int = 0
         self._max_backoff_seconds: float = 300.0  # 5 minutes max
-        self._lock = asyncio.Lock()  # Protect shared state from concurrent access  # 5 minutes max
+        self._lock = (
+            asyncio.Lock()
+        )  # Protect shared state from concurrent access  # 5 minutes max
 
     async def acquire(self) -> None:
         """Acquire permission to make a request.
 
         This method will block until it's safe to make a request, considering
         both rate limiting and any active exponential backoff.
-        
+
         Thread-safe: Uses asyncio.Lock to prevent race conditions.
         """
         async with self._lock:

@@ -36,7 +36,7 @@ class ErrorContext:
 class EnhancedErrorHandler:
     """Enhanced error handler with status-specific guidance."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the error handler."""
         self._error_messages = self._build_error_messages()
 

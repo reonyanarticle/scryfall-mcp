@@ -36,13 +36,20 @@ logger = logging.getLogger(__name__)
 async def _create_lifespan(_app: FastMCP) -> AsyncIterator[None]:
     """Lifecycle manager for the MCP server.
 
-    Args:
-        _app: FastMCP application instance (unused, required by FastMCP)
-
     Handles startup and shutdown operations including:
     - Locale detection and initialization
     - Resource allocation
     - Cleanup on shutdown
+
+    Parameters
+    ----------
+    _app : FastMCP
+        FastMCP application instance (unused, required by FastMCP)
+
+    Yields
+    ------
+    None
+        Control is yielded during server runtime
     """
     # Startup
     detected_locale = detect_and_set_locale()
@@ -87,19 +94,28 @@ class ScryfallMCPServer:
         ) -> list[TextContent | ImageContent | EmbeddedResource]:
             """Search for Magic: The Gathering cards.
 
-            Args:
-                ctx: FastMCP context for progress reporting and logging
-                query: Search query (natural language or Scryfall syntax)
-                language: Language code ("en", "ja")
-                max_results: Maximum number of results (1-175, default: 10)
-                format_filter: Format filter ("standard", "modern", etc.)
+            Parameters
+            ----------
+            ctx : Context
+                FastMCP context for progress reporting and logging
+            query : str
+                Search query (natural language or Scryfall syntax)
+            language : str | None, optional
+                Language code ("en", "ja")
+            max_results : int, optional
+                Maximum number of results (1-175, default: 10)
+            format_filter : str | None, optional
+                Format filter ("standard", "modern", etc.)
 
-            Returns:
+            Returns
+            -------
+            list[TextContent | ImageContent | EmbeddedResource]
                 List of MCP content items (text, embedded resources)
 
-            Note:
-                Image data is not included to comply with MCP ImageContent spec.
-                Image URLs are provided in Scryfall links within card details.
+            Notes
+            -----
+            Image data is not included to comply with MCP ImageContent spec.
+            Image URLs are provided in Scryfall links within card details.
             """
             await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"
@@ -135,12 +151,18 @@ class ScryfallMCPServer:
         ) -> list[TextContent]:
             """Get card name autocompletion suggestions.
 
-            Args:
-                ctx: FastMCP context for progress reporting and logging
-                query: Partial card name to complete
-                language: Language code for completion
+            Parameters
+            ----------
+            ctx : Context
+                FastMCP context for progress reporting and logging
+            query : str
+                Partial card name to complete
+            language : str | None, optional
+                Language code for completion
 
-            Returns:
+            Returns
+            -------
+            list[TextContent]
                 List of MCP text content with suggestions
             """
             await ctx.info(f"Autocomplete called: query='{query}', language={language}")
@@ -188,7 +210,7 @@ async def main() -> None:
 def sync_main() -> None:
     """Synchronous entry point for console scripts."""
 
-    def handle_exception(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    def handle_exception(loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         """Custom exception handler to suppress harmless shutdown errors.
 
         Suppresses BrokenPipeError that occurs when the MCP client disconnects

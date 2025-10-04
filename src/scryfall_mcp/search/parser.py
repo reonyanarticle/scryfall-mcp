@@ -62,8 +62,9 @@ class SearchParser:
         # Remove extra whitespace
         text = re.sub(r"\s+", " ", text.strip())
 
-        # Normalize quotes
+        # Normalize smart quotes to ASCII quotes
         text = text.replace('"', '"').replace('"', '"')
+        text = text.replace("'", "'").replace("'", "'")
 
         return text
 

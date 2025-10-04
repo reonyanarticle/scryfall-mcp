@@ -23,7 +23,6 @@ from ..models import (
     Ruling,
     SearchResult,
     Set,
-    ScryfallError,
 )
 from ..settings import get_settings
 from .rate_limiter import (
