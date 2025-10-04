@@ -28,18 +28,12 @@ class TestCacheEntry:
     def test_cache_entry_with_expiration(self):
         """Test cache entry with expiration."""
         now = time.time()
-        entry = CacheEntry(
-            value="test",
-            expires_at=now + 60,
-            created_at=now
-        )
+        entry = CacheEntry(value="test", expires_at=now + 60, created_at=now)
         assert not entry.is_expired()
 
         # Create expired entry
         expired_entry = CacheEntry(
-            value="test",
-            expires_at=now - 60,
-            created_at=now - 120
+            value="test", expires_at=now - 60, created_at=now - 120
         )
         assert expired_entry.is_expired()
 
@@ -154,7 +148,7 @@ class TestRedisCache:
         assert "url" in stats
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_operations_with_mock(self, mock_redis_from_url):
         """Test Redis operations with mocked Redis."""
         # Setup mock Redis client
@@ -175,7 +169,9 @@ class TestRedisCache:
 
         # Test set with TTL
         await cache.set("test_key", "test_value", ttl=60)
-        mock_redis.setex.assert_called_once_with("scryfall:test_key", 60, '"test_value"')
+        mock_redis.setex.assert_called_once_with(
+            "scryfall:test_key", 60, '"test_value"'
+        )
 
         # Test set without TTL
         await cache.set("test_key2", "test_value2")
@@ -233,7 +229,7 @@ class TestCompositeCache:
         assert "redis" in stats
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_get_error_handling(self, mock_redis_from_url):
         """Test Redis get error handling."""
         # Setup mock Redis that fails on get
@@ -249,7 +245,7 @@ class TestCompositeCache:
         assert result is None
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_set_error_handling(self, mock_redis_from_url):
         """Test Redis set error handling."""
         # Setup mock Redis that fails on set
@@ -264,7 +260,7 @@ class TestCompositeCache:
         await cache.set("test_key", "test_value", ttl=60)
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_delete_error_handling(self, mock_redis_from_url):
         """Test Redis delete error handling."""
         # Setup mock Redis that fails on delete
@@ -279,7 +275,7 @@ class TestCompositeCache:
         await cache.delete("test_key")
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_clear_error_handling(self, mock_redis_from_url):
         """Test Redis clear error handling."""
         # Setup mock Redis that fails on clear
@@ -294,7 +290,7 @@ class TestCompositeCache:
         await cache.clear()
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_clear_with_keys(self, mock_redis_from_url):
         """Test Redis clear when keys are found."""
         # Setup mock Redis with keys to delete
@@ -311,7 +307,7 @@ class TestCompositeCache:
         mock_redis.delete.assert_called_once_with("scryfall:key1", "scryfall:key2")
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_clear_with_no_keys(self, mock_redis_from_url):
         """Test Redis clear when no keys are found."""
         # Setup mock Redis with no keys
@@ -328,7 +324,7 @@ class TestCompositeCache:
         mock_redis.delete.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_redis_close(self, mock_redis_from_url):
         """Test Redis connection close."""
         # Setup mock Redis
@@ -355,7 +351,7 @@ class TestCompositeCache:
         await cache.close()
 
     @pytest.mark.asyncio
-    @patch('redis.asyncio.from_url')
+    @patch("redis.asyncio.from_url")
     async def test_composite_cache_l2_writeback(self, mock_redis_from_url):
         """Test L2 cache writeback to L1."""
         # Setup mock Redis

@@ -113,7 +113,7 @@ def test_content_validation() -> None:
         # Send initialized notification (required by MCP 2024-11-05)
         initialized_notification = {
             "jsonrpc": "2.0",
-            "method": "notifications/initialized"
+            "method": "notifications/initialized",
         }
         proc.stdin.write(json.dumps(initialized_notification) + "\n")
         proc.stdin.flush()
@@ -200,20 +200,27 @@ def test_content_validation() -> None:
             "method": "tools/call",
             "params": {
                 "name": "search_cards",
-                "arguments": {"query": "!!!invalid_query!!!", "max_results": 500},  # Invalid query
+                "arguments": {
+                    "query": "!!!invalid_query!!!",
+                    "max_results": 500,
+                },  # Invalid query
             },
         }
 
         response = send_request(proc, error_request)
         if response:
             if "error" in response:
-                print(f"  ✓ Error handled as JSON-RPC error: {response['error'].get('message', '')[:100]}...")
+                print(
+                    f"  ✓ Error handled as JSON-RPC error: {response['error'].get('message', '')[:100]}..."
+                )
             elif "result" in response:
                 content = response["result"].get("content", [])
                 is_valid, errors = validate_mcp_content(content)
 
                 if is_valid:
-                    print(f"  ✓ Error returned as valid MCP content ({len(content)} items)")
+                    print(
+                        f"  ✓ Error returned as valid MCP content ({len(content)} items)"
+                    )
                     # Check if it's an error message
                     if content and content[0].get("type") == "text":
                         text = content[0].get("text", "")

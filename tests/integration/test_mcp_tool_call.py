@@ -62,8 +62,8 @@ def test_tool_call():
                 "arguments": {
                     "query": "Lightning Bolt",
                     "language": "en",
-                    "max_results": 3
-                }
+                    "max_results": 3,
+                },
             },
         }
         response = send_request(proc, search_request)
@@ -88,11 +88,7 @@ def test_tool_call():
             "method": "tools/call",
             "params": {
                 "name": "search_cards",
-                "arguments": {
-                    "query": "稲妻",
-                    "language": "ja",
-                    "max_results": 3
-                }
+                "arguments": {"query": "稲妻", "language": "ja", "max_results": 3},
             },
         }
         response = send_request(proc, search_request)
@@ -117,10 +113,7 @@ def test_tool_call():
             "method": "tools/call",
             "params": {
                 "name": "autocomplete_card_names",
-                "arguments": {
-                    "query": "Light",
-                    "language": "en"
-                }
+                "arguments": {"query": "Light", "language": "en"},
             },
         }
         response = send_request(proc, autocomplete_request)
@@ -140,6 +133,7 @@ def test_tool_call():
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:

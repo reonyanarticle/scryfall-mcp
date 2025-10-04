@@ -23,9 +23,13 @@ class TestMainModule:
 
         # Test actual module execution
         result = subprocess.run(
-            [sys.executable, "-c",
-             "import sys; sys.exit(0) if __name__ == '__main__' else sys.exit(1)"],
-            check=False, capture_output=True,
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.exit(0) if __name__ == '__main__' else sys.exit(1)",
+            ],
+            check=False,
+            capture_output=True,
         )
         # This tests that the __name__ == "__main__" condition works
         assert result.returncode == 0
@@ -42,7 +46,14 @@ if __name__ == "__main__":
 """
             # Execute with __name__ = "__main__"
             namespace = {"__name__": "__main__", "__package__": "scryfall_mcp"}
-            with patch.dict("sys.modules", {"scryfall_mcp.server": type("module", (), {"sync_main": mock_sync_main})}):
+            with patch.dict(
+                "sys.modules",
+                {
+                    "scryfall_mcp.server": type(
+                        "module", (), {"sync_main": mock_sync_main}
+                    )
+                },
+            ):
                 exec(compile(code, "__main__.py", "exec"), namespace)
 
             mock_sync_main.assert_called_once()

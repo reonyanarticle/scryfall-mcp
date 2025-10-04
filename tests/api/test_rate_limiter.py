@@ -158,6 +158,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_successful_call(self, circuit_breaker):
         """Test successful function call."""
+
         async def mock_func():
             return "success"
 
@@ -168,6 +169,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_failed_call(self, circuit_breaker):
         """Test failed function call."""
+
         async def mock_func():
             raise ValueError("Test error")
 
@@ -179,6 +181,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_opens_after_threshold(self, circuit_breaker):
         """Test that circuit opens after failure threshold."""
+
         async def failing_func():
             raise ValueError("Test error")
 
@@ -196,6 +199,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_half_open_after_timeout(self, circuit_breaker):
         """Test that circuit goes to half-open after timeout."""
+
         async def failing_func():
             raise ValueError("Test error")
 
@@ -222,6 +226,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_closes_after_success_in_half_open(self, circuit_breaker):
         """Test that circuit closes after successful call in half-open state."""
+
         async def failing_func():
             raise ValueError("Test error")
 

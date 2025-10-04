@@ -40,7 +40,9 @@ class TestSearchCardsRequest:
 
         assert request.query == "test"
         assert request.language is None
-        assert request.max_results == 10  # Default (reduced from 20 for macOS pipe buffer)
+        assert (
+            request.max_results == 10
+        )  # Default (reduced from 20 for macOS pipe buffer)
         assert request.format_filter is None
 
     def test_default_max_results_prevents_pipe_overflow(self):
@@ -200,7 +202,10 @@ class TestCardSearchTool:
             assert len(result) == 1
             assert isinstance(result[0], TextContent)
             # The error message may vary based on the error handler
-            assert any(phrase in result[0].text.lower() for phrase in ["no cards found", "見つかりません", "no results"])
+            assert any(
+                phrase in result[0].text.lower()
+                for phrase in ["no cards found", "見つかりません", "no results"]
+            )
 
     @pytest.mark.asyncio
     async def test_execute_api_error(self):
@@ -209,7 +214,9 @@ class TestCardSearchTool:
 
         with patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.search_cards.side_effect = ScryfallAPIError("Invalid query", 400)
+            mock_client.search_cards.side_effect = ScryfallAPIError(
+                "Invalid query", 400
+            )
             mock_get_client.return_value = mock_client
 
             result = await CardSearchTool.execute(arguments)
@@ -218,7 +225,11 @@ class TestCardSearchTool:
             assert len(result) == 1
             assert isinstance(result[0], TextContent)
             # The error handler formats errors with emoji and structured messages
-            assert "❌" in result[0].text or "invalid" in result[0].text.lower() or "syntax" in result[0].text.lower()
+            assert (
+                "❌" in result[0].text
+                or "invalid" in result[0].text.lower()
+                or "syntax" in result[0].text.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_execute_rate_limit_error(self):
@@ -387,7 +398,11 @@ class TestAutocompleteTool:
             # Should return no suggestions message
             assert len(result) == 1
             assert isinstance(result[0], TextContent)
-            assert "No suggestions found" in result[0].text or "No cards found" in result[0].text or "見つかりません" in result[0].text
+            assert (
+                "No suggestions found" in result[0].text
+                or "No cards found" in result[0].text
+                or "見つかりません" in result[0].text
+            )
 
     @pytest.mark.asyncio
     async def test_execute_with_japanese(self):
@@ -417,7 +432,9 @@ class TestAutocompleteTool:
                 # Check results format
                 assert len(result) == 1
                 assert isinstance(result[0], TextContent)
-                assert "候補" in result[0].text  # Japanese for "suggestions"  # Japanese for "suggestions"
+                assert (
+                    "候補" in result[0].text
+                )  # Japanese for "suggestions"  # Japanese for "suggestions"
 
     @pytest.mark.asyncio
     async def test_execute_error(self):
@@ -454,5 +471,7 @@ class TestAutocompleteTool:
             # Should limit to 10
             assert len(result) == 1
             text = result[0].text
-            suggestion_lines = [line for line in text.split("\n") if line.startswith("- ")]
+            suggestion_lines = [
+                line for line in text.split("\n") if line.startswith("- ")
+            ]
             assert len(suggestion_lines) == 10

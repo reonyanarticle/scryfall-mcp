@@ -180,14 +180,36 @@ class TestCard:
         """Test minimal card creation."""
         # Remove optional fields for minimal test
         minimal_data = {
-            key: value for key, value in sample_card_data.items()
-            if key in {
-                "object", "id", "oracle_id", "name", "lang", "released_at",
-                "uri", "scryfall_uri", "layout", "type_line", "legalities",
-                "set_id", "set", "set_name", "set_type", "set_uri",
-                "set_search_uri", "scryfall_set_uri", "rulings_uri",
-                "prints_search_uri", "collector_number", "rarity",
-                "border_color", "frame", "prices", "related_uris",
+            key: value
+            for key, value in sample_card_data.items()
+            if key
+            in {
+                "object",
+                "id",
+                "oracle_id",
+                "name",
+                "lang",
+                "released_at",
+                "uri",
+                "scryfall_uri",
+                "layout",
+                "type_line",
+                "legalities",
+                "set_id",
+                "set",
+                "set_name",
+                "set_type",
+                "set_uri",
+                "set_search_uri",
+                "scryfall_set_uri",
+                "rulings_uri",
+                "prints_search_uri",
+                "collector_number",
+                "rarity",
+                "border_color",
+                "frame",
+                "prices",
+                "related_uris",
                 "purchase_uris",
             }
         }
@@ -451,7 +473,6 @@ class TestBulkData:
         assert bulk_data.content_encoding == "gzip"
 
 
-
 class TestSearchCardsRequest:
     """Test SearchCardsRequest model."""
 
@@ -475,7 +496,9 @@ class TestSearchCardsRequest:
 
         assert request.query == "test"
         assert request.language is None
-        assert request.max_results == 10  # Default (reduced from 20 for macOS compatibility)
+        assert (
+            request.max_results == 10
+        )  # Default (reduced from 20 for macOS compatibility)
         assert request.format_filter is None
 
     def test_max_results_validation(self):

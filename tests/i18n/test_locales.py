@@ -206,24 +206,80 @@ class TestLocaleManager:
             language_code="fr",
             language_name="Français",
             locale_code="fr_FR",
-            colors={"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g", "colorless": "c"},
-            types={"artifact": "artifact", "creature": "creature", "enchantment": "enchantment",
-                   "instant": "instant", "land": "land", "planeswalker": "planeswalker", "sorcery": "sorcery",
-                   "basic": "basic", "legendary": "legendary", "snow": "snow",
-                   "equipment": "equipment", "aura": "aura", "vehicle": "vehicle", "token": "token"},
-            operators={"equals": "=", "not_equals": "!=", "less_than": "<", "less_than_or_equal": "<=",
-                      "greater_than": ">", "greater_than_or_equal": ">=", "contains": ":", "not_contains": "-"},
-            formats={"standard": "standard", "pioneer": "pioneer", "modern": "modern", "legacy": "legacy",
-                    "vintage": "vintage", "commander": "commander", "pauper": "pauper", "historic": "historic",
-                    "alchemy": "alchemy", "brawl": "brawl"},
-            rarities={"common": "common", "uncommon": "uncommon", "rare": "rare", "mythic": "mythic",
-                     "special": "special", "bonus": "bonus"},
-            set_types={"core": "core", "expansion": "expansion", "masters": "masters", "draft_innovation": "draft_innovation",
-                      "commander": "commander", "planechase": "planechase", "archenemy": "archenemy",
-                      "from_the_vault": "from_the_vault", "premium_deck": "premium_deck", "duel_deck": "duel_deck",
-                      "starter": "starter", "box": "box", "promo": "promo", "token": "token",
-                      "memorabilia": "memorabilia", "treasure_chest": "treasure_chest", "spellbook": "spellbook",
-                      "arsenal": "arsenal"},
+            colors={
+                "white": "w",
+                "blue": "u",
+                "black": "b",
+                "red": "r",
+                "green": "g",
+                "colorless": "c",
+            },
+            types={
+                "artifact": "artifact",
+                "creature": "creature",
+                "enchantment": "enchantment",
+                "instant": "instant",
+                "land": "land",
+                "planeswalker": "planeswalker",
+                "sorcery": "sorcery",
+                "basic": "basic",
+                "legendary": "legendary",
+                "snow": "snow",
+                "equipment": "equipment",
+                "aura": "aura",
+                "vehicle": "vehicle",
+                "token": "token",
+            },
+            operators={
+                "equals": "=",
+                "not_equals": "!=",
+                "less_than": "<",
+                "less_than_or_equal": "<=",
+                "greater_than": ">",
+                "greater_than_or_equal": ">=",
+                "contains": ":",
+                "not_contains": "-",
+            },
+            formats={
+                "standard": "standard",
+                "pioneer": "pioneer",
+                "modern": "modern",
+                "legacy": "legacy",
+                "vintage": "vintage",
+                "commander": "commander",
+                "pauper": "pauper",
+                "historic": "historic",
+                "alchemy": "alchemy",
+                "brawl": "brawl",
+            },
+            rarities={
+                "common": "common",
+                "uncommon": "uncommon",
+                "rare": "rare",
+                "mythic": "mythic",
+                "special": "special",
+                "bonus": "bonus",
+            },
+            set_types={
+                "core": "core",
+                "expansion": "expansion",
+                "masters": "masters",
+                "draft_innovation": "draft_innovation",
+                "commander": "commander",
+                "planechase": "planechase",
+                "archenemy": "archenemy",
+                "from_the_vault": "from_the_vault",
+                "premium_deck": "premium_deck",
+                "duel_deck": "duel_deck",
+                "starter": "starter",
+                "box": "box",
+                "promo": "promo",
+                "token": "token",
+                "memorabilia": "memorabilia",
+                "treasure_chest": "treasure_chest",
+                "spellbook": "spellbook",
+                "arsenal": "arsenal",
+            },
             search_keywords={},
             phrases={},
         )
@@ -243,28 +299,85 @@ class TestLocaleManager:
 
         # Add a temporary mapping
         from scryfall_mcp.models import LanguageMapping
+
         temp_mapping = LanguageMapping(
             language_code="temp",
             language_name="Temporary",
             locale_code="temp",
-            colors={"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g", "colorless": "c"},
-            types={"artifact": "artifact", "creature": "creature", "enchantment": "enchantment",
-                   "instant": "instant", "land": "land", "planeswalker": "planeswalker", "sorcery": "sorcery",
-                   "basic": "basic", "legendary": "legendary", "snow": "snow",
-                   "equipment": "equipment", "aura": "aura", "vehicle": "vehicle", "token": "token"},
-            operators={"equals": "=", "not_equals": "!=", "less_than": "<", "less_than_or_equal": "<=",
-                      "greater_than": ">", "greater_than_or_equal": ">=", "contains": ":", "not_contains": "-"},
-            formats={"standard": "standard", "pioneer": "pioneer", "modern": "modern", "legacy": "legacy",
-                    "vintage": "vintage", "commander": "commander", "pauper": "pauper", "historic": "historic",
-                    "alchemy": "alchemy", "brawl": "brawl"},
-            rarities={"common": "common", "uncommon": "uncommon", "rare": "rare", "mythic": "mythic",
-                     "special": "special", "bonus": "bonus"},
-            set_types={"core": "core", "expansion": "expansion", "masters": "masters", "draft_innovation": "draft_innovation",
-                      "commander": "commander", "planechase": "planechase", "archenemy": "archenemy",
-                      "from_the_vault": "from_the_vault", "premium_deck": "premium_deck", "duel_deck": "duel_deck",
-                      "starter": "starter", "box": "box", "promo": "promo", "token": "token",
-                      "memorabilia": "memorabilia", "treasure_chest": "treasure_chest", "spellbook": "spellbook",
-                      "arsenal": "arsenal"},
+            colors={
+                "white": "w",
+                "blue": "u",
+                "black": "b",
+                "red": "r",
+                "green": "g",
+                "colorless": "c",
+            },
+            types={
+                "artifact": "artifact",
+                "creature": "creature",
+                "enchantment": "enchantment",
+                "instant": "instant",
+                "land": "land",
+                "planeswalker": "planeswalker",
+                "sorcery": "sorcery",
+                "basic": "basic",
+                "legendary": "legendary",
+                "snow": "snow",
+                "equipment": "equipment",
+                "aura": "aura",
+                "vehicle": "vehicle",
+                "token": "token",
+            },
+            operators={
+                "equals": "=",
+                "not_equals": "!=",
+                "less_than": "<",
+                "less_than_or_equal": "<=",
+                "greater_than": ">",
+                "greater_than_or_equal": ">=",
+                "contains": ":",
+                "not_contains": "-",
+            },
+            formats={
+                "standard": "standard",
+                "pioneer": "pioneer",
+                "modern": "modern",
+                "legacy": "legacy",
+                "vintage": "vintage",
+                "commander": "commander",
+                "pauper": "pauper",
+                "historic": "historic",
+                "alchemy": "alchemy",
+                "brawl": "brawl",
+            },
+            rarities={
+                "common": "common",
+                "uncommon": "uncommon",
+                "rare": "rare",
+                "mythic": "mythic",
+                "special": "special",
+                "bonus": "bonus",
+            },
+            set_types={
+                "core": "core",
+                "expansion": "expansion",
+                "masters": "masters",
+                "draft_innovation": "draft_innovation",
+                "commander": "commander",
+                "planechase": "planechase",
+                "archenemy": "archenemy",
+                "from_the_vault": "from_the_vault",
+                "premium_deck": "premium_deck",
+                "duel_deck": "duel_deck",
+                "starter": "starter",
+                "box": "box",
+                "promo": "promo",
+                "token": "token",
+                "memorabilia": "memorabilia",
+                "treasure_chest": "treasure_chest",
+                "spellbook": "spellbook",
+                "arsenal": "arsenal",
+            },
             search_keywords={},
             phrases={},
         )
@@ -325,17 +438,24 @@ class TestGlobalFunctions:
         manager = LocaleManager()
 
         # LC_ALL should take priority
-        with patch.dict(os.environ, {
-            "LC_ALL": "ja_JP.UTF-8",
-            "LANG": "en_US.UTF-8",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "LC_ALL": "ja_JP.UTF-8",
+                "LANG": "en_US.UTF-8",
+            },
+        ):
             detected = manager.detect_locale()
             assert detected == "ja"
 
         # LANG should be used if LC_ALL is not set
-        with patch.dict(os.environ, {
-            "LANG": "ja_JP.UTF-8",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "LANG": "ja_JP.UTF-8",
+            },
+            clear=True,
+        ):
             detected = manager.detect_locale()
             assert detected == "ja"
 
@@ -349,6 +469,7 @@ class TestGlobalFunctions:
             # Should fallback to default
             assert detected == manager._default_locale
 
+
 class TestContextvarLocale:
     """Test contextvar-based locale management."""
 
@@ -359,7 +480,7 @@ class TestContextvarLocale:
         from scryfall_mcp.i18n import use_locale, get_current_mapping
 
         results = []
-        
+
         async def task_with_locale(locale_code: str, expected_lang: str):
             """Task that uses specific locale."""
             with use_locale(locale_code):
@@ -383,27 +504,29 @@ class TestContextvarLocale:
         # Verify all tasks got their expected locales
         assert len(results) == 4
         for locale_code, actual_lang, expected_lang in results:
-            assert actual_lang == expected_lang, f"Task with {locale_code} got {actual_lang}, expected {expected_lang}"
+            assert actual_lang == expected_lang, (
+                f"Task with {locale_code} got {actual_lang}, expected {expected_lang}"
+            )
 
     def test_locale_context_isolation(self):
         """Test that locale context is properly isolated."""
         from scryfall_mcp.i18n import use_locale, get_locale_manager
 
         manager = get_locale_manager()
-        
+
         # Default should be 'en'
         assert manager.get_current_locale() == "en"
-        
+
         # Test nested contexts
         with use_locale("ja"):
             assert manager.get_current_locale() == "ja"
-            
+
             with use_locale("en"):
                 assert manager.get_current_locale() == "en"
-            
+
             # Should revert to outer context
             assert manager.get_current_locale() == "ja"
-        
+
         # Should revert to default
         assert manager.get_current_locale() == "en"
 
@@ -413,20 +536,20 @@ class TestContextvarLocale:
         import pytest
 
         manager = get_locale_manager()
-        
+
         # Test invalid locale
         with pytest.raises(ValueError, match="Unsupported locale"):
             with use_locale("invalid"):
                 pass
-        
+
         # Ensure context is clean after error
         assert manager.get_current_locale() == "en"
-        
+
         # Test exception within context
         with pytest.raises(RuntimeError):
             with use_locale("ja"):
                 assert manager.get_current_locale() == "ja"
                 raise RuntimeError("Test error")
-        
+
         # Should still revert to default
         assert manager.get_current_locale() == "en"

@@ -67,7 +67,9 @@ def test_tools_list():
             for tool in tools:
                 print(f"  • {tool['name']}")
                 print(f"    Description: {tool.get('description', 'N/A')}")
-                print(f"    Input schema: {json.dumps(tool.get('inputSchema', {}), indent=6)}")
+                print(
+                    f"    Input schema: {json.dumps(tool.get('inputSchema', {}), indent=6)}"
+                )
                 print()
         else:
             print(f"\n✗ Unexpected response: {response}")
@@ -75,6 +77,7 @@ def test_tools_list():
     except Exception as e:
         print(f"\n✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:

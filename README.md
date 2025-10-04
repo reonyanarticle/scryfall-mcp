@@ -44,13 +44,13 @@ uv run pytest
 
 ### 初回セットアップ
 
-初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の入力が必要です：
+初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の入力が必要です。
 
 ```bash
 uv run scryfall-mcp setup
 ```
 
-以下のいずれかを入力してください：
+以下のいずれかを入力してください。
 - メールアドレス（例: `yourname@example.com`）
 - GitHubリポジトリURL（例: `github.com/username/repo`）
 - その他連絡可能なURL
@@ -73,7 +73,7 @@ uv run scryfall-mcp --help
 
 #### 1. Claude Desktop での設定
 
-Claude Desktop の設定ファイル (`claude_desktop_config.json`) に以下を追加:
+Claude Desktop の設定ファイル (`claude_desktop_config.json`) に以下を追加してください。
 
 **macOS/Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -110,7 +110,7 @@ Claude Desktop で以下のツールが利用可能になります:
 
 #### 3. 使用例
 
-Claude Desktop で以下のように質問できます:
+Claude Desktop で以下のように質問できます。
 
 ```
 # 日本語での検索

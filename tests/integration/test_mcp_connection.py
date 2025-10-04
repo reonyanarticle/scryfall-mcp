@@ -44,9 +44,15 @@ def test_mcp_connection():
         if response_line:
             response = json.loads(response_line)
             print("\n✓ MCP server responded successfully!")
-            print(f"Protocol version: {response.get('result', {}).get('protocolVersion', 'unknown')}")
-            print(f"Server capabilities: {json.dumps(response.get('result', {}).get('capabilities', {}), indent=2)}")
-            print(f"Server info: {json.dumps(response.get('result', {}).get('serverInfo', {}), indent=2)}")
+            print(
+                f"Protocol version: {response.get('result', {}).get('protocolVersion', 'unknown')}"
+            )
+            print(
+                f"Server capabilities: {json.dumps(response.get('result', {}).get('capabilities', {}), indent=2)}"
+            )
+            print(
+                f"Server info: {json.dumps(response.get('result', {}).get('serverInfo', {}), indent=2)}"
+            )
         else:
             print("\n✗ No response from server")
 

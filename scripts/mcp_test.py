@@ -11,7 +11,9 @@ from typing import Any
 class MCPTestResult:
     """Represents the result of an MCP test."""
 
-    def __init__(self, name: str, success: bool, message: str, data: dict[str, Any] | None = None):
+    def __init__(
+        self, name: str, success: bool, message: str, data: dict[str, Any] | None = None
+    ):
         self.name = name
         self.success = success
         self.message = message
@@ -52,7 +54,9 @@ class MCPTester:
             self.process.terminate()
             await self.process.wait()
 
-    async def send_request(self, request: dict[str, Any], timeout: float = 5.0) -> dict[str, Any] | None:
+    async def send_request(
+        self, request: dict[str, Any], timeout: float = 5.0
+    ) -> dict[str, Any] | None:
         """Send a JSON-RPC request to the server."""
         if not self.process or not self.process.stdin:
             print("❌ Process or stdin not available")
@@ -89,7 +93,9 @@ class MCPTester:
             print(f"❌ Unexpected error: {e}")
             return None
 
-    def add_result(self, name: str, success: bool, message: str, data: dict[str, Any] | None = None) -> None:
+    def add_result(
+        self, name: str, success: bool, message: str, data: dict[str, Any] | None = None
+    ) -> None:
         """Add a test result."""
         self.results.append(MCPTestResult(name, success, message, data))
 
@@ -193,14 +199,18 @@ class MCPTester:
             },
         }
 
-        response = await self.send_request(request, timeout=10.0)  # Longer timeout for API calls
+        response = await self.send_request(
+            request, timeout=10.0
+        )  # Longer timeout for API calls
 
         if not response:
             self.add_result(f"tool_call_{tool_name}", False, "No response received")
             return False
 
         if response.get("error"):
-            self.add_result(f"tool_call_{tool_name}", False, f"Error: {response['error']}")
+            self.add_result(
+                f"tool_call_{tool_name}", False, f"Error: {response['error']}"
+            )
             return False
 
         if "result" not in response:
@@ -212,7 +222,9 @@ class MCPTester:
 
         if is_error:
             content = result.get("content", [])
-            error_msg = content[0].get("text", "Unknown error") if content else "Unknown error"
+            error_msg = (
+                content[0].get("text", "Unknown error") if content else "Unknown error"
+            )
             self.add_result(f"tool_call_{tool_name}", False, f"Tool error: {error_msg}")
             return False
 
@@ -258,7 +270,9 @@ class MCPTester:
 
             # Test tool calls
             await self.test_tool_call("autocomplete_card_names", {"query": "Lightning"})
-            await self.test_tool_call("search_cards", {"query": "Lightning Bolt", "max_results": 2})
+            await self.test_tool_call(
+                "search_cards", {"query": "Lightning Bolt", "max_results": 2}
+            )
 
             return True
 
@@ -270,10 +284,10 @@ class MCPTester:
         print("\n" + "=" * 60)
         print("🧪 MCP Protocol Test Results")
         print("=" * 60)
-        
+
         passed = 0
         total = len(self.results)
-        
+
         for result in self.results:
             status = "✅ PASS" if result.success else "❌ FAIL"
             print(f"{status}: {result.name} - {result.message}")
@@ -282,12 +296,12 @@ class MCPTester:
                     print(f"    {key}: {value}")
             if result.success:
                 passed += 1
-        
+
         print("=" * 60)
         print(f"📊 Summary: {passed}/{total} tests passed")
         success_rate = (passed / total * 100) if total > 0 else 0
         print(f"📈 Success Rate: {success_rate:.1f}%")
-        
+
         if passed == total:
             print("🎉 All tests passed! MCP server is working correctly.")
             return True
@@ -300,10 +314,10 @@ async def main() -> None:
     """Main test runner."""
     # Test configuration
     working_dir = Path(__file__).parent.parent
-    
+
     tester = MCPTester(working_dir)
     success = await tester.run_all_tests()
-    
+
     if not success:
         sys.exit(1)
 

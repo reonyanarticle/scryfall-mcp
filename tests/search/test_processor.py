@@ -165,7 +165,9 @@ class TestSearchProcessor:
         assert any("colors" in suggestion.lower() for suggestion in suggestions)
 
         # Card name without quotes
-        suggestions = processor.suggest_query_improvements("Lightning Bolt without quotes")
+        suggestions = processor.suggest_query_improvements(
+            "Lightning Bolt without quotes"
+        )
         assert any("quotes" in suggestion for suggestion in suggestions)
 
     def test_suggest_query_improvements_japanese(self, processor):
@@ -340,8 +342,12 @@ class TestSearchProcessor:
 
         # Check all expected fields are present
         required_fields = [
-            "original_query", "scryfall_query", "detected_intent",
-            "extracted_entities", "suggestions", "language",
+            "original_query",
+            "scryfall_query",
+            "detected_intent",
+            "extracted_entities",
+            "suggestions",
+            "language",
         ]
         for field in required_fields:
             assert field in result

@@ -98,7 +98,9 @@ class TestScryfallAPIClient:
     async def test_make_request_timeout(self, client):
         """Test API request timeout."""
         with patch.object(client, "_session") as mock_session:
-            mock_session.request = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+            mock_session.request = AsyncMock(
+                side_effect=httpx.TimeoutException("Timeout")
+            )
             mock_session.is_closed = False
 
             with pytest.raises(ScryfallAPIError) as exc_info:
@@ -124,7 +126,9 @@ class TestScryfallAPIClient:
         success_response.json.return_value = {"result": "success"}
 
         with patch.object(client, "_session") as mock_session:
-            mock_session.request = AsyncMock(side_effect=[error_response, success_response])
+            mock_session.request = AsyncMock(
+                side_effect=[error_response, success_response]
+            )
             mock_session.is_closed = False
 
             with patch("asyncio.sleep", new_callable=AsyncMock):  # Speed up test
@@ -136,7 +140,11 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_search_cards(self, client, mock_response_success):
         """Test search_cards method."""
-        with patch.object(client, "_make_request", return_value=mock_response_success.json.return_value) as mock_request:
+        with patch.object(
+            client,
+            "_make_request",
+            return_value=mock_response_success.json.return_value,
+        ) as mock_request:
             result = await client.search_cards("Lightning Bolt")
 
             assert isinstance(result, SearchResult)
@@ -153,7 +161,11 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_search_cards_with_options(self, client, mock_response_success):
         """Test search_cards with various options."""
-        with patch.object(client, "_make_request", return_value=mock_response_success.json.return_value) as mock_request:
+        with patch.object(
+            client,
+            "_make_request",
+            return_value=mock_response_success.json.return_value,
+        ) as mock_request:
             await client.search_cards(
                 query="Lightning Bolt",
                 unique="prints",
@@ -176,7 +188,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_card_by_id(self, client, sample_card_data):
         """Test get_card_by_id method."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             card_id = "12345678-1234-1234-1234-123456789012"
             result = await client.get_card_by_id(card_id)
 
@@ -188,7 +202,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_card_by_name_exact(self, client, sample_card_data):
         """Test get_card_by_name with exact matching."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             result = await client.get_card_by_name("Lightning Bolt", exact=True)
 
             assert isinstance(result, Card)
@@ -199,7 +215,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_card_by_name_fuzzy(self, client, sample_card_data):
         """Test get_card_by_name with fuzzy matching."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             result = await client.get_card_by_name("Lightning", fuzzy=True)
 
             assert isinstance(result, Card)
@@ -210,7 +228,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_card_by_name_with_set(self, client, sample_card_data):
         """Test get_card_by_name with set specification."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             result = await client.get_card_by_name("Lightning Bolt", set_code="lea")
 
             assert isinstance(result, Card)
@@ -222,7 +242,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_random_card(self, client, sample_card_data):
         """Test get_random_card method."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             result = await client.get_random_card()
 
             assert isinstance(result, Card)
@@ -231,7 +253,9 @@ class TestScryfallAPIClient:
     @pytest.mark.asyncio
     async def test_get_random_card_with_query(self, client, sample_card_data):
         """Test get_random_card with query filter."""
-        with patch.object(client, "_make_request", return_value=sample_card_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sample_card_data
+        ) as mock_request:
             result = await client.get_random_card("c:r")
 
             assert isinstance(result, Card)
@@ -255,7 +279,9 @@ class TestScryfallAPIClient:
             ],
         }
 
-        with patch.object(client, "_make_request", return_value=rulings_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=rulings_data
+        ) as mock_request:
             card_id = "12345678-1234-1234-1234-123456789012"
             result = await client.get_card_rulings(card_id)
 
@@ -284,7 +310,9 @@ class TestScryfallAPIClient:
             ],
         }
 
-        with patch.object(client, "_make_request", return_value=sets_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=sets_data
+        ) as mock_request:
             result = await client.get_sets()
 
             assert len(result) == 1
@@ -301,7 +329,9 @@ class TestScryfallAPIClient:
             "data": ["Lightning Bolt", "Lightning Strike", "Lightning Helix"],
         }
 
-        with patch.object(client, "_make_request", return_value=autocomplete_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=autocomplete_data
+        ) as mock_request:
             result = await client.autocomplete_card_name("Lightning")
 
             assert len(result) == 3
@@ -317,7 +347,11 @@ class TestScryfallAPIClient:
         """Test that circuit breaker is properly integrated."""
         from scryfall_mcp.api.rate_limiter import CircuitBreakerOpenError
 
-        with patch.object(client._circuit_breaker, "call", side_effect=CircuitBreakerOpenError("Circuit open")):
+        with patch.object(
+            client._circuit_breaker,
+            "call",
+            side_effect=CircuitBreakerOpenError("Circuit open"),
+        ):
             with pytest.raises(ScryfallAPIError) as exc_info:
                 await client._make_request("GET", "/cards/search")
 
@@ -361,7 +395,9 @@ class TestScryfallAPIClient:
             "search_uri": "https://api.scryfall.com/cards/search?order=set&q=e%3Adom",
         }
 
-        with patch.object(client, "_make_request", return_value=set_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=set_data
+        ) as mock_request:
             result = await client.get_set_by_code("dom")
 
             mock_request.assert_called_once_with("GET", "/sets/dom")
@@ -377,7 +413,9 @@ class TestScryfallAPIClient:
             "data": ["Lightning Bolt", "Lightning Strike", "Lightning Helix"],
         }
 
-        with patch.object(client, "_make_request", return_value=catalog_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=catalog_data
+        ) as mock_request:
             result = await client.get_catalog("card-names")
 
             mock_request.assert_called_once_with("GET", "/catalog/card-names")
@@ -405,7 +443,9 @@ class TestScryfallAPIClient:
             ],
         }
 
-        with patch.object(client, "_make_request", return_value=bulk_data) as mock_request:
+        with patch.object(
+            client, "_make_request", return_value=bulk_data
+        ) as mock_request:
             result = await client.get_bulk_data()
 
             mock_request.assert_called_once_with("GET", "/bulk-data")
@@ -416,7 +456,9 @@ class TestScryfallAPIClient:
     async def test_make_request_timeout_final_retry(self, client):
         """Test timeout handling when max retries exceeded."""
         with patch.object(client, "_circuit_breaker") as mock_breaker:
-            mock_breaker.call = AsyncMock(side_effect=httpx.TimeoutException("Request timeout"))
+            mock_breaker.call = AsyncMock(
+                side_effect=httpx.TimeoutException("Request timeout")
+            )
 
             with pytest.raises(ScryfallAPIError, match="Request timeout"):
                 await client._make_request("GET", "/cards/search")
@@ -424,9 +466,13 @@ class TestScryfallAPIClient:
     async def test_make_request_error_handling(self, client):
         """Test RequestError handling."""
         with patch.object(client, "_circuit_breaker") as mock_breaker:
-            mock_breaker.call = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
+            mock_breaker.call = AsyncMock(
+                side_effect=httpx.RequestError("Connection failed")
+            )
 
-            with pytest.raises(ScryfallAPIError, match="Request failed: Connection failed"):
+            with pytest.raises(
+                ScryfallAPIError, match="Request failed: Connection failed"
+            ):
                 await client._make_request("GET", "/cards/search")
 
 

@@ -328,7 +328,9 @@ class TestEnhancedErrorHandler:
 
     def test_query_recovery_japanese_quotes(self, handler):
         """Test query recovery suggestions for Japanese quotes."""
-        suggestions = handler._get_query_recovery_suggestions("「Lightning Bolt」", "en")
+        suggestions = handler._get_query_recovery_suggestions(
+            "「Lightning Bolt」", "en"
+        )
 
         assert "English quotes" in suggestions
 
@@ -386,7 +388,9 @@ class TestEnhancedErrorHandler:
         # Not card names
         assert not handler._appears_to_be_card_name("c:red t:creature")
         assert not handler._appears_to_be_card_name("pow>=3")
-        assert not handler._appears_to_be_card_name("very long query with many words exceeding limit")
+        assert not handler._appears_to_be_card_name(
+            "very long query with many words exceeding limit"
+        )
 
     def test_error_messages_coverage(self, handler):
         """Test that error messages are defined for all status codes."""

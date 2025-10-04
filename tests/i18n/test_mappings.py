@@ -40,8 +40,15 @@ class TestCommonMappings:
     def test_magic_types(self):
         """Test Magic type definitions."""
         essential_types = {
-            "Artifact", "Creature", "Enchantment", "Instant", "Land",
-            "Planeswalker", "Sorcery", "Basic", "Legendary",
+            "Artifact",
+            "Creature",
+            "Enchantment",
+            "Instant",
+            "Land",
+            "Planeswalker",
+            "Sorcery",
+            "Basic",
+            "Legendary",
         }
         assert essential_types.issubset(MAGIC_TYPES)
         assert isinstance(MAGIC_TYPES, set)
@@ -54,6 +61,7 @@ class TestCommonMappings:
 
         # Test that patterns are valid regex
         import re
+
         for pattern_name, pattern in SEARCH_PATTERNS.items():
             try:
                 re.compile(pattern)
@@ -99,8 +107,14 @@ class TestLanguageMapping:
     def test_operator_mappings_consistency(self):
         """Test that operator mappings are consistent."""
         required_operators = {
-            "equals", "not_equals", "less_than", "less_than_or_equal",
-            "greater_than", "greater_than_or_equal", "contains", "not_contains",
+            "equals",
+            "not_equals",
+            "less_than",
+            "less_than_or_equal",
+            "greater_than",
+            "greater_than_or_equal",
+            "contains",
+            "not_contains",
         }
 
         for mapping in [english_mapping, japanese_mapping]:
@@ -109,8 +123,16 @@ class TestLanguageMapping:
     def test_format_mappings_consistency(self):
         """Test that format mappings are consistent."""
         required_formats = {
-            "standard", "pioneer", "modern", "legacy", "vintage",
-            "commander", "pauper", "historic", "alchemy", "brawl",
+            "standard",
+            "pioneer",
+            "modern",
+            "legacy",
+            "vintage",
+            "commander",
+            "pauper",
+            "historic",
+            "alchemy",
+            "brawl",
         }
 
         for mapping in [english_mapping, japanese_mapping]:
@@ -136,8 +158,12 @@ class TestEnglishMapping:
     def test_english_color_mappings(self):
         """Test English color mappings."""
         expected_colors = {
-            "white": "w", "blue": "u", "black": "b",
-            "red": "r", "green": "g", "colorless": "c",
+            "white": "w",
+            "blue": "u",
+            "black": "b",
+            "red": "r",
+            "green": "g",
+            "colorless": "c",
         }
         assert english_mapping.colors == expected_colors
 
@@ -291,9 +317,18 @@ class TestMappingValidation:
             # No keyword should map to empty string unless intentional
             empty_mappings = [k for k, v in keywords.items() if v == ""]
             # These are intentional empty mappings (implicit operators)
-            allowed_empty = {"and", "かつ", "そして", "でかつ", "を持つカード", "のカード"}
+            allowed_empty = {
+                "and",
+                "かつ",
+                "そして",
+                "でかつ",
+                "を持つカード",
+                "のカード",
+            }
             unexpected_empty = set(empty_mappings) - allowed_empty
-            assert len(unexpected_empty) == 0, f"Unexpected empty mappings: {unexpected_empty}"
+            assert len(unexpected_empty) == 0, (
+                f"Unexpected empty mappings: {unexpected_empty}"
+            )
 
     def test_phrase_consistency(self):
         """Test that phrases are consistent."""
@@ -301,18 +336,26 @@ class TestMappingValidation:
             phrases = mapping.phrases
 
             # Check that phrases with similar meanings have consistent mappings
-            color_phrases = {k: v for k, v in phrases.items() if "cards" in k.lower() or "カード" in k}
+            color_phrases = {
+                k: v
+                for k, v in phrases.items()
+                if "cards" in k.lower() or "カード" in k
+            }
             for phrase, mapping_value in color_phrases.items():
                 if mapping_value.startswith("c:"):
                     color_code = mapping_value[2:]
-                    assert color_code in "wubrgc", f"Invalid color code in phrase: {phrase} -> {mapping_value}"
+                    assert color_code in "wubrgc", (
+                        f"Invalid color code in phrase: {phrase} -> {mapping_value}"
+                    )
 
     def test_japanese_specific_validations(self):
         """Test Japanese-specific validations."""
         # Test that Japanese color words are single characters
         ja_colors = ["白", "青", "黒", "赤", "緑"]
         for color in ja_colors:
-            assert len(color) == 1, f"Japanese color should be single character: {color}"
+            assert len(color) == 1, (
+                f"Japanese color should be single character: {color}"
+            )
 
         # JAPANESE_CARD_NAMES is now deprecated - Scryfall handles multilingual names natively
         # No need to validate card name mappings as they're no longer used

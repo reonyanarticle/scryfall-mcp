@@ -111,10 +111,16 @@ class TestSearchPresenter:
         ]
         return Card(**data)
 
-    def test_present_results_basic_en(self, en_presenter, sample_search_result, basic_built_query):
+    def test_present_results_basic_en(
+        self, en_presenter, sample_search_result, basic_built_query
+    ):
         """Test basic result presentation in English."""
-        options = SearchOptions(max_results=10, )
-        results = en_presenter.present_results(sample_search_result, basic_built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = en_presenter.present_results(
+            sample_search_result, basic_built_query, options
+        )
 
         assert len(results) >= 1
         assert isinstance(results[0], TextContent)
@@ -122,10 +128,16 @@ class TestSearchPresenter:
         assert "test query" in results[0].text
         assert "Cards Found" in results[0].text and "1" in results[0].text
 
-    def test_present_results_basic_ja(self, ja_presenter, sample_search_result, basic_built_query):
+    def test_present_results_basic_ja(
+        self, ja_presenter, sample_search_result, basic_built_query
+    ):
         """Test basic result presentation in Japanese."""
-        options = SearchOptions(max_results=10, )
-        results = ja_presenter.present_results(sample_search_result, basic_built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = ja_presenter.present_results(
+            sample_search_result, basic_built_query, options
+        )
 
         assert len(results) >= 1
         assert isinstance(results[0], TextContent)
@@ -133,7 +145,9 @@ class TestSearchPresenter:
         assert "test query" in results[0].text
         assert "1枚" in results[0].text
 
-    def test_present_results_no_image_data(self, en_presenter, card_with_images, basic_built_query):
+    def test_present_results_no_image_data(
+        self, en_presenter, card_with_images, basic_built_query
+    ):
         """Test that ImageContent is not included (MCP spec compliance)."""
         search_result = SearchResult(
             object="list",
@@ -141,8 +155,12 @@ class TestSearchPresenter:
             has_more=False,
             data=[card_with_images],
         )
-        options = SearchOptions(max_results=10, )
-        results = en_presenter.present_results(search_result, basic_built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = en_presenter.present_results(
+            search_result, basic_built_query, options
+        )
 
         # ImageContent removed - MCP spec requires base64, not URLs
         # Image URLs are in text content and EmbeddedResource instead
@@ -161,50 +179,92 @@ class TestSearchPresenter:
             query_metadata={},
             suggestions=["Try using exact card names", "Use more specific terms"],
         )
-        options = SearchOptions(max_results=10, )
-        results = en_presenter.present_results(sample_search_result, built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = en_presenter.present_results(
+            sample_search_result, built_query, options
+        )
 
         # Find suggestions content
-        suggestion_contents = [r for r in results if isinstance(r, TextContent) and "Suggestions" in r.text]
+        suggestion_contents = [
+            r for r in results if isinstance(r, TextContent) and "Suggestions" in r.text
+        ]
         assert len(suggestion_contents) >= 1
         assert "Try using exact card names" in suggestion_contents[0].text
         assert "Use more specific terms" in suggestion_contents[0].text
 
-    def test_present_results_with_suggestions_ja(self, ja_presenter, sample_search_result):
+    def test_present_results_with_suggestions_ja(
+        self, ja_presenter, sample_search_result
+    ):
         """Test result presentation with suggestions in Japanese."""
         built_query = BuiltQuery(
             original_query="テスト",
             scryfall_query="test",
             query_metadata={},
-            suggestions=["正確なカード名を使用してください", "より具体的な用語を使用してください"],
+            suggestions=[
+                "正確なカード名を使用してください",
+                "より具体的な用語を使用してください",
+            ],
         )
-        options = SearchOptions(max_results=10, )
-        results = ja_presenter.present_results(sample_search_result, built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = ja_presenter.present_results(
+            sample_search_result, built_query, options
+        )
 
         # Find suggestions content
-        suggestion_contents = [r for r in results if isinstance(r, TextContent) and "検索のヒント" in r.text]
+        suggestion_contents = [
+            r
+            for r in results
+            if isinstance(r, TextContent) and "検索のヒント" in r.text
+        ]
         assert len(suggestion_contents) >= 1
         assert "正確なカード名を使用してください" in suggestion_contents[0].text
 
-    def test_present_results_complex_query(self, en_presenter, sample_search_result, complex_built_query):
+    def test_present_results_complex_query(
+        self, en_presenter, sample_search_result, complex_built_query
+    ):
         """Test result presentation with complex query explanation."""
-        options = SearchOptions(max_results=10, )
-        results = en_presenter.present_results(sample_search_result, complex_built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = en_presenter.present_results(
+            sample_search_result, complex_built_query, options
+        )
 
         # Find query explanation content
-        explanation_contents = [r for r in results if isinstance(r, TextContent) and "Query Analysis" in r.text]
+        explanation_contents = [
+            r
+            for r in results
+            if isinstance(r, TextContent) and "Query Analysis" in r.text
+        ]
         assert len(explanation_contents) >= 1
-        assert "Complexity" in explanation_contents[0].text and "complex" in explanation_contents[0].text
+        assert (
+            "Complexity" in explanation_contents[0].text
+            and "complex" in explanation_contents[0].text
+        )
         assert "Colors" in explanation_contents[0].text
         assert "red" in explanation_contents[0].text
 
-    def test_present_results_complex_query_ja(self, ja_presenter, sample_search_result, complex_built_query):
+    def test_present_results_complex_query_ja(
+        self, ja_presenter, sample_search_result, complex_built_query
+    ):
         """Test result presentation with complex query explanation in Japanese."""
-        options = SearchOptions(max_results=10, )
-        results = ja_presenter.present_results(sample_search_result, complex_built_query, options)
+        options = SearchOptions(
+            max_results=10,
+        )
+        results = ja_presenter.present_results(
+            sample_search_result, complex_built_query, options
+        )
 
         # Find query explanation content
-        explanation_contents = [r for r in results if isinstance(r, TextContent) and "検索クエリの詳細" in r.text]
+        explanation_contents = [
+            r
+            for r in results
+            if isinstance(r, TextContent) and "検索クエリの詳細" in r.text
+        ]
         assert len(explanation_contents) >= 1
         assert "複雑さ" in explanation_contents[0].text
         assert "色" in explanation_contents[0].text
@@ -235,7 +295,9 @@ class TestSearchPresenter:
         assert isinstance(summary, TextContent)
         assert "さらに多くの結果があります" in summary.text
 
-    def test_create_summary_partial_results(self, en_presenter, basic_built_query, sample_card):
+    def test_create_summary_partial_results(
+        self, en_presenter, basic_built_query, sample_card
+    ):
         """Test summary creation showing partial results."""
         search_result = SearchResult(
             object="list",
@@ -249,7 +311,9 @@ class TestSearchPresenter:
 
     def test_format_single_card_basic(self, en_presenter, sample_card):
         """Test basic card formatting."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = en_presenter._format_single_card(sample_card, 1, options)
 
         assert isinstance(card_text, TextContent)
@@ -260,7 +324,9 @@ class TestSearchPresenter:
 
     def test_format_single_card_ja(self, ja_presenter, sample_card):
         """Test card formatting in Japanese."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = ja_presenter._format_single_card(sample_card, 1, options)
 
         assert isinstance(card_text, TextContent)
@@ -271,28 +337,36 @@ class TestSearchPresenter:
 
     def test_format_creature_card(self, en_presenter, creature_card):
         """Test creature card formatting with power/toughness."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = en_presenter._format_single_card(creature_card, 1, options)
 
         assert "2/3" in card_text.text
 
     def test_format_creature_card_ja(self, ja_presenter, creature_card):
         """Test creature card formatting in Japanese."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = ja_presenter._format_single_card(creature_card, 1, options)
 
         assert "2/3" in card_text.text
 
     def test_format_card_with_rarity(self, en_presenter, sample_card):
         """Test card formatting with rarity information."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = en_presenter._format_single_card(sample_card, 1, options)
 
         assert "Common" in card_text.text
 
     def test_format_card_with_rarity_ja(self, ja_presenter, sample_card):
         """Test card formatting with rarity in Japanese."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = ja_presenter._format_single_card(sample_card, 1, options)
 
         assert "コモン" in card_text.text
@@ -421,7 +495,9 @@ class TestSearchPresenter:
     def test_format_cards_multiple(self, en_presenter, sample_card):
         """Test formatting multiple cards."""
         cards = [sample_card, sample_card]
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         results = en_presenter._format_cards(cards, options)
 
         # Each card should produce 2 items: text content + embedded resource
@@ -434,7 +510,9 @@ class TestSearchPresenter:
     def test_format_cards_with_limit(self, en_presenter, sample_card):
         """Test formatting cards respects max_results limit."""
         cards = [sample_card] * 5
-        options = SearchOptions(max_results=3, )
+        options = SearchOptions(
+            max_results=3,
+        )
         search_result = SearchResult(
             object="list",
             total_cards=5,
@@ -450,7 +528,9 @@ class TestSearchPresenter:
         results = en_presenter.present_results(search_result, built_query, options)
 
         # Should only format first 3 cards
-        card_texts = [r for r in results if isinstance(r, TextContent) and "## " in r.text]
+        card_texts = [
+            r for r in results if isinstance(r, TextContent) and "## " in r.text
+        ]
         assert len(card_texts) <= 3
 
     def test_rarity_translations(self, en_presenter, sample_card_data):
@@ -462,7 +542,9 @@ class TestSearchPresenter:
             data = sample_card_data.copy()
             data["rarity"] = rarity
             card = Card(**data)
-            options = SearchOptions(max_results=10, )
+            options = SearchOptions(
+                max_results=10,
+            )
             card_text = en_presenter._format_single_card(card, 1, options)
             assert expected_text in card_text.text
 
@@ -475,7 +557,9 @@ class TestSearchPresenter:
             data = sample_card_data.copy()
             data["rarity"] = rarity
             card = Card(**data)
-            options = SearchOptions(max_results=10, )
+            options = SearchOptions(
+                max_results=10,
+            )
             card_text = ja_presenter._format_single_card(card, 1, options)
             assert expected_text in card_text.text
 
@@ -496,7 +580,9 @@ class TestSearchPresenter:
         }
         card = Card(**data)
 
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = en_presenter._format_single_card(card, 1, options)
 
         # Should still have basic info
@@ -505,14 +591,18 @@ class TestSearchPresenter:
 
     def test_scryfall_link_en(self, en_presenter, sample_card):
         """Test Scryfall link in English."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = en_presenter._format_single_card(sample_card, 1, options)
 
         assert "View on Scryfall" in card_text.text
 
     def test_scryfall_link_ja(self, ja_presenter, sample_card):
         """Test Scryfall link in Japanese."""
-        options = SearchOptions(max_results=10, )
+        options = SearchOptions(
+            max_results=10,
+        )
         card_text = ja_presenter._format_single_card(sample_card, 1, options)
 
         assert "Scryfallで詳細を見る" in card_text.text

@@ -18,7 +18,9 @@ async def test_tools():
     # Test 1: Search for Lightning Bolt
     print("Test 1: Searching for 'Lightning Bolt'...")
     try:
-        result = await server._search_cards_async("Lightning Bolt", language="en", max_results=5)
+        result = await server._search_cards_async(
+            "Lightning Bolt", language="en", max_results=5
+        )
         print(f"✓ Success: {len(result)} characters returned")
         print(f"Preview: {result[:200]}...")
         print()
@@ -51,7 +53,9 @@ async def test_tools():
     # Test 4: Natural language query (Japanese)
     print("Test 4: Natural language query '赤いクリーチャー'...")
     try:
-        result = await server._search_cards_async("赤いクリーチャー", language="ja", max_results=5)
+        result = await server._search_cards_async(
+            "赤いクリーチャー", language="ja", max_results=5
+        )
         print(f"✓ Success: {len(result)} characters returned")
         print(f"Preview: {result[:200]}...")
         print()

@@ -81,7 +81,7 @@ class TestCacheManager:
 class TestCacheFactory:
     """Test cache factory functions."""
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_get_cache_disabled(self, mock_get_settings):
         """Test get_cache when caching is disabled."""
         mock_settings = AsyncMock()
@@ -91,7 +91,7 @@ class TestCacheFactory:
         result = get_cache()
         assert result is None
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_get_cache_memory_backend(self, mock_get_settings):
         """Test cache creation with memory backend."""
         mock_settings = AsyncMock()
@@ -103,13 +103,14 @@ class TestCacheFactory:
 
         # Reset global cache
         import scryfall_mcp.cache.manager
+
         scryfall_mcp.cache.manager._cache_manager = None
 
         cache_manager = get_cache()
         assert cache_manager is not None
         assert isinstance(cache_manager, CacheManager)
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_create_cache_manager_memory(self, mock_get_settings):
         """Test cache manager creation with memory backend."""
         mock_settings = AsyncMock()
@@ -123,7 +124,7 @@ class TestCacheFactory:
         stats = manager.get_stats()
         assert stats["type"] == "memory"
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_create_cache_manager_composite(self, mock_get_settings):
         """Test cache manager creation with composite backend."""
         mock_settings = AsyncMock()
@@ -138,7 +139,7 @@ class TestCacheFactory:
         stats = manager.get_stats()
         assert stats["type"] == "composite"
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_create_cache_manager_redis_fallback(self, mock_get_settings):
         """Test fallback to memory when Redis fails."""
         mock_settings = AsyncMock()
@@ -160,7 +161,7 @@ class TestCacheFactory:
         # Should not raise even if no cache is initialized
         await close_cache()
 
-    @patch('scryfall_mcp.cache.manager.get_settings')
+    @patch("scryfall_mcp.cache.manager.get_settings")
     def test_singleton_behavior(self, mock_get_settings):
         """Test that get_cache returns the same instance."""
         mock_settings = AsyncMock()
@@ -172,6 +173,7 @@ class TestCacheFactory:
 
         # Reset global cache
         import scryfall_mcp.cache.manager
+
         scryfall_mcp.cache.manager._cache_manager = None
 
         cache1 = get_cache()

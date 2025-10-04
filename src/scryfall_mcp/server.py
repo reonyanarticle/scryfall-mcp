@@ -210,7 +210,9 @@ async def main() -> None:
 def sync_main() -> None:
     """Synchronous entry point for console scripts."""
 
-    def handle_exception(loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
+    def handle_exception(
+        loop: asyncio.AbstractEventLoop, context: dict[str, Any]
+    ) -> None:
         """Custom exception handler to suppress harmless shutdown errors.
 
         Suppresses BrokenPipeError that occurs when the MCP client disconnects

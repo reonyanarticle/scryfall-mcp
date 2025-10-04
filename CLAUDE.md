@@ -1,7 +1,7 @@
 # Scryfall MCP Server
 
 Magic: The Gatheringのカード情報を提供するScryfall APIをMCP (Model Context Protocol)経由でAIアシスタントに接続するサーバー。
-詳細はAPI Docmentationを参考にすること。https://scryfall.com/docs/api
+詳細はAPI Documentation (https://scryfall.com/docs/api) を参考にしてください。
 
 ## 主要機能
 
@@ -65,7 +65,7 @@ User-Agent: アプリ名とバージョン、連絡先
 Accept: application/json;q=0.9,*/*;q=0.8
 ```
 
-これらのヘッダーがないと403でブロックされる。
+これらのヘッダーがないと403でブロックされます。
 
 ### データ取得
 - 1ページ最大175カード
@@ -113,8 +113,8 @@ Accept: application/json;q=0.9,*/*;q=0.8
 - **typing後方互換**: `from __future__ import annotations`を各ファイル先頭に記載
 
 ### Docstring規約
-- **docstringは必須**: すべての関数、クラス、メソッドにdocstringを記載
-- **NumPy Styleを使用**: 以下の形式に従う
+- **docstringは必須**: すべての関数、クラス、メソッドにdocstringを記載します
+- **NumPy Styleを使用**: 以下の形式に従ってください
   ```python
   def function_name(param1: str, param2: int | None = None) -> bool:
       """Brief description of the function.
@@ -146,13 +146,13 @@ Accept: application/json;q=0.9,*/*;q=0.8
       True
       """
   ```
-- **型表記の統一**: docstring内の型は最新のPython型アノテーション形式を使用
+- **型表記の統一**: docstring内の型は最新のPython型アノテーション形式を使用してください
   - ✅ `str | None`
   - ❌ `str, optional` (古い表記)
   - ✅ `list[str]`
   - ❌ `List[str]` (typing.List)
-- **セクション順序**: Parameters → Returns → Yields → Raises → Examples
-- **Generator型の記載**:
+- **セクション順序**: Parameters → Returns → Yields → Raises → Examples を守ってください
+- **Generator型の記載**は以下のようにしてください。
   ```python
   def generator_func() -> Generator[int, None, None]:
       """Generator function.
@@ -165,14 +165,14 @@ Accept: application/json;q=0.9,*/*;q=0.8
   ```
 
 ### コード品質
-- **1関数1責任**: 各関数は単一の明確な責任を持つ
-- **早期リターン推奨**: ネストを減らし可読性を向上
-- **定数は大文字**: モジュールレベル定数は`UPPER_SNAKE_CASE`
+- **1関数1責任**: 各関数は単一の明確な責任を持つようにしてください
+- **早期リターン推奨**: ネストを減らし可読性を向上させてください
+- **定数は大文字**: モジュールレベル定数は`UPPER_SNAKE_CASE`を使用してください
 
 ### 非同期処理
-- **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化
-- **CPU boundは別プロセス**: 重い計算処理は`ProcessPoolExecutor`を使用
-- **タイムアウト必須**: すべての外部API呼び出しにタイムアウトを設定
+- **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化してください
+- **CPU boundは別プロセス**: 重い計算処理は`ProcessPoolExecutor`を使用してください
+- **タイムアウト必須**: すべての外部API呼び出しにタイムアウトを設定してください
 
 ### 命名規則
 - **クラス**: `PascalCase` (例: `ScryfallAPIClient`)

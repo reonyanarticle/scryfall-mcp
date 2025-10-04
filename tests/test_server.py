@@ -19,7 +19,9 @@ class TestScryfallMCPServer:
         assert server.app is not None
 
     @patch("scryfall_mcp.server.get_settings")
-    def test_server_initialization_with_mocked_settings(self, mock_get_settings: Mock) -> None:
+    def test_server_initialization_with_mocked_settings(
+        self, mock_get_settings: Mock
+    ) -> None:
         """Test server initialization with mocked settings."""
         mock_settings = Mock()
         mock_get_settings.return_value = mock_settings
@@ -30,8 +32,10 @@ class TestScryfallMCPServer:
 
     def test_setup_tools_registration(self) -> None:
         """Test that tools are properly registered with fastmcp."""
-        with patch("scryfall_mcp.server.FastMCP") as mock_fastmcp, \
-             patch("scryfall_mcp.server._create_lifespan") as mock_lifespan:
+        with (
+            patch("scryfall_mcp.server.FastMCP") as mock_fastmcp,
+            patch("scryfall_mcp.server._create_lifespan") as mock_lifespan,
+        ):
             mock_app = Mock()
             mock_fastmcp.return_value = mock_app
 
@@ -41,7 +45,9 @@ class TestScryfallMCPServer:
             mock_fastmcp.assert_called_once_with("scryfall-mcp", lifespan=mock_lifespan)
 
             # Verify that tool decorators were called
-            assert mock_app.tool.call_count >= 2  # At least search_cards and autocomplete
+            assert (
+                mock_app.tool.call_count >= 2
+            )  # At least search_cards and autocomplete
 
     def test_tool_registration_happens(self) -> None:
         """Test that tools are registered during initialization."""
@@ -85,6 +91,7 @@ class TestScryfallMCPServer:
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
             with patch("fastmcp.FastMCP", MockApp):
@@ -100,7 +107,9 @@ class TestScryfallMCPServer:
 
     def test_autocomplete_tool_function(self) -> None:
         """Test the synchronous autocomplete_card_names tool function."""
-        with patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute:
+        with patch(
+            "scryfall_mcp.tools.search.AutocompleteTool.execute"
+        ) as mock_execute:
             # Mock the execute method to return MCP content
             mock_content = Mock()
             mock_content.text = "Lightning Bolt\nLightning Strike"
@@ -117,6 +126,7 @@ class TestScryfallMCPServer:
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
             with patch("fastmcp.FastMCP", MockApp):
@@ -149,6 +159,7 @@ if __name__ == "__main__":
         with patch("scryfall_mcp.server.sync_main") as mock_sync_main:
             # Temporarily change the server module's __name__ to trigger the main block
             import scryfall_mcp.server as server_module
+
             original_name = server_module.__name__
 
             try:
@@ -195,10 +206,11 @@ if __name__ == "__main__":
         from scryfall_mcp.server import _create_lifespan
         from fastmcp import FastMCP
 
-        with patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect, \
-             patch("scryfall_mcp.server.get_locale_manager") as mock_get_locale, \
-             patch("scryfall_mcp.server.close_client") as mock_close:
-
+        with (
+            patch("scryfall_mcp.server.detect_and_set_locale") as mock_detect,
+            patch("scryfall_mcp.server.get_locale_manager") as mock_get_locale,
+            patch("scryfall_mcp.server.close_client") as mock_close,
+        ):
             mock_detect.return_value = "en"
             mock_locale_manager = Mock()
             mock_locale_manager.get_supported_locale_codes.return_value = ["en", "ja"]
@@ -237,9 +249,10 @@ class TestMainFunctions:
 
     def test_sync_main_success(self) -> None:
         """Test the synchronous main function success case."""
-        with patch("asyncio.new_event_loop") as mock_new_loop, \
-             patch("asyncio.set_event_loop") as mock_set_loop:
-
+        with (
+            patch("asyncio.new_event_loop") as mock_new_loop,
+            patch("asyncio.set_event_loop") as mock_set_loop,
+        ):
             mock_loop = MagicMock()
             mock_new_loop.return_value = mock_loop
             mock_loop.run_until_complete.return_value = None
@@ -254,10 +267,11 @@ class TestMainFunctions:
 
     def test_sync_main_keyboard_interrupt(self) -> None:
         """Test the synchronous main function with keyboard interrupt."""
-        with patch("asyncio.new_event_loop") as mock_new_loop, \
-             patch("asyncio.set_event_loop") as mock_set_loop, \
-             patch("scryfall_mcp.server.logger") as mock_logger:
-
+        with (
+            patch("asyncio.new_event_loop") as mock_new_loop,
+            patch("asyncio.set_event_loop") as mock_set_loop,
+            patch("scryfall_mcp.server.logger") as mock_logger,
+        ):
             mock_loop = MagicMock()
             mock_new_loop.return_value = mock_loop
             mock_loop.run_until_complete.side_effect = KeyboardInterrupt()
@@ -269,11 +283,12 @@ class TestMainFunctions:
 
     def test_sync_main_exception(self) -> None:
         """Test the synchronous main function with exception."""
-        with patch("asyncio.new_event_loop") as mock_new_loop, \
-             patch("asyncio.set_event_loop") as mock_set_loop, \
-             patch("scryfall_mcp.server.logger") as mock_logger, \
-             patch("sys.exit") as mock_exit:
-
+        with (
+            patch("asyncio.new_event_loop") as mock_new_loop,
+            patch("asyncio.set_event_loop") as mock_set_loop,
+            patch("scryfall_mcp.server.logger") as mock_logger,
+            patch("sys.exit") as mock_exit,
+        ):
             mock_loop = MagicMock()
             mock_new_loop.return_value = mock_loop
             test_error = Exception("Test error")

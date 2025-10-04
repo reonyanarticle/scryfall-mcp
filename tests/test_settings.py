@@ -121,9 +121,9 @@ class TestSettings:
         # Test valid TTL values (all >= 24 hours per Scryfall recommendation)
         settings = Settings(
             cache_ttl_search=86400,  # 24 hours (minimum)
-            cache_ttl_card=172800,   # 48 hours
+            cache_ttl_card=172800,  # 48 hours
             cache_ttl_price=129600,  # 36 hours
-            cache_ttl_set=604800,    # 1 week
+            cache_ttl_set=604800,  # 1 week
         )
 
         assert settings.cache_ttl_search == 86400
@@ -136,7 +136,9 @@ class TestSettings:
             Settings(cache_ttl_search=3600)  # 1 hour - too low per Scryfall guidelines
 
         with pytest.raises(ValidationError):
-            Settings(cache_ttl_default=3600)  # 1 hour - too low per Scryfall guidelines  # Too low
+            Settings(
+                cache_ttl_default=3600
+            )  # 1 hour - too low per Scryfall guidelines  # Too low
 
     def test_circuit_breaker_settings(self):
         """Test circuit breaker settings validation."""
