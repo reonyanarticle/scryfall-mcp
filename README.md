@@ -52,8 +52,8 @@ uv run scryfall-mcp setup
 
 以下のいずれかを入力してください。
 - メールアドレス（例: `yourname@example.com`）
-- GitHubリポジトリURL（例: `github.com/username/repo`）
-- その他連絡可能なURL
+- GitHubリポジトリURL（例: `https://github.com/username/repo`）
+- その他連絡可能なURL（HTTPS必須）
 
 設定は `~/Library/Application Support/scryfall-mcp/config.json` (macOS) に保存されます。
 
