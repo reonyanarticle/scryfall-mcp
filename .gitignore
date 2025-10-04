@@ -103,3 +103,6 @@ __marimo__/
 node_modules/
 package-lock.json
 .package-lock.json
+
+# Serena AI assistant
+.serena/
