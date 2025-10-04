@@ -97,22 +97,90 @@ Accept: application/json;q=0.9,*/*;q=0.8
 
 ## コーディング規約
 
-### Python
-- 型ヒントは必須。PEP585に準拠し、基本的にはpydanticを用いて記載。補助としてtypingモジュールを使用すること
-- docstringは必須。Numpy styleで記載。
-- 1関数1責任
-- 早期リターン推奨
+### Python型アノテーション
+- **型ヒントは必須**。すべての関数パラメータと戻り値に型アノテーションを付ける
+- **PEP 585準拠**: `list[str]`, `dict[str, int]`, `tuple[int, ...]`など組み込み型を使用（Python 3.9+）
+- **Union型**: `str | None`, `int | str`のようにパイプ演算子を使用（Python 3.10+）
+- **Pydantic優先**: データモデルは`pydantic.BaseModel`を使用し、`Field`で詳細定義
+- **標準ライブラリ型**: `collections.abc`モジュールから`Generator`, `Iterator`, `Callable`などをインポート
+  ```python
+  from collections.abc import Generator, Iterator
+
+  def example() -> Generator[str, None, None]:
+      yield "example"
+  ```
+- **Optional不使用**: `Optional[str]`ではなく`str | None`を使用
+- **typing後方互換**: `from __future__ import annotations`を各ファイル先頭に記載
+
+### Docstring規約
+- **docstringは必須**: すべての関数、クラス、メソッドにdocstringを記載
+- **NumPy Styleを使用**: 以下の形式に従う
+  ```python
+  def function_name(param1: str, param2: int | None = None) -> bool:
+      """Brief description of the function.
+
+      Detailed description if needed. Can span multiple lines.
+
+      Parameters
+      ----------
+      param1 : str
+          Description of param1
+      param2 : int | None, optional
+          Description of param2 (default: None)
+
+      Returns
+      -------
+      bool
+          Description of return value
+
+      Raises
+      ------
+      ValueError
+          When param1 is empty
+      RuntimeError
+          When operation fails
+
+      Examples
+      --------
+      >>> function_name("test", 42)
+      True
+      """
+  ```
+- **型表記の統一**: docstring内の型は最新のPython型アノテーション形式を使用
+  - ✅ `str | None`
+  - ❌ `str, optional` (古い表記)
+  - ✅ `list[str]`
+  - ❌ `List[str]` (typing.List)
+- **セクション順序**: Parameters → Returns → Yields → Raises → Examples
+- **Generator型の記載**:
+  ```python
+  def generator_func() -> Generator[int, None, None]:
+      """Generator function.
+
+      Yields
+      ------
+      int
+          Description of yielded values
+      """
+  ```
+
+### コード品質
+- **1関数1責任**: 各関数は単一の明確な責任を持つ
+- **早期リターン推奨**: ネストを減らし可読性を向上
+- **定数は大文字**: モジュールレベル定数は`UPPER_SNAKE_CASE`
 
 ### 非同期処理
-- I/O処理はすべてasync/await
-- CPU boundは別プロセス
-- タイムアウト必須設定
+- **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化
+- **CPU boundは別プロセス**: 重い計算処理は`ProcessPoolExecutor`を使用
+- **タイムアウト必須**: すべての外部API呼び出しにタイムアウトを設定
 
 ### 命名規則
-- クラス: PascalCase
-- 関数/変数: snake_case
-- 定数: UPPER_SNAKE_CASE
-- プライベート: _prefix
+- **クラス**: `PascalCase` (例: `ScryfallAPIClient`)
+- **関数/変数**: `snake_case` (例: `search_cards`, `max_results`)
+- **定数**: `UPPER_SNAKE_CASE` (例: `CACHE_TTL_SEARCH`)
+- **プライベート**: `_prefix` (例: `_make_request`, `_session`)
+- **プロテクテッド**: 単一アンダースコア`_` (例: `_internal_method`)
+- **プライベート強制**: 二重アンダースコア`__`は名前マングリングが必要な場合のみ
 
 ## テスト
 

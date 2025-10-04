@@ -10,6 +10,7 @@ import contextvars
 import locale
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from ..models import LanguageMapping, LocaleInfo
@@ -100,7 +101,7 @@ class LocaleManager:
 
         Returns
         -------
-        str, optional
+        str | None
             Language code if valid, None otherwise
         """
         if not locale_str:
@@ -262,7 +263,7 @@ class LocaleManager:
 
 
 @contextmanager
-def use_locale(locale_code: str):
+def use_locale(locale_code: str) -> Generator[str, None, None]:
     """Context manager for setting locale in current context.
 
     Parameters
