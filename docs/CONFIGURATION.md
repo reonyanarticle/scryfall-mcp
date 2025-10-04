@@ -36,12 +36,15 @@
 
 ### TTL設定
 
-| 変数名 | デフォルト | 説明 |
-|--------|-----------|------|
-| `SCRYFALL_MCP_CACHE_TTL_SEARCH` | `1800` | 検索結果TTL（秒） |
-| `SCRYFALL_MCP_CACHE_TTL_CARD` | `86400` | カード詳細TTL（秒） |
-| `SCRYFALL_MCP_CACHE_TTL_PRICE` | `21600` | 価格情報TTL（秒） |
-| `SCRYFALL_MCP_CACHE_TTL_SET` | `604800` | セット情報TTL（秒） |
+Scryfallの推奨に従い、最低24時間のキャッシュを設定しています。
+
+| 変数名 | デフォルト | 最小値 | 説明 |
+|--------|-----------|--------|------|
+| `SCRYFALL_MCP_CACHE_TTL_SEARCH` | `86400` (24時間) | 86400 | 検索結果TTL（秒）※Scryfall推奨 |
+| `SCRYFALL_MCP_CACHE_TTL_CARD` | `86400` (24時間) | 3600 | カード詳細TTL（秒） |
+| `SCRYFALL_MCP_CACHE_TTL_PRICE` | `21600` (6時間) | 300 | 価格情報TTL（秒） |
+| `SCRYFALL_MCP_CACHE_TTL_SET` | `604800` (1週間) | 86400 | セット情報TTL（秒） |
+| `SCRYFALL_MCP_CACHE_TTL_DEFAULT` | `86400` (24時間) | 86400 | デフォルトTTL（秒）※Scryfall推奨 |
 
 ### サーキットブレーカー設定
 

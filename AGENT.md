@@ -163,7 +163,7 @@ async def acquire(self) -> None:
 - ImageContent構造検証（`type: "image"`, `data: str`, `mimeType: str`）
 - EmbeddedResource構造検証（`type: "resource"`, `resource: dict`）
 - エラーレスポンスの検証
-- 全357テスト成功
+- 全389テスト成功
 
 ### テストカバレッジの向上（2025-10-03）
 **問題**: Codex分析により、リクエストモデルとバリデーション周りのテストカバレッジ不足が判明。
@@ -175,7 +175,7 @@ async def acquire(self) -> None:
   - 境界値検証（max_results: 1-175）
   - ネストされた構造の検証
   - 必須フィールドの検証
-- 全360テスト成功、カバレッジ向上
+- 全389テスト成功、カバレッジ向上
 
 ### 定数の分離
 **問題**: settings.pyに実行時設定と静的な語彙データが混在し、モジュールの責務が不明瞭。

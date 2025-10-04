@@ -19,7 +19,7 @@ Scryfall MCP Serverへのコントリビューションをご検討いただき�
 
 #### 1. テストの合格
 
-- **全テストが合格していること**: `uv run pytest` で全357テストがパスすること
+- **全テストが合格していること**: `uv run pytest` で全389テストがパスすること
 - **カバレッジ要件**: 新規コードのテストカバレッジは最低90%以上
 - **型チェック**: `uv run mypy src` がエラーなく完了すること
 - **リンター**: `uv run ruff check src tests` がエラーなく完了すること
@@ -54,7 +54,7 @@ Features:
 - Configuration saved to platform-specific config directory
 - CLI commands: setup, config, reset
 
-All 357 tests passing ✅
+All 389 tests passing ✅ (95% coverage)
 ```
 
 #### 5. CI/CDの合格
@@ -193,7 +193,7 @@ git commit -m "タイトル
 - 変更内容2
 
 テスト結果:
-- All 357 tests passing ✅
+- All 389 tests passing ✅ (95% coverage)
 "
 ```
 

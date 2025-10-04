@@ -182,7 +182,7 @@ scryfall-mcp/
 │   ├── server.py         # MCPサーバーエントリポイント
 │   ├── settings.py       # 実行時設定管理
 │   └── models.py         # データモデル・型定義
-├── tests/                # テストスイート (360 tests)
+├── tests/                # テストスイート (389 tests, 95% coverage)
 ├── docs/                 # ドキュメント
 └── AGENT.md              # AI開発者向けガイド
 ```
@@ -221,7 +221,7 @@ SCRYFALL_MCP_CACHE_TTL_DEFAULT=86400 # 24時間（秒）
 ### テスト実行
 
 ```bash
-# 全テスト実行（357テスト）
+# 全テスト実行（389テスト）
 uv run pytest
 
 # カバレッジ付きテスト
@@ -298,7 +298,7 @@ Scryfall MCP Serverへのコントリビューションを歓迎します。
 プルリクエストの受け付けルール、コーディング規約、テスト要件などの詳細は [コントリビューションガイドライン](docs/CONTRIBUTING.md) を参照してください。
 
 **重要な要件**:
-- 全テスト合格 (357 tests)
+- 全テスト合格 (389 tests, 95% coverage)
 - 型チェック (`mypy`) 合格
 - リント (`ruff`) 合格
 - NumPy styleのdocstring必須

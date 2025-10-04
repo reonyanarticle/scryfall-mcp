@@ -12,25 +12,32 @@ Magic: The Gatheringのカードを検索します。
 |------------|----|----|-----------|------|
 | `query` | string | ✓ | - | 検索クエリ（自然言語またはScryfall構文） |
 | `language` | string | - | null | 言語コード（"en", "ja"） |
-| `max_results` | integer | - | 20 | 最大の検索結果数（1-100） |
-| `include_images` | boolean | - | true | 画像を含めるか |
+| `max_results` | integer | - | 10 | 最大の検索結果数（1-175） |
 | `format_filter` | string | - | null | フォーマット指定（"standard", "modern"等） |
 
 #### レスポンス
+
+MCP標準のContent型のリストを返します。画像データは含まれず、画像URLのみが提供されます。
 
 ```json
 [
   {
     "type": "text",
-    "text": "検索結果サマリー"
+    "text": "検索結果サマリー（カード数、クエリ説明等）"
   },
   {
-    "type": "image",
-    "data": "base64画像データ",
-    "mimeType": "image/jpeg"
+    "type": "resource",
+    "resource": {
+      "uri": "card://scryfall/card-id",
+      "name": "Card Name",
+      "mimeType": "application/json",
+      "text": "カード詳細情報（テキスト形式）\n価格情報、リーガル情報、画像URL等"
+    }
   }
 ]
 ```
+
+**注意**: v0.1.0からImageContentは削除されました。画像URLはEmbeddedResourceのtext内に含まれます。
 
 #### 使用例
 
