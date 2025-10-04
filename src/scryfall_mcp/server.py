@@ -61,7 +61,9 @@ async def _create_lifespan(_app: FastMCP) -> AsyncIterator[None]:
 
     settings = get_settings()
     logger.info("Starting Scryfall MCP Server (fastmcp)")
-    logger.info("Settings: %s", settings.model_dump())
+    logger.info("Default locale: %s", settings.default_locale)
+    logger.info("Cache enabled: %s", settings.cache_enabled)
+    # Do not log full settings to avoid exposing credentials and PII
 
     try:
         yield

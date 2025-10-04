@@ -264,10 +264,16 @@ def get_settings() -> Settings:
                         "user_agent", "Scryfall-MCP-Server/0.1.0 (unconfigured)"
                     )
                 else:
-                    # No config found - use placeholder that will trigger warning
-                    _settings.user_agent = (
-                        "Scryfall-MCP-Server/0.1.0 (unconfigured - run setup)"
+                    # No config found in non-interactive mode - FAIL STARTUP
+                    print(
+                        "ERROR: User-Agent not configured. Run 'scryfall-mcp setup' first.",
+                        file=sys.stderr,
                     )
+                    print(
+                        "This is required by Scryfall API guidelines to prevent throttling/banning.",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
 
     return _settings
 
