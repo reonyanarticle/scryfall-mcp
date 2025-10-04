@@ -248,11 +248,9 @@ def get_settings() -> Settings:
         _settings = Settings()
 
         # Load User-Agent from setup wizard if not provided via environment
-        # Validate that it's not empty/whitespace and not a placeholder
         user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
-        is_placeholder = "unconfigured" in user_agent_val.lower()
 
-        if not user_agent_val or is_placeholder:
+        if not user_agent_val:
             # Only run setup wizard in interactive mode (not in Claude Desktop stdio mode)
             if sys.stdin.isatty() and sys.stdout.isatty():
                 from .setup_wizard import get_user_agent
@@ -265,19 +263,19 @@ def get_settings() -> Settings:
                 config = load_config()
                 if config:
                     _settings.user_agent = config.get(
-                        "user_agent", "Scryfall-MCP-Server/0.1.0 (unconfigured)"
+                        "user_agent", "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
                     )
                 else:
-                    # No config found in non-interactive mode - FAIL STARTUP
+                    # No config found - use default and warn
+                    _settings.user_agent = "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
                     print(
-                        "ERROR: User-Agent not configured. Run 'scryfall-mcp setup' first.",
+                        "WARNING: User-Agent not configured. Run 'scryfall-mcp setup' to add contact info.",
                         file=sys.stderr,
                     )
                     print(
-                        "This is required by Scryfall API guidelines to prevent throttling/banning.",
+                        "Using default User-Agent. Scryfall API guidelines recommend including contact information.",
                         file=sys.stderr,
                     )
-                    sys.exit(1)
 
     return _settings
 
