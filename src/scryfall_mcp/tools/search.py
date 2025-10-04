@@ -138,7 +138,6 @@ class CardSearchTool:
                 # Step 4: Present the results
                 search_options = SearchOptions(
                     max_results=request.max_results,
-                    include_images=request.include_images,
                     format_filter=request.format_filter,
                     language=request.language,
                 )

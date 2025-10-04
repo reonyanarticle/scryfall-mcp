@@ -461,14 +461,12 @@ class TestSearchCardsRequest:
             query="Lightning Bolt",
             language="en",
             max_results=10,
-            include_images=True,
             format_filter="modern",
         )
 
         assert request.query == "Lightning Bolt"
         assert request.language == "en"
         assert request.max_results == 10
-        assert request.include_images is True
         assert request.format_filter == "modern"
 
     def test_minimal_request(self):
@@ -478,7 +476,6 @@ class TestSearchCardsRequest:
         assert request.query == "test"
         assert request.language is None
         assert request.max_results == 10  # Default (reduced from 20 for macOS compatibility)
-        assert request.include_images is True  # Default
         assert request.format_filter is None
 
     def test_max_results_validation(self):

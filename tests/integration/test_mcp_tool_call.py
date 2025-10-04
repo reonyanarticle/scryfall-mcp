@@ -62,8 +62,7 @@ def test_tool_call():
                 "arguments": {
                     "query": "Lightning Bolt",
                     "language": "en",
-                    "max_results": 3,
-                    "include_images": False
+                    "max_results": 3
                 }
             },
         }
@@ -92,8 +91,7 @@ def test_tool_call():
                 "arguments": {
                     "query": "稲妻",
                     "language": "ja",
-                    "max_results": 3,
-                    "include_images": False
+                    "max_results": 3
                 }
             },
         }

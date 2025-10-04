@@ -47,16 +47,18 @@ class SearchOptions(BaseModel):
         Maximum number of results to return (default: 10).
         Reduced from 20 to prevent BrokenPipeError with large responses.
         Users can override to request up to 175 results.
-    include_images : bool
-        Whether to include card images in results (default: True)
     format_filter : str | None
         Optional format filter (e.g., "standard", "modern")
     language : str | None
         Optional language code for search (e.g., "en", "ja")
+
+    Notes
+    -----
+    Image data is not included in responses to comply with MCP ImageContent spec.
+    Image URLs are provided in Scryfall links within card details.
     """
 
     max_results: int = 10  # Reduced from 20 to prevent pipe overflow
-    include_images: bool = True
     format_filter: str | None = None
     language: str | None = None
 
@@ -73,15 +75,14 @@ class SearchCardsRequest(BaseModel):
     ----
     max_results defaults to 10 (reduced from 20) to prevent BrokenPipeError
     on macOS systems with 16KB pipe buffer limits. Users can override up to 175.
+    Image data is not included in responses to comply with MCP ImageContent spec
+    (requires base64, not URLs). Image links are provided in card details instead.
     """
 
     query: str = Field(description="Natural language search query (supports Japanese)")
     language: str | None = Field(default=None, description="Language code (ja, en)")
     max_results: int | None = Field(
         default=10, ge=1, le=175, description="Maximum number of results"
-    )
-    include_images: bool | None = Field(
-        default=True, description="Include card images in results"
     )
     format_filter: str | None = Field(
         default=None, description="Filter by Magic format (standard, modern, etc.)"

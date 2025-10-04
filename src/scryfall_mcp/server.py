@@ -83,7 +83,6 @@ class ScryfallMCPServer:
             query: str,
             language: str | None = None,
             max_results: int = 10,
-            include_images: bool = True,
             format_filter: str | None = None,
         ) -> list[TextContent | ImageContent | EmbeddedResource]:
             """Search for Magic: The Gathering cards.
@@ -93,11 +92,14 @@ class ScryfallMCPServer:
                 query: Search query (natural language or Scryfall syntax)
                 language: Language code ("en", "ja")
                 max_results: Maximum number of results (1-175, default: 10)
-                include_images: Whether to include card images
                 format_filter: Format filter ("standard", "modern", etc.)
 
             Returns:
-                List of MCP content items (text, images, embedded resources)
+                List of MCP content items (text, embedded resources)
+
+            Note:
+                Image data is not included to comply with MCP ImageContent spec.
+                Image URLs are provided in Scryfall links within card details.
             """
             await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"
@@ -107,7 +109,6 @@ class ScryfallMCPServer:
                 "query": query,
                 "language": language,
                 "max_results": max_results,
-                "include_images": include_images,
                 "format_filter": format_filter,
             }
 

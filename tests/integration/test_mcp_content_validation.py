@@ -131,7 +131,6 @@ def test_content_validation() -> None:
                     "query": "Lightning Bolt",
                     "language": "en",
                     "max_results": 3,
-                    "include_images": False,
                 },
             },
         }

@@ -162,14 +162,8 @@ class SearchPresenter:
             card_resource = self._create_card_resource(card, i)
             content_items.append(card_resource)
 
-            # Add card image if requested and available
-            if options.include_images and card.image_uris and card.image_uris.normal:
-                image_content = ImageContent(
-                    type="image",
-                    data=str(card.image_uris.normal),
-                    mimeType="image/jpeg",
-                )
-                content_items.append(image_content)
+            # Note: ImageContent removed - MCP spec requires base64 data, not URLs
+            # Image URLs are already included in text content and EmbeddedResource
 
         return content_items
 
