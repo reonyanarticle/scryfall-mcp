@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -237,33 +237,51 @@ class TestMainFunctions:
 
     def test_sync_main_success(self) -> None:
         """Test the synchronous main function success case."""
-        with patch("asyncio.run") as mock_run:
+        with patch("asyncio.new_event_loop") as mock_new_loop, \
+             patch("asyncio.set_event_loop") as mock_set_loop:
+
+            mock_loop = MagicMock()
+            mock_new_loop.return_value = mock_loop
+            mock_loop.run_until_complete.return_value = None
 
             sync_main()
 
-            mock_run.assert_called_once()
+            mock_new_loop.assert_called_once()
+            mock_set_loop.assert_called_once_with(mock_loop)
+            mock_loop.set_exception_handler.assert_called_once()
+            mock_loop.run_until_complete.assert_called_once()
+            mock_loop.close.assert_called_once()
 
     def test_sync_main_keyboard_interrupt(self) -> None:
         """Test the synchronous main function with keyboard interrupt."""
-        with patch("asyncio.run") as mock_run, \
+        with patch("asyncio.new_event_loop") as mock_new_loop, \
+             patch("asyncio.set_event_loop") as mock_set_loop, \
              patch("scryfall_mcp.server.logger") as mock_logger:
 
-            mock_run.side_effect = KeyboardInterrupt()
+            mock_loop = MagicMock()
+            mock_new_loop.return_value = mock_loop
+            mock_loop.run_until_complete.side_effect = KeyboardInterrupt()
 
             sync_main()
 
             mock_logger.info.assert_called_once_with("Server interrupted by user")
+            mock_loop.close.assert_called_once()
 
     def test_sync_main_exception(self) -> None:
         """Test the synchronous main function with exception."""
-        with patch("asyncio.run") as mock_run, \
+        with patch("asyncio.new_event_loop") as mock_new_loop, \
+             patch("asyncio.set_event_loop") as mock_set_loop, \
              patch("scryfall_mcp.server.logger") as mock_logger, \
              patch("sys.exit") as mock_exit:
 
+            mock_loop = MagicMock()
+            mock_new_loop.return_value = mock_loop
             test_error = Exception("Test error")
-            mock_run.side_effect = test_error
+            mock_loop.run_until_complete.side_effect = test_error
 
             sync_main()
 
-            mock_logger.exception.assert_called_once()
+            # Should log "Fatal error" and exit
+            mock_logger.exception.assert_called_once_with("Fatal error")
             mock_exit.assert_called_once_with(1)
+            mock_loop.close.assert_called_once()

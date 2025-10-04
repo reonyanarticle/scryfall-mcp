@@ -33,11 +33,11 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def _create_lifespan(app: FastMCP) -> AsyncIterator[None]:
+async def _create_lifespan(_app: FastMCP) -> AsyncIterator[None]:
     """Lifecycle manager for the MCP server.
 
     Args:
-        app: FastMCP application instance
+        _app: FastMCP application instance (unused, required by FastMCP)
 
     Handles startup and shutdown operations including:
     - Locale detection and initialization
@@ -111,9 +111,9 @@ class ScryfallMCPServer:
                 "format_filter": format_filter,
             }
 
+            await ctx.report_progress(0, 100, "Searching for cards...")
+            # Return structured MCP content directly
             try:
-                await ctx.report_progress(0, 100, "Searching for cards...")
-                # Return structured MCP content directly
                 result = await CardSearchTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Search complete")
                 return result
@@ -149,9 +149,9 @@ class ScryfallMCPServer:
                 "language": language,
             }
 
+            await ctx.report_progress(0, 100, "Getting autocomplete suggestions...")
+            # Return structured MCP content directly
             try:
-                await ctx.report_progress(0, 100, "Getting autocomplete suggestions...")
-                # Return structured MCP content directly
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
                 return result
@@ -186,8 +186,40 @@ async def main() -> None:
 
 def sync_main() -> None:
     """Synchronous entry point for console scripts."""
+
+    def handle_exception(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+        """Custom exception handler to suppress harmless shutdown errors.
+
+        Suppresses BrokenPipeError that occurs when the MCP client disconnects
+        while the stdio transport is still flushing. This is a known issue in
+        the MCP SDK's stdio.py that should be fixed upstream.
+
+        Args:
+            loop: The event loop
+            context: Exception context dict
+        """
+        exception = context.get("exception")
+
+        # Suppress BrokenPipeError during shutdown (MCP SDK bug)
+        if isinstance(exception, BrokenPipeError):
+            logger.debug(
+                "Suppressed BrokenPipeError during shutdown (client disconnected)"
+            )
+            return
+
+        # Let default handler handle other exceptions
+        loop.default_exception_handler(context)
+
     try:
-        asyncio.run(main())
+        # Set exception handler before running
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.set_exception_handler(handle_exception)
+
+        try:
+            loop.run_until_complete(main())
+        finally:
+            loop.close()
     except KeyboardInterrupt:
         logger.info("Server interrupted by user")
     except Exception:
