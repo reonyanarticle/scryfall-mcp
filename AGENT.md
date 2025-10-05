@@ -88,45 +88,62 @@ search_result = await client.search_cards(
 
 ### セキュリティ強化（2025-10-04）
 
-#### User-Agent設定ウィザード
+#### User-Agent設定
 **実装内容**:
-- 初回起動時の対話式セットアップウィザード
+
+**主要な設定方法（MCP使用時）**: 環境変数
+- Claude DesktopなどのMCPクライアントでは、`claude_desktop_config.json`の`env`セクションで設定
+- 環境変数名: `SCRYFALL_MCP_USER_AGENT`
+- 形式: `"YourApp/1.0 (your-email@example.com)"` または `"YourApp/1.0 (https://github.com/username/repo)"`
+- 設定なしでツール呼び出し時、設定手順を含むメッセージを表示
+
+**設定ウィザード（CLI使用時）**: 対話式セットアップ
+- スタンドアローン実行時のみ使用
 - メールアドレス・HTTPS URLのバリデーション
 - プラットフォーム固有の設定ディレクトリ
   - macOS: `~/Library/Application Support/scryfall-mcp/`
   - Linux: `~/.config/scryfall-mcp/`
   - Windows: `%APPDATA%\Local\scryfall-mcp\`
-- CLIコマンド: `setup`, `config`, `reset`, `--help`
+- CLIコマンド: `setup`, `config`, `reset`, `--help` （非推奨：MCP使用時は環境変数を推奨）
 
 #### PII保護とファイルパーミッション
 **実装済みセキュリティ対策**:
 - 設定ディレクトリ: `mode=0o700` (所有者のみアクセス可能)
 - 設定ファイル: `chmod(0o600)` (所有者のみ読み書き可能)
-- User-Agent検証強化:
-  - 空白文字・プレースホルダー値のバリデーション
-  - 非対話モードでの起動時チェック（未設定時はエラー終了）
+- User-Agent検証:
+  - 空白文字・プレースホルダー値（"setup-recommended"）のバリデーション
+  - `is_user_agent_configured()` ヘルパー関数
+- ツールレベルでの検証:
+  - `search_cards` 実行時にUser-Agent設定を確認
+  - 未設定時は環境変数設定手順を含むエラーメッセージを返却
 - 機密情報のログ出力防止:
   - Redis認証情報・連絡先情報を含む設定のログ出力を削除
   - 必要最小限の情報のみログに記録
 
 ```python
-# setup_wizard.py
-def get_config_dir() -> Path:
-    # PII保護: 所有者のみアクセス可能
-    config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    return config_dir
+# tools/search.py - ツールレベルでの検証
+async def execute(arguments: dict[str, Any]) -> list[TextContent | EmbeddedResource]:
+    # Check if User-Agent is configured before allowing search
+    if not is_user_agent_configured():
+        config_message = (
+            "⚠️ **User-Agent Configuration Required**\n\n"
+            "Before searching for cards, you need to configure your contact information "
+            "for Scryfall API compliance.\n\n"
+            "**Please add the following to your Claude Desktop configuration:**\n\n"
+            # ... 設定手順を詳細に表示 ...
+        )
+        return [TextContent(type="text", text=config_message)]
 
-# settings.py
-def get_settings() -> Settings:
-    # 起動時検証: User-Agent必須
-    user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
-    is_placeholder = "unconfigured" in user_agent_val.lower()
+# settings.py - 検証ヘルパー
+def is_user_agent_configured() -> bool:
+    """Check if User-Agent has been properly configured."""
+    settings = get_settings()
+    user_agent = settings.user_agent.strip() if settings.user_agent else ""
 
-    if not user_agent_val or is_placeholder:
-        if not sys.stdin.isatty():
-            # 非対話モードで未設定 → エラー終了
-            print("ERROR: User-Agent not configured. Run 'scryfall-mcp setup' first.", file=sys.stderr)
-            sys.exit(1)
+    if not user_agent or "setup-recommended" in user_agent.lower():
+        return False
+
+    return True
 ```
 
 ### MCP仕様準拠とプロトコル修正

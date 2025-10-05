@@ -2,6 +2,38 @@
 
 ## 環境変数
 
+### 必須設定
+
+#### User-Agent設定（必須）
+
+| 変数名 | デフォルト | 説明 |
+|--------|-----------|------|
+| `SCRYFALL_MCP_USER_AGENT` | *(なし)* | User-Agent文字列（連絡先情報を含む）|
+
+**形式**: `"YourApp/1.0 (contact-info)"`
+
+**連絡先情報の例**:
+- メールアドレス: `YourApp/1.0 (yourname@example.com)`
+- GitHubリポジトリ: `YourApp/1.0 (https://github.com/username/repo)`
+- その他URL: `YourApp/1.0 (https://example.com/contact)`
+
+**重要**: この設定はScryfall API利用に必須です。未設定の場合、検索ツールは設定を促すメッセージを返します。
+
+**Claude Desktop での設定例**:
+```json
+{
+  "mcpServers": {
+    "scryfall": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],
+      "env": {
+        "SCRYFALL_MCP_USER_AGENT": "MyApp/1.0 (myemail@example.com)"
+      }
+    }
+  }
+}
+```
+
 ### API設定
 
 | 変数名 | デフォルト | 説明 |
@@ -73,6 +105,7 @@ Scryfallの推奨に従い、最低24時間のキャッシュを設定してい�
 
 ```bash
 # .env ファイル
+SCRYFALL_MCP_USER_AGENT="MyApp/1.0 (myemail@example.com)"
 SCRYFALL_MCP_DEFAULT_LOCALE=ja
 SCRYFALL_MCP_RATE_LIMIT_MS=150
 SCRYFALL_MCP_CACHE_ENABLED=true
@@ -82,6 +115,7 @@ SCRYFALL_MCP_CACHE_ENABLED=true
 
 ```bash
 # プロダクション環境
+SCRYFALL_MCP_USER_AGENT="ProductionApp/1.0 (admin@example.com)"
 SCRYFALL_MCP_LOG_LEVEL=WARNING
 SCRYFALL_MCP_CACHE_BACKEND=redis
 SCRYFALL_MCP_REDIS_URL=redis://localhost:6379
@@ -92,6 +126,7 @@ SCRYFALL_MCP_RATE_LIMIT_MS=75
 
 ```bash
 # 開発環境
+SCRYFALL_MCP_USER_AGENT="DevApp/1.0 (dev@example.com)"
 SCRYFALL_MCP_DEBUG=true
 SCRYFALL_MCP_LOG_LEVEL=DEBUG
 SCRYFALL_MCP_MOCK_API=true
@@ -128,6 +163,27 @@ SCRYFALL_MCP_CACHE_TTL_SEARCH=3600
 ## トラブルシューティング
 
 ### よくある設定問題
+
+#### User-Agent未設定エラー
+
+**症状**: 検索ツールが「User-Agent Configuration Required」メッセージを返す
+
+**対処**: 環境変数を設定
+```bash
+# Claude Desktop の場合: claude_desktop_config.json に追加
+{
+  "mcpServers": {
+    "scryfall": {
+      "env": {
+        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"
+      }
+    }
+  }
+}
+
+# 環境変数として直接設定する場合
+export SCRYFALL_MCP_USER_AGENT="YourApp/1.0 (your-email@example.com)"
+```
 
 #### レート制限エラー
 

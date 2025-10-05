@@ -35,49 +35,8 @@ cd scryfall-mcp
 # 依存関係のインストール
 uv sync
 
-# 初回セットアップ（User-Agent設定）
-uv run scryfall-mcp setup
-
 # テストの実行
 uv run pytest
-```
-
-### 初回セットアップ
-
-初回起動時、Scryfallガイドラインに準拠するため、連絡先情報の設定を**強く推奨**します。
-
-```bash
-uv run scryfall-mcp setup
-```
-
-以下のいずれかを入力してください。
-- メールアドレス（例: `yourname@example.com`）
-- GitHubリポジトリURL（例: `https://github.com/username/repo`）
-- その他連絡可能なURL（HTTPS必須）
-
-設定は以下のディレクトリに保存されます。
-- **macOS**: `~/Library/Application Support/scryfall-mcp/config.json`
-- **Linux**: `~/.config/scryfall-mcp/config.json`
-- **Windows**: `%APPDATA%\Local\scryfall-mcp\config.json`
-
-**セキュリティ**: 設定ファイルと設定ディレクトリは、所有者のみがアクセス可能な権限（0o600/0o700）で保護されています。
-
-**注意**: 設定せずに起動した場合、デフォルトのUser-Agentで動作しますが、Scryfall APIから制限を受ける可能性があります。起動時に以下の警告が表示されます。
-```
-WARNING: User-Agent not configured. Run 'scryfall-mcp setup' to add contact info.
-Using default User-Agent. Scryfall API guidelines recommend including contact information.
-```
-
-**設定コマンド**:
-```bash
-# 設定の表示
-uv run scryfall-mcp config
-
-# 設定のリセット（再設定）
-uv run scryfall-mcp reset
-
-# ヘルプ表示
-uv run scryfall-mcp --help
 ```
 
 ### MCP サーバーとしての使用
@@ -99,11 +58,31 @@ Claude Desktop の設定ファイル (`claude_desktop_config.json`) に以下を
         "/path/to/scryfall-mcp",
         "run",
         "scryfall-mcp"
-      ]
+      ],
+      "env": {
+        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"
+      }
     }
   }
 }
 ```
+
+**重要**: `SCRYFALL_MCP_USER_AGENT`の設定が必要です。以下のいずれかの形式で連絡先情報を含めてください。
+- メールアドレス: `YourApp/1.0 (yourname@example.com)`
+- GitHubリポジトリ: `YourApp/1.0 (https://github.com/username/repo)`
+
+設定せずに使用しようとすると、検索ツールが以下のメッセージを表示し、設定を促します。
+
+```
+⚠️ User-Agent Configuration Required
+
+Before searching for cards, you need to configure your contact information
+for Scryfall API compliance.
+
+Please add the following to your Claude Desktop configuration...
+```
+
+**設定後**: Claude Desktopを再起動してください。
 
 #### 2. 利用可能なツール
 
@@ -209,9 +188,12 @@ scryfall-mcp/
 
 ## 設定
 
-環境変数または設定ファイルで動作をカスタマイズできます：
+環境変数で動作をカスタマイズできます：
 
 ```bash
+# User-Agent設定（必須）
+SCRYFALL_MCP_USER_AGENT="YourApp/1.0 (your-email@example.com)"
+
 # レート制限設定
 SCRYFALL_MCP_RATE_LIMIT_MS=100
 

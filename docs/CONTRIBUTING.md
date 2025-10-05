@@ -44,17 +44,17 @@ Scryfall MCP Serverへのコントリビューションをご検討いただき�
 
 例:
 ```
-Add interactive User-Agent setup wizard
+Add environment variable configuration for User-Agent
 
 Implements Scryfall API requirement for contact information.
-Users configure contact info on first run via interactive setup wizard.
+Users configure contact info via SCRYFALL_MCP_USER_AGENT environment variable.
 
 Features:
-- Interactive setup wizard with validation
-- Configuration saved to platform-specific config directory
-- CLI commands: setup, config, reset
+- Environment variable configuration in Claude Desktop config
+- Tools prompt for configuration when not set
+- Validation and helpful error messages
 
-All 389 tests passing ✅ (95% coverage)
+All 389 tests passing ✅ (94% coverage)
 ```
 
 #### 5. CI/CDの合格
@@ -95,8 +95,8 @@ uv sync
 # 開発ブランチの作成
 git checkout -b feature/your-feature-name
 
-# 初回セットアップ（User-Agent設定）
-uv run scryfall-mcp setup
+# User-Agent設定（環境変数）
+export SCRYFALL_MCP_USER_AGENT="DevApp/1.0 (your-email@example.com)"
 ```
 
 ### 開発ツールの実行

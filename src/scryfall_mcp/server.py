@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 from .api.client import close_client
 from .i18n import detect_and_set_locale, get_locale_manager
 from .settings import get_settings
-from .tools.configure import ConfigureUserAgentTool
 from .tools.search import AutocompleteTool, CardSearchTool
 
 # Configure logging
@@ -189,41 +188,6 @@ class ScryfallMCPServer:
                     if language == "ja"
                     else f"Autocomplete error: {e}"
                 )
-                return [TextContent(type="text", text=error_msg)]
-
-        # Configure User-Agent tool
-        @self.app.tool()
-        async def configure_user_agent(
-            ctx: Context,
-            contact: str,
-        ) -> list[TextContent]:
-            """Configure User-Agent contact information.
-
-            Parameters
-            ----------
-            ctx : Context
-                FastMCP context for progress reporting and logging
-            contact : str
-                Contact information (email or HTTPS URL)
-
-            Returns
-            -------
-            list[TextContent]
-                Configuration result message
-            """
-            await ctx.info(f"Configure User-Agent called: contact='{contact}'")
-
-            arguments = {"contact": contact}
-
-            await ctx.report_progress(0, 100, "Configuring User-Agent...")
-            try:
-                result = await ConfigureUserAgentTool.execute(arguments)
-                await ctx.report_progress(100, 100, "Configuration complete")
-                return result
-            except Exception as e:
-                await ctx.error(f"Error in configure_user_agent: {e}")
-                logger.exception("Error in configure_user_agent")
-                error_msg = f"Configuration error: {e}"
                 return [TextContent(type="text", text=error_msg)]
 
     async def run(self) -> None:
