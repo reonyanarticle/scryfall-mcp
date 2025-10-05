@@ -272,12 +272,12 @@ if __name__ == "__main__":
                 
                 # Call the function
                 result = await search_cards_func(mock_ctx, "test query")
-                
-                # Should return setup guide
-                assert len(result) == 1
-                assert "🔧" in result[0].text
-                assert "Scryfall API 初回セットアップ" in result[0].text
-                
+
+                # Should return setup guide as string
+                assert isinstance(result, str)
+                assert "🔧" in result
+                assert "Scryfall API 初回セットアップ" in result
+
                 # Should have called ctx.info with setup guide
                 mock_ctx.info.assert_called_once()
 
