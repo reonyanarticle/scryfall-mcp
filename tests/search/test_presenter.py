@@ -602,3 +602,70 @@ class TestSearchPresenter:
         card_text = ja_presenter._format_single_card(sample_card, 1, options)
 
         assert "Scryfallで詳細を見る" in card_text.text
+
+    def test_japanese_multilingual_card_display(
+        self, ja_presenter, sample_card_data
+    ):
+        """Test that Japanese cards display printed_name, printed_type_line, and printed_text."""
+        # Create a Japanese card with multilingual fields
+        data = sample_card_data.copy()
+        data["lang"] = "ja"
+        data["printed_name"] = "稲妻"
+        data["printed_type_line"] = "インスタント"
+        data["printed_text"] = "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする。稲妻はそれに3点のダメージを与える。"
+        card = Card(**data)
+
+        options = SearchOptions(
+            max_results=10,
+        )
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        # Should display Japanese printed name
+        assert "稲妻" in card_text.text
+        # Should display Japanese type line
+        assert "インスタント" in card_text.text
+        # Should display Japanese oracle text
+        assert "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする" in card_text.text
+        assert "**効果**:" in card_text.text
+
+    def test_japanese_card_without_printed_fields(
+        self, ja_presenter, sample_card_data
+    ):
+        """Test that Japanese cards fall back to English fields when printed fields are missing."""
+        # Create a Japanese search without multilingual fields
+        data = sample_card_data.copy()
+        data["lang"] = "en"  # English card searched in Japanese
+        card = Card(**data)
+
+        options = SearchOptions(
+            max_results=10,
+        )
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        # Should fall back to English name and text
+        assert "Lightning Bolt" in card_text.text
+        assert "Instant" in card_text.text
+        assert "Lightning Bolt deals 3 damage to any target." in card_text.text
+        assert "**効果**:" in card_text.text
+
+    def test_english_card_ignores_printed_fields(
+        self, en_presenter, sample_card_data
+    ):
+        """Test that English searches ignore printed_name even if present."""
+        # Create a card with Japanese printed fields (shouldn't happen in practice)
+        data = sample_card_data.copy()
+        data["printed_name"] = "稲妻"
+        data["printed_type_line"] = "インスタント"
+        card = Card(**data)
+
+        options = SearchOptions(
+            max_results=10,
+        )
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        # Should display English name, not printed_name
+        assert "Lightning Bolt" in card_text.text
+        assert "Instant" in card_text.text
+        # Should not display Japanese fields
+        assert "稲妻" not in card_text.text
+        assert "インスタント" not in card_text.text

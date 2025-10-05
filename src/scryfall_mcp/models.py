@@ -468,6 +468,12 @@ class Card(BaseModel):
     penny_rank: int | None = None
     preview: dict[str, Any] | None = None
 
+    # Multilingual Fields
+    # These fields contain the card information as printed in non-English languages
+    printed_name: str | None = None
+    printed_type_line: str | None = None
+    printed_text: str | None = None
+
 
 class SearchResult(BaseModel):
     """Search result response from Scryfall."""
