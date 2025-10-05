@@ -55,13 +55,12 @@ class CardSearchTool:
         # Check if User-Agent is configured before allowing search
         if not is_user_agent_configured():
             config_message = (
-                "⚠️ **User-Agent設定が必要です**\n\n"
-                "Scryfall APIを使用するには、連絡先情報の設定が必要です。\n\n"
-                "Claude Desktop設定ファイルに以下を追加してください：\n\n"
-                "**設定ファイルの場所:**\n"
+                "🔧 **Scryfall API 初回セットアップ**\n\n"
+                "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
+                "**1. Claude Desktop設定ファイルを開く**\n"
                 "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
                 "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                "**追加する内容:**\n"
+                "**2. 以下の内容を追加**\n"
                 "```json\n"
                 "{\n"
                 '  "mcpServers": {\n'
@@ -75,11 +74,12 @@ class CardSearchTool:
                 "  }\n"
                 "}\n"
                 "```\n\n"
-                "**設定後の手順:**\n"
-                "1. `your-email@example.com` を実際のメールアドレスに置き換え\n"
-                "2. `/path/to/scryfall-mcp` を実際のパスに置き換え\n"
-                "3. Claude Desktopを再起動\n\n"
-                "詳細: https://scryfall.com/docs/api"
+                "**3. プレースホルダーを実際の値に置き換え**\n"
+                "- `your-email@example.com` → 実際のメールアドレス\n"
+                "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
+                "**4. Claude Desktopを再起動**\n\n"
+                "設定完了後、再度カード検索をお試しください。\n\n"
+                "詳細情報: https://scryfall.com/docs/api"
             )
             return [TextContent(type="text", text=config_message)]
 

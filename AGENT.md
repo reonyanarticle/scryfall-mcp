@@ -345,21 +345,34 @@ config_message = (
     # 合計30行以上の説明
 )
 
-# ✅ 良い例: 簡潔で実用的
+# ✅ 良い例: 簡潔で実用的、ポジティブなトーン
 config_message = (
-    "⚠️ **User-Agent設定が必要です**\n\n"
-    "Scryfall APIを使用するには、連絡先情報の設定が必要です。\n\n"
-    "**設定ファイルの場所:**\n"
+    "🔧 **Scryfall API 初回セットアップ**\n\n"
+    "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
+    "**1. Claude Desktop設定ファイルを開く**\n"
     "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
     "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-    "**追加する内容:**\n"
+    "**2. 以下の内容を追加**\n"
     "```json\n{...}\n```\n\n"
-    "**設定後の手順:**\n"
-    "1. 設定値を置き換え\n"
-    "2. Claude Desktopを再起動\n\n"
-    "詳細: https://scryfall.com/docs/api"
+    "**3. プレースホルダーを実際の値に置き換え**\n"
+    "**4. Claude Desktopを再起動**\n\n"
+    "設定完了後、再度カード検索をお試しください。\n\n"
+    "詳細情報: https://scryfall.com/docs/api"
 )
 ```
+
+#### メッセージトーンの重要性
+**問題**: ⚠️マークや「必要です」などのエラートーンがClaude Desktop側で「ツールエラー」として認識され、チャットインターフェースに表示されない
+
+**実装済み解決策**:
+- エラートーン（⚠️、「〜が必要です」）→ セットアップガイドトーン（🔧、「〜を行ってください」）
+- 「User-Agent設定が必要です」→ 「Scryfall API 初回セットアップ」
+- ネガティブな表現を避け、ポジティブで前向きなガイドとして提示
+
+**理由**:
+- MCPクライアント（Claude Desktop）はメッセージのトーンから「エラー」か「正常な応答」かを判断
+- エラーと判断されると、ツールレスポンスではなく汎用エラーメッセージが表示される
+- セットアップガイドのトーンにすることで、正常な応答として認識され、チャットに表示される
 
 #### TextContentの適切な使用
 **実装内容**:

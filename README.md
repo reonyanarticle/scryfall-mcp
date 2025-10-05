@@ -71,15 +71,19 @@ Claude Desktop の設定ファイル (`claude_desktop_config.json`) に以下を
 - メールアドレス: `YourApp/1.0 (yourname@example.com)`
 - GitHubリポジトリ: `YourApp/1.0 (https://github.com/username/repo)`
 
-設定せずに使用しようとすると、検索ツールが以下のメッセージを表示し、設定を促します。
+設定せずに使用しようとすると、検索ツールが以下のセットアップガイドを表示します。
 
 ```
-⚠️ User-Agent Configuration Required
+🔧 Scryfall API 初回セットアップ
 
-Before searching for cards, you need to configure your contact information
-for Scryfall API compliance.
+Scryfall APIをご利用いただくには、以下の設定を行ってください：
 
-Please add the following to your Claude Desktop configuration...
+1. Claude Desktop設定ファイルを開く
+2. 以下の内容を追加
+3. プレースホルダーを実際の値に置き換え
+4. Claude Desktopを再起動
+
+詳細情報: https://scryfall.com/docs/api
 ```
 
 **設定後**: Claude Desktopを再起動してください。
