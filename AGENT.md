@@ -324,6 +324,61 @@ def use_locale(locale_code: str):
 - `src/scryfall_mcp/errors/` モジュールで実装完了
 - クエリ固有の回復提案機能
 
+### 7. MCPエラーハンドリングのベストプラクティス（2025-10-05）
+
+#### エラーメッセージの簡潔性
+**問題**: 長すぎるエラーメッセージがClaude Desktop側で適切に表示されない
+
+**実装済み解決策**:
+- User-Agent未設定エラーを簡潔なフォーマットに変更
+- 冗長な説明を削除し、必要最小限の情報に絞る
+- 箇条書きと明確なセクション分けで可読性向上
+
+**MCPツールからのエラー返却の原則**:
+```python
+# ❌ 悪い例: 長すぎる説明
+config_message = (
+    "詳細な背景説明が何段落も続く...\n"
+    "さらに追加の説明...\n"
+    "なぜこれが必要か、さらに詳しく...\n"
+    "歴史的な背景...\n"
+    # 合計30行以上の説明
+)
+
+# ✅ 良い例: 簡潔で実用的
+config_message = (
+    "⚠️ **User-Agent設定が必要です**\n\n"
+    "Scryfall APIを使用するには、連絡先情報の設定が必要です。\n\n"
+    "**設定ファイルの場所:**\n"
+    "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
+    "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
+    "**追加する内容:**\n"
+    "```json\n{...}\n```\n\n"
+    "**設定後の手順:**\n"
+    "1. 設定値を置き換え\n"
+    "2. Claude Desktopを再起動\n\n"
+    "詳細: https://scryfall.com/docs/api"
+)
+```
+
+#### TextContentの適切な使用
+**実装内容**:
+- すべてのエラーは`TextContent(type="text", text=message)`形式で返却
+- エラーメッセージは必ず`list[TextContent]`として返す
+- 例外をraiseせず、常に構造化レスポンスを返す
+
+**理由**:
+- MCPクライアント（Claude Desktop）は構造化レスポンスを期待
+- 例外をraiseすると、クライアント側で「ツールの設定に問題があります」という一般的なエラーになる
+- TextContentで返すことで、ユーザーに具体的なガイダンスを提供可能
+
+#### 参考情報
+- MCP Python SDK: https://github.com/modelcontextprotocol/python-sdk
+- MCP仕様: https://modelcontextprotocol.io/
+- FastMCP: https://github.com/jlowin/fastmcp
+
+**レッスン**: MCPツールは常にユーザーフレンドリーなメッセージを返し、エラーの場合でも次のアクションを明確に示すこと。
+
 ## 必要な追加技術・機能
 
 ### 観測可能性

@@ -55,13 +55,13 @@ class CardSearchTool:
         # Check if User-Agent is configured before allowing search
         if not is_user_agent_configured():
             config_message = (
-                "⚠️ **Scryfall MCP Serverを使用するには、連絡先情報の設定が必要です**\n\n"
-                "Scryfall APIのガイドラインに従い、User-Agentに連絡先情報を含める必要があります。\n"
-                "これにより、API利用時の問題発生時にScryfallから連絡を受けることができます。\n\n"
-                "**📋 設定方法**\n\n"
-                "Claude Desktopの設定ファイルを開き、以下の内容を追加してください：\n\n"
-                "**macOS/Linux:** `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
-                "**Windows:** `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
+                "⚠️ **User-Agent設定が必要です**\n\n"
+                "Scryfall APIを使用するには、連絡先情報の設定が必要です。\n\n"
+                "Claude Desktop設定ファイルに以下を追加してください：\n\n"
+                "**設定ファイルの場所:**\n"
+                "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
+                "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
+                "**追加する内容:**\n"
                 "```json\n"
                 "{\n"
                 '  "mcpServers": {\n'
@@ -75,21 +75,11 @@ class CardSearchTool:
                 "  }\n"
                 "}\n"
                 "```\n\n"
-                "**✏️ 連絡先情報の例**\n"
-                "- メールアドレス: `YourApp/1.0 (yourname@example.com)`\n"
-                "- GitHubリポジトリ: `YourApp/1.0 (https://github.com/username/repo)`\n"
-                "- その他URL: `YourApp/1.0 (https://example.com/contact)`\n\n"
-                "**⚠️ 重要**\n"
-                "- `your-email@example.com` を実際の連絡先に置き換えてください\n"
-                "- `/path/to/scryfall-mcp` をこのプロジェクトの実際のパスに置き換えてください\n"
-                "- 設定後、Claude Desktopを再起動してください\n\n"
-                "**💡 なぜこの設定が必要なのか？**\n\n"
-                "Scryfallは無料で高品質なMTGデータAPIを提供していますが、適切な利用を促進するため、"
-                "すべてのクライアントに連絡先情報の提供を求めています。これにより：\n"
-                "- レート制限違反時に警告を受けることができます\n"
-                "- API変更時に事前通知を受けることができます\n"
-                "- 問題が発生した際に迅速に対応できます\n\n"
-                "設定完了後、再度カード検索をお試しください！"
+                "**設定後の手順:**\n"
+                "1. `your-email@example.com` を実際のメールアドレスに置き換え\n"
+                "2. `/path/to/scryfall-mcp` を実際のパスに置き換え\n"
+                "3. Claude Desktopを再起動\n\n"
+                "詳細: https://scryfall.com/docs/api"
             )
             return [TextContent(type="text", text=config_message)]
 
