@@ -392,12 +392,41 @@ config_message = (
 - 例外をraiseすると、クライアント側で「ツールの設定に問題があります」という一般的なエラーになる
 - TextContentで返すことで、ユーザーに具体的なガイダンスを提供可能
 
+#### ChatUI表示の問題と試したアプローチ
+**問題**: ツールからTextContent返却しても、Claude Desktop ChatUIに表示されない
+
+**試したアプローチ**:
+1. **`ctx.info()` + TextContent** - 通知メッセージとツールレスポンスの両方を送信
+   - 結果: MCPプロトコルレベルでは正しく送信されるが、ChatUIに表示されず
+   - `ctx.info()`は`notifications/message`として送信される
+
+2. **プレーン文字列の返却** - `list[TextContent]`の代わりに`str`を返却
+   - FastMCPが自動的にTextContentに変換
+   - 戻り値の型: `str | list[TextContent | ...]`
+   - 実装: `return setup_guide` (文字列)
+   - 統合テストでは正しく動作（"Received 1 content items"）
+
+**現在の実装**:
+```python
+# server.py - search_cards tool
+if not is_user_agent_configured():
+    setup_guide = "🔧 **Scryfall API 初回セットアップ**\n\n..."
+    await ctx.info(setup_guide)  # 通知送信
+    return setup_guide  # 文字列返却（FastMCPがTextContentに変換）
+```
+
+**未解決の課題**:
+- Claude Desktopの実装に依存するため、確実にChatUIに表示させる方法は不明
+- MCPプロトコルレベルでは正しく応答しているが、クライアント側の表示ロジックに依存
+- Prompts機能の使用も検討可能（ユーザーが明示的に呼び出す必要がある）
+
 #### 参考情報
 - MCP Python SDK: https://github.com/modelcontextprotocol/python-sdk
 - MCP仕様: https://modelcontextprotocol.io/
+- MCP Prompts仕様: https://modelcontextprotocol.io/specification/server/prompts
 - FastMCP: https://github.com/jlowin/fastmcp
 
-**レッスン**: MCPツールは常にユーザーフレンドリーなメッセージを返し、エラーの場合でも次のアクションを明確に示すこと。
+**レッスン**: MCPツールは常にユーザーフレンドリーなメッセージを返し、エラーの場合でも次のアクションを明確に示すこと。ただし、クライアント（Claude Desktop等）がどのように表示するかは、クライアントの実装に依存する。
 
 ## 必要な追加技術・機能
 
