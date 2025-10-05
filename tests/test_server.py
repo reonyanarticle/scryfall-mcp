@@ -231,6 +231,107 @@ if __name__ == "__main__":
             # Verify cleanup was called on exit
             mock_close.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_search_cards_without_user_agent(self) -> None:
+        """Test search_cards when User-Agent is not configured."""
+        with patch("scryfall_mcp.settings.is_user_agent_configured", return_value=False):
+            server = ScryfallMCPServer()
+            
+            # Get the search_cards tool function
+            # We need to call the actual tool through the server's decorated function
+            # Since it's a fastmcp decorator, we'll mock the Context
+            mock_ctx = AsyncMock()
+            mock_ctx.info = AsyncMock()
+            mock_ctx.report_progress = AsyncMock()
+            
+            # Find search_cards in the captured tools
+            captured_tools = []
+            
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+                
+                # Find and call search_cards
+                search_cards_func = None
+                for func in captured_tools:
+                    if func.__name__ == "search_cards":
+                        search_cards_func = func
+                        break
+                
+                assert search_cards_func is not None
+                
+                # Call the function
+                result = await search_cards_func(mock_ctx, "test query")
+                
+                # Should return setup guide
+                assert len(result) == 1
+                assert "🔧" in result[0].text
+                assert "Scryfall API 初回セットアップ" in result[0].text
+                
+                # Should have called ctx.info with setup guide
+                mock_ctx.info.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_search_cards_with_user_agent(self) -> None:
+        """Test search_cards when User-Agent is configured."""
+        with (
+            patch("scryfall_mcp.settings.is_user_agent_configured", return_value=True),
+            patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute,
+        ):
+            mock_result = [Mock(text="Search results")]
+            mock_execute.return_value = mock_result
+            
+            server = ScryfallMCPServer()
+            
+            mock_ctx = AsyncMock()
+            mock_ctx.info = AsyncMock()
+            mock_ctx.report_progress = AsyncMock()
+            
+            # Find search_cards in the captured tools
+            captured_tools = []
+            
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+                
+                # Find and call search_cards
+                search_cards_func = None
+                for func in captured_tools:
+                    if func.__name__ == "search_cards":
+                        search_cards_func = func
+                        break
+                
+                assert search_cards_func is not None
+                
+                # Call the function
+                result = await search_cards_func(mock_ctx, "test query")
+                
+                # Should return actual search results
+                assert result == mock_result
+                
+                # Should have called CardSearchTool.execute
+                mock_execute.assert_called_once()
+
 
 class TestMainFunctions:
     """Test the main entry point functions."""

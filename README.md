@@ -176,7 +176,7 @@ scryfall-mcp/
 │   ├── server.py         # MCPサーバーエントリポイント
 │   ├── settings.py       # 実行時設定管理
 │   └── models.py         # データモデル・型定義
-├── tests/                # テストスイート (389 tests, 95% coverage)
+├── tests/                # テストスイート
 ├── docs/                 # ドキュメント
 └── AGENT.md              # AI開発者向けガイド
 ```
@@ -250,7 +250,6 @@ GitHub Actionsで以下のチェックを自動実行。
 
 **テストスイート**:
 - Python 3.11, 3.12マトリックステスト
-- 389テスト、95%カバレッジ
 - MCP統合テスト（stdio transport）
 - MCP Inspector互換性テスト
 
@@ -315,7 +314,7 @@ Scryfall MCP Serverへのコントリビューションを歓迎します。
 プルリクエストの受け付けルール、コーディング規約、テスト要件などの詳細は [コントリビューションガイドライン](docs/CONTRIBUTING.md) を参照してください。
 
 **重要な要件**:
-- 全テスト合格 (389 tests, 95% coverage)
+- 全テスト合格
 - 型チェック (`mypy`) 合格
 - リント (`ruff`) 合格
 - NumPy styleのdocstring必須

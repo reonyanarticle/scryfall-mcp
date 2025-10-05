@@ -109,7 +109,7 @@ class TestCardSearchTool:
             "include_images": True,
         }
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.search_cards.return_value = sample_search_result
@@ -138,7 +138,7 @@ class TestCardSearchTool:
             "max_results": 10,
         }
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.search_cards.return_value = sample_search_result
@@ -168,7 +168,7 @@ class TestCardSearchTool:
             "format_filter": "standard",
         }
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.search_cards.return_value = sample_search_result
@@ -186,7 +186,7 @@ class TestCardSearchTool:
         """Test tool execution with no results."""
         arguments = {"query": "nonexistent card"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             # Setup mocks for no results
             empty_result = SearchResult(
@@ -216,7 +216,7 @@ class TestCardSearchTool:
         """Test tool execution with API error."""
         arguments = {"query": "invalid query"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.search_cards.side_effect = ScryfallAPIError(
@@ -241,7 +241,7 @@ class TestCardSearchTool:
         """Test tool execution with rate limit error."""
         arguments = {"query": "test"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             error = ScryfallAPIError("Rate limit exceeded", 429)
@@ -263,7 +263,7 @@ class TestCardSearchTool:
         for status_code in status_codes:
             arguments = {"query": "test"}
 
-            with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+            with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
                 mock_client = AsyncMock()
                 error = ScryfallAPIError(f"Server error {status_code}", status_code)
@@ -282,7 +282,7 @@ class TestCardSearchTool:
         """Test tool execution with network error."""
         arguments = {"query": "test"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             error = ScryfallAPIError("Network error", 0)
@@ -301,7 +301,7 @@ class TestCardSearchTool:
         """Test tool execution with timeout error."""
         arguments = {"query": "test"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             error = ScryfallAPIError("Timeout", 0)
@@ -324,7 +324,7 @@ class TestCardSearchTool:
         """
         arguments = {"query": "Lightning"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.search_cards.return_value = sample_search_result
@@ -342,7 +342,7 @@ class TestCardSearchTool:
         """Test tool execution with unexpected error."""
         arguments = {"query": "test"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_get_client.side_effect = Exception("Unexpected error")
 
@@ -380,7 +380,7 @@ class TestAutocompleteTool:
 
         suggestions = ["Lightning Bolt", "Lightning Strike", "Lightning Helix"]
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = suggestions
@@ -400,7 +400,7 @@ class TestAutocompleteTool:
         """Test autocomplete with no suggestions."""
         arguments = {"query": "nonexistent"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = []
@@ -427,7 +427,7 @@ class TestAutocompleteTool:
 
         suggestions = ["Lightning Bolt", "Light Up the Stage"]
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             with patch("scryfall_mcp.tools.search.use_locale") as mock_use_locale:
                 mock_client = AsyncMock()
@@ -455,7 +455,7 @@ class TestAutocompleteTool:
         """Test autocomplete with error."""
         arguments = {"query": "test"}
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.side_effect = Exception("API error")
@@ -476,7 +476,7 @@ class TestAutocompleteTool:
         # Return more than 10 suggestions
         many_suggestions = [f"Card {i}" for i in range(15)]
 
-        with patch("scryfall_mcp.tools.search.is_user_agent_configured", return_value=True), \
+        with \
              patch("scryfall_mcp.tools.search.get_client") as mock_get_client:
             mock_client = AsyncMock()
             mock_client.autocomplete_card_name.return_value = many_suggestions

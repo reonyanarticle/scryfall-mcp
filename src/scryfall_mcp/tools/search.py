@@ -19,7 +19,6 @@ from ..models import AutocompleteRequest, SearchCardsRequest, SearchOptions
 from ..search.builder import QueryBuilder
 from ..search.parser import SearchParser
 from ..search.presenter import SearchPresenter
-from ..settings import is_user_agent_configured
 
 logger = logging.getLogger(__name__)
 
@@ -52,37 +51,6 @@ class CardSearchTool:
         list
             List of MCP content items
         """
-        # Check if User-Agent is configured before allowing search
-        if not is_user_agent_configured():
-            config_message = (
-                "🔧 **Scryfall API 初回セットアップ**\n\n"
-                "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
-                "**1. Claude Desktop設定ファイルを開く**\n"
-                "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
-                "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                "**2. 以下の内容を追加**\n"
-                "```json\n"
-                "{\n"
-                '  "mcpServers": {\n'
-                '    "scryfall": {\n'
-                '      "command": "uv",\n'
-                '      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],\n'
-                '      "env": {\n'
-                '        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n'
-                "      }\n"
-                "    }\n"
-                "  }\n"
-                "}\n"
-                "```\n\n"
-                "**3. プレースホルダーを実際の値に置き換え**\n"
-                "- `your-email@example.com` → 実際のメールアドレス\n"
-                "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
-                "**4. Claude Desktopを再起動**\n\n"
-                "設定完了後、再度カード検索をお試しください。\n\n"
-                "詳細情報: https://scryfall.com/docs/api"
-            )
-            return [TextContent(type="text", text=config_message)]
-
         try:
             # Validate arguments
             request = SearchCardsRequest(**arguments)
