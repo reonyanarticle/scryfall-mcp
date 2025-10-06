@@ -1,0 +1,139 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, dev/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+
+    - name: Run linter
+      run: |
+        uv run ruff check src tests scripts
+
+    - name: Run type checker
+      run: |
+        uv run mypy src
+
+    - name: Run unit tests with coverage
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
+      run: |
+        uv run pytest --cov=scryfall_mcp --cov-report=xml --cov-report=term-missing tests/
+
+    - name: Run MCP integration tests
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
+      run: |
+        uv run python scripts/mcp_test.py
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+        verbose: true
+
+  mcp-inspector:
+    runs-on: ubuntu-latest
+    needs: test
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Test MCP Inspector compatibility
+      env:
+        SCRYFALL_MCP_USER_AGENT: "GitHub-Actions-CI/1.0 (github-actions@github.com)"
+      run: |
+        # Test tools/list endpoint
+        timeout 30s npx -y @modelcontextprotocol/inspector --cli --transport stdio "uv" "run" "scryfall-mcp" --method tools/list > inspector_tools_list.json 2>&1 || echo "Inspector test completed"
+
+        # Check if we got valid JSON output
+        if [ -f inspector_tools_list.json ]; then
+          echo "=== MCP Inspector tools/list output ==="
+          cat inspector_tools_list.json
+
+          # Basic validation that we got tools back
+          if grep -q '"tools"' inspector_tools_list.json; then
+            echo "✅ MCP Inspector tools/list test passed"
+          else
+            echo "❌ MCP Inspector tools/list test failed - no tools found"
+            exit 1
+          fi
+        else
+          echo "❌ MCP Inspector test failed - no output file"
+          exit 1
+        fi
+
+    - name: Upload inspector test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mcp-inspector-results
+        path: inspector_tools_list.json
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Run security checks
+      run: |
+        uv run bandit -r src/ -f json -o bandit-report.json || true
+        uv run safety check --json > safety-report.json || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
