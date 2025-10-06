@@ -258,6 +258,11 @@ if __name__ == "__main__":
                         return func
                     return decorator
 
+                def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
             with patch("scryfall_mcp.server.FastMCP", MockApp):
                 server = ScryfallMCPServer()
                 
@@ -311,6 +316,11 @@ if __name__ == "__main__":
                         return func
                     return decorator
 
+                def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
             with patch("scryfall_mcp.server.FastMCP", MockApp):
                 server = ScryfallMCPServer()
                 
@@ -331,6 +341,34 @@ if __name__ == "__main__":
                 
                 # Should have called CardSearchTool.execute
                 mock_execute.assert_called_once()
+
+    def test_scryfall_setup_prompt_registration(self) -> None:
+        """Test that scryfall_setup prompt is registered."""
+        server = ScryfallMCPServer()
+
+        # Check that prompt is registered
+        # FastMCP stores prompts in app._prompt_manager._prompts
+        prompts = server.app._prompt_manager._prompts
+        assert "scryfall_setup" in prompts
+
+    @pytest.mark.asyncio
+    async def test_scryfall_setup_prompt_execution(self) -> None:
+        """Test scryfall_setup prompt execution."""
+        server = ScryfallMCPServer()
+
+        # Get the prompt function
+        prompt_obj = server.app._prompt_manager._prompts["scryfall_setup"]
+
+        # Execute the prompt function (FunctionPrompt has .fn attribute)
+        result = prompt_obj.fn()
+
+        # Verify result
+        assert isinstance(result, str)
+        assert "🔧" in result
+        assert "Scryfall API 初回セットアップ" in result
+        assert "SCRYFALL_MCP_USER_AGENT" in result
+        assert "Claude Desktop" in result
+        assert "claude_desktop_config.json" in result
 
 
 class TestMainFunctions:

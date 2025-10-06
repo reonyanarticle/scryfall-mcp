@@ -406,6 +406,12 @@ config_message = (
    - 実装: `return setup_guide` (文字列)
    - 統合テストでは正しく動作（"Received 1 content items"）
 
+3. **MCPプロンプトの実装** - ツールではなくプロンプトとしてセットアップガイドを提供
+   - ユーザーが明示的に呼び出す形式
+   - `@app.prompt()`デコレーターを使用
+   - ChatUIでプロンプトとして表示される（クライアント依存）
+   - 実装: `_setup_prompts()`メソッドで`scryfall_setup`プロンプトを登録
+
 **現在の実装**:
 ```python
 # server.py - search_cards tool
@@ -413,12 +419,28 @@ if not is_user_agent_configured():
     setup_guide = "🔧 **Scryfall API 初回セットアップ**\n\n..."
     await ctx.info(setup_guide)  # 通知送信
     return setup_guide  # 文字列返却（FastMCPがTextContentに変換）
+
+# server.py - scryfall_setup prompt
+def _setup_prompts(self) -> None:
+    """Set up MCP prompts using fastmcp decorators."""
+
+    @self.app.prompt()
+    def scryfall_setup() -> str:
+        """Scryfall API setup guide for User-Agent configuration."""
+        return (
+            "🔧 **Scryfall API 初回セットアップ**\n\n"
+            "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
+            # ... setup instructions ...
+        )
 ```
 
-**未解決の課題**:
-- Claude Desktopの実装に依存するため、確実にChatUIに表示させる方法は不明
-- MCPプロトコルレベルでは正しく応答しているが、クライアント側の表示ロジックに依存
-- Prompts機能の使用も検討可能（ユーザーが明示的に呼び出す必要がある）
+**アプローチの比較**:
+- **ツールからの返却** (アプローチ1, 2): ツール実行時に自動表示されるが、ChatUIに表示されない可能性
+- **プロンプト** (アプローチ3): ユーザーが明示的に呼び出す必要があるが、プロンプトUIで表示される
+
+**テスト**:
+- `test_scryfall_setup_prompt_registration`: プロンプトが登録されることを確認
+- `test_scryfall_setup_prompt_execution`: プロンプト実行結果を検証
 
 #### 参考情報
 - MCP Python SDK: https://github.com/modelcontextprotocol/python-sdk
