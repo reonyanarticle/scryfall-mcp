@@ -236,17 +236,17 @@ if __name__ == "__main__":
         """Test search_cards when User-Agent is not configured."""
         with patch("scryfall_mcp.settings.is_user_agent_configured", return_value=False):
             server = ScryfallMCPServer()
-            
+
             # Get the search_cards tool function
             # We need to call the actual tool through the server's decorated function
             # Since it's a fastmcp decorator, we'll mock the Context
             mock_ctx = AsyncMock()
             mock_ctx.info = AsyncMock()
             mock_ctx.report_progress = AsyncMock()
-            
+
             # Find search_cards in the captured tools
             captured_tools = []
-            
+
             class MockApp:
                 def __init__(self, name, lifespan=None):
                     self.name = name
@@ -265,16 +265,16 @@ if __name__ == "__main__":
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
                 server = ScryfallMCPServer()
-                
+
                 # Find and call search_cards
                 search_cards_func = None
                 for func in captured_tools:
                     if func.__name__ == "search_cards":
                         search_cards_func = func
                         break
-                
+
                 assert search_cards_func is not None
-                
+
                 # Call the function
                 result = await search_cards_func(mock_ctx, "test query")
 
@@ -295,16 +295,16 @@ if __name__ == "__main__":
         ):
             mock_result = [Mock(text="Search results")]
             mock_execute.return_value = mock_result
-            
+
             server = ScryfallMCPServer()
-            
+
             mock_ctx = AsyncMock()
             mock_ctx.info = AsyncMock()
             mock_ctx.report_progress = AsyncMock()
-            
+
             # Find search_cards in the captured tools
             captured_tools = []
-            
+
             class MockApp:
                 def __init__(self, name, lifespan=None):
                     self.name = name
@@ -323,22 +323,22 @@ if __name__ == "__main__":
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
                 server = ScryfallMCPServer()
-                
+
                 # Find and call search_cards
                 search_cards_func = None
                 for func in captured_tools:
                     if func.__name__ == "search_cards":
                         search_cards_func = func
                         break
-                
+
                 assert search_cards_func is not None
-                
+
                 # Call the function
                 result = await search_cards_func(mock_ctx, "test query")
-                
+
                 # Should return actual search results
                 assert result == mock_result
-                
+
                 # Should have called CardSearchTool.execute
                 mock_execute.assert_called_once()
 

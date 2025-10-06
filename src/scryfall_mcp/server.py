@@ -192,10 +192,10 @@ class ScryfallMCPServer:
                     "設定完了後、再度カード検索をお試しください。\n\n"
                     "詳細情報: https://scryfall.com/docs/api"
                 )
-                
+
                 # Send through context for logging
                 await ctx.info(setup_guide)
-                
+
                 # Return as plain string (FastMCP will convert to TextContent)
                 return setup_guide
 
