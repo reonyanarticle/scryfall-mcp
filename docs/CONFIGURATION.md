@@ -153,12 +153,14 @@ SCRYFALL_MCP_RATE_LIMIT_MS=75
 ```bash
 # メモリ使用量を抑制
 SCRYFALL_MCP_CACHE_MAX_SIZE=500
-SCRYFALL_MCP_CACHE_TTL_SEARCH=900
+SCRYFALL_MCP_CACHE_TTL_SEARCH=86400  # 最低TTL（24時間）
 
-# パフォーマンス重視
+# 長期キャッシュを優先（高速化）
 SCRYFALL_MCP_CACHE_MAX_SIZE=2000
-SCRYFALL_MCP_CACHE_TTL_SEARCH=3600
+SCRYFALL_MCP_CACHE_TTL_SEARCH=172800  # 48時間
 ```
+
+※ `SCRYFALL_MCP_CACHE_TTL_SEARCH` と `SCRYFALL_MCP_CACHE_TTL_DEFAULT` は24時間未満に設定できません。
 
 ## トラブルシューティング
 
@@ -212,3 +214,4 @@ SCRYFALL_MCP_CACHE_BACKEND=memory
 # 設定値の確認
 uv run python -c "from scryfall_mcp.settings import get_settings; print(get_settings())"
 ```
+
