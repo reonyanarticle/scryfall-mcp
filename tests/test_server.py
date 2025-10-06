@@ -263,6 +263,11 @@ if __name__ == "__main__":
                         return func
                     return decorator
 
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+                    return decorator
+
             with patch("scryfall_mcp.server.FastMCP", MockApp):
                 server = ScryfallMCPServer()
 
@@ -275,16 +280,16 @@ if __name__ == "__main__":
 
                 assert search_cards_func is not None
 
-                # Call the function
-                result = await search_cards_func(mock_ctx, "test query")
+                # Should raise ValueError with setup guide reference
+                with pytest.raises(ValueError) as exc_info:
+                    await search_cards_func(mock_ctx, "test query")
 
-                # Should return setup guide as string
-                assert isinstance(result, str)
-                assert "🔧" in result
-                assert "Scryfall API 初回セットアップ" in result
+                error_message = str(exc_info.value)
+                assert "User-Agent" in error_message
+                assert "scryfall://setup-guide" in error_message
 
-                # Should have called ctx.info with setup guide
-                mock_ctx.info.assert_called_once()
+                # Should have called ctx.error
+                mock_ctx.error.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_search_cards_with_user_agent(self) -> None:
@@ -317,6 +322,11 @@ if __name__ == "__main__":
                     return decorator
 
                 def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+                def resource(self, uri):
                     def decorator(func):
                         return func
                     return decorator
@@ -361,6 +371,34 @@ if __name__ == "__main__":
 
         # Execute the prompt function (FunctionPrompt has .fn attribute)
         result = prompt_obj.fn()
+
+        # Verify result
+        assert isinstance(result, str)
+        assert "🔧" in result
+        assert "Scryfall API 初回セットアップ" in result
+        assert "SCRYFALL_MCP_USER_AGENT" in result
+        assert "Claude Desktop" in result
+        assert "claude_desktop_config.json" in result
+
+    def test_scryfall_setup_resource_registration(self) -> None:
+        """Test that scryfall://setup-guide resource is registered."""
+        server = ScryfallMCPServer()
+
+        # Check that resource is registered
+        # FastMCP stores resources in app._resource_manager._resources
+        resources = server.app._resource_manager._resources
+        assert "scryfall://setup-guide" in resources
+
+    @pytest.mark.asyncio
+    async def test_scryfall_setup_resource_execution(self) -> None:
+        """Test scryfall://setup-guide resource execution."""
+        server = ScryfallMCPServer()
+
+        # Get the resource function
+        resource_obj = server.app._resource_manager._resources["scryfall://setup-guide"]
+
+        # Execute the resource function
+        result = resource_obj.fn()
 
         # Verify result
         assert isinstance(result, str)

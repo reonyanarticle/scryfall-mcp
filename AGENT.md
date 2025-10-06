@@ -434,13 +434,42 @@ def _setup_prompts(self) -> None:
         )
 ```
 
+4. **最終解決策: エラー + Resource** - エラーでChatUIに表示し、Resourceで詳細情報を提供
+   - User-Agent未設定時にValueErrorを投げてChatUIに表示
+   - MCP ResourceとしてセットアップガイドをResource URIで公開
+   - エラーメッセージにResource URI `scryfall://setup-guide` への参照を含める
+
+**最終実装** (2025-10-06):
+```python
+# server.py - _setup_resources()メソッド
+@self.app.resource("scryfall://setup-guide")
+def get_setup_guide() -> str:
+    """Scryfall API setup guide for User-Agent configuration."""
+    return "🔧 **Scryfall API 初回セットアップ**\n\n..."
+
+# server.py - search_cards tool
+if not is_user_agent_configured():
+    error_message = (
+        "❌ **User-Agent が設定されていません**\n\n"
+        "詳細なセットアップガイド: MCP Resourcesから `scryfall://setup-guide` を参照\n"
+        "または、以下の手順で設定してください：\n"
+        # ... 簡潔なセットアップ手順 ...
+    )
+    await ctx.error(error_message)
+    raise ValueError(error_message)  # エラーはChatUIに表示される
+```
+
 **アプローチの比較**:
-- **ツールからの返却** (アプローチ1, 2): ツール実行時に自動表示されるが、ChatUIに表示されない可能性
-- **プロンプト** (アプローチ3): ユーザーが明示的に呼び出す必要があるが、プロンプトUIで表示される
+- **ツールからの返却** (アプローチ1, 2): ツール実行時に自動表示されるが、ChatUIに表示されない
+- **プロンプト** (アプローチ3): ユーザーが明示的に呼び出す必要あり、プロンプトUIで表示される
+- **エラー + Resource** (アプローチ4): エラーはChatUIに確実に表示され、ResourceでUI非依存の詳細情報を提供
 
 **テスト**:
-- `test_scryfall_setup_prompt_registration`: プロンプトが登録されることを確認
-- `test_scryfall_setup_prompt_execution`: プロンプト実行結果を検証
+- `test_search_cards_without_user_agent`: User-Agent未設定時にValueErrorが投げられることを確認
+- `test_scryfall_setup_prompt_registration`: プロンプト登録の確認
+- `test_scryfall_setup_prompt_execution`: プロンプト実行結果の検証
+- `test_scryfall_setup_resource_registration`: Resource登録の確認
+- `test_scryfall_setup_resource_execution`: Resource取得結果の検証
 
 #### 参考情報
 - MCP Python SDK: https://github.com/modelcontextprotocol/python-sdk
@@ -448,7 +477,11 @@ def _setup_prompts(self) -> None:
 - MCP Prompts仕様: https://modelcontextprotocol.io/specification/server/prompts
 - FastMCP: https://github.com/jlowin/fastmcp
 
-**レッスン**: MCPツールは常にユーザーフレンドリーなメッセージを返し、エラーの場合でも次のアクションを明確に示すこと。ただし、クライアント（Claude Desktop等）がどのように表示するかは、クライアントの実装に依存する。
+**レッスン**:
+1. MCPツールの正常な返り値はClaude Desktop ChatUIに表示されない場合がある
+2. エラー（例外）はChatUIに確実に表示される
+3. MCP Resourcesは永続的な情報提供に適している（ドキュメント、設定ガイドなど）
+4. **推奨パターン**: 設定必須項目が欠けている場合は、エラーを投げてChatUIに表示し、Resource URIで詳細情報へのアクセスを提供する
 
 ## 必要な追加技術・機能
 

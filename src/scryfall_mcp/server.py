@@ -82,6 +82,7 @@ class ScryfallMCPServer:
         self.app = FastMCP("scryfall-mcp", lifespan=_create_lifespan)
         self._setup_tools()
         self._setup_prompts()
+        self._setup_resources()
 
     def _setup_prompts(self) -> None:
         """Set up MCP prompts using fastmcp decorators."""
@@ -94,6 +95,46 @@ class ScryfallMCPServer:
             -------
             str
                 Complete setup instructions for configuring SCRYFALL_MCP_USER_AGENT
+            """
+            return (
+                "🔧 **Scryfall API 初回セットアップ**\n\n"
+                "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
+                "**1. Claude Desktop設定ファイルを開く**\n"
+                "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
+                "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
+                "**2. 以下の内容を追加**\n"
+                "```json\n"
+                "{\n"
+                '  "mcpServers": {\n'
+                '    "scryfall": {\n'
+                '      "command": "uv",\n'
+                '      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],\n'
+                '      "env": {\n'
+                '        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n'
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```\n\n"
+                "**3. プレースホルダーを実際の値に置き換え**\n"
+                "- `your-email@example.com` → 実際のメールアドレス\n"
+                "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
+                "**4. Claude Desktopを再起動**\n\n"
+                "設定完了後、再度カード検索をお試しください。\n\n"
+                "詳細情報: https://scryfall.com/docs/api"
+            )
+
+    def _setup_resources(self) -> None:
+        """Set up MCP resources using fastmcp decorators."""
+
+        @self.app.resource("scryfall://setup-guide")
+        def get_setup_guide() -> str:
+            """Scryfall API setup guide for User-Agent configuration.
+
+            Returns
+            -------
+            str
+                Complete setup instructions with configuration examples
             """
             return (
                 "🔧 **Scryfall API 初回セットアップ**\n\n"
@@ -164,40 +205,23 @@ class ScryfallMCPServer:
 
             # Check User-Agent configuration before processing
             if not is_user_agent_configured():
-                # Return setup guide as plain string for ChatUI display
-                setup_guide = (
-                    "🔧 **Scryfall API 初回セットアップ**\n\n"
-                    "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
-                    "**1. Claude Desktop設定ファイルを開く**\n"
-                    "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
-                    "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                    "**2. 以下の内容を追加**\n"
-                    "```json\n"
-                    "{\n"
-                    '  "mcpServers": {\n'
-                    '    "scryfall": {\n'
-                    '      "command": "uv",\n'
-                    '      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],\n'
-                    '      "env": {\n'
-                    '        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n'
-                    "      }\n"
-                    "    }\n"
-                    "  }\n"
-                    "}\n"
-                    "```\n\n"
-                    "**3. プレースホルダーを実際の値に置き換え**\n"
-                    "- `your-email@example.com` → 実際のメールアドレス\n"
-                    "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
-                    "**4. Claude Desktopを再起動**\n\n"
-                    "設定完了後、再度カード検索をお試しください。\n\n"
-                    "詳細情報: https://scryfall.com/docs/api"
+                # Raise error with reference to setup guide resource
+                error_message = (
+                    "❌ **User-Agent が設定されていません**\n\n"
+                    "Scryfall APIを使用するには、環境変数 SCRYFALL_MCP_USER_AGENT の設定が必要です。\n\n"
+                    "📖 **詳細なセットアップガイド:**\n"
+                    "MCP Resourcesから `scryfall://setup-guide` を参照してください。\n"
+                    "または、以下の手順で設定してください：\n\n"
+                    "1. Claude Desktop設定ファイルを開く\n"
+                    "   - macOS/Linux: ~/Library/Application Support/Claude/claude_desktop_config.json\n"
+                    "   - Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n\n"
+                    "2. SCRYFALL_MCP_USER_AGENT 環境変数を追加\n"
+                    '   "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n\n'
+                    "3. Claude Desktopを再起動\n\n"
+                    "詳細: https://scryfall.com/docs/api"
                 )
-
-                # Send through context for logging
-                await ctx.info(setup_guide)
-
-                # Return as plain string (FastMCP will convert to TextContent)
-                return setup_guide
+                await ctx.error(error_message)
+                raise ValueError(error_message)
 
             await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"
