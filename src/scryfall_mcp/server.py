@@ -13,7 +13,13 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from fastmcp import Context, FastMCP
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from mcp.types import (
+    CallToolResult,
+    EmbeddedResource,
+    ImageContent,
+    ResourceLink,
+    TextContent,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -127,7 +133,12 @@ class ScryfallMCPServer:
     def _setup_resources(self) -> None:
         """Set up MCP resources using fastmcp decorators."""
 
-        @self.app.resource("scryfall://setup-guide")
+        @self.app.resource(
+            uri="scryfall://setup-guide",
+            name="Scryfall API Setup Guide",
+            description="User-Agent configuration guide for Scryfall API",
+            mime_type="text/markdown",
+        )
         def get_setup_guide() -> str:
             """Scryfall API setup guide for User-Agent configuration.
 
@@ -137,12 +148,12 @@ class ScryfallMCPServer:
                 Complete setup instructions with configuration examples
             """
             return (
-                "🔧 **Scryfall API 初回セットアップ**\n\n"
+                "# Scryfall API 初回セットアップ\n\n"
                 "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
-                "**1. Claude Desktop設定ファイルを開く**\n"
+                "## 1. Claude Desktop設定ファイルを開く\n\n"
                 "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
                 "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                "**2. 以下の内容を追加**\n"
+                "## 2. 以下の内容を追加\n\n"
                 "```json\n"
                 "{\n"
                 '  "mcpServers": {\n'
@@ -156,10 +167,10 @@ class ScryfallMCPServer:
                 "  }\n"
                 "}\n"
                 "```\n\n"
-                "**3. プレースホルダーを実際の値に置き換え**\n"
+                "## 3. プレースホルダーを実際の値に置き換え\n\n"
                 "- `your-email@example.com` → 実際のメールアドレス\n"
                 "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
-                "**4. Claude Desktopを再起動**\n\n"
+                "## 4. Claude Desktopを再起動\n\n"
                 "設定完了後、再度カード検索をお試しください。\n\n"
                 "詳細情報: https://scryfall.com/docs/api"
             )
@@ -175,7 +186,7 @@ class ScryfallMCPServer:
             language: str | None = None,
             max_results: int = 10,
             format_filter: str | None = None,
-        ) -> str | list[TextContent | ImageContent | EmbeddedResource]:
+        ) -> CallToolResult | list[TextContent | ImageContent | EmbeddedResource]:
             """Search for Magic: The Gathering cards.
 
             Parameters
@@ -193,8 +204,8 @@ class ScryfallMCPServer:
 
             Returns
             -------
-            str | list[TextContent | ImageContent | EmbeddedResource]
-                Setup guide (str) or list of MCP content items
+            CallToolResult | list[TextContent | ImageContent | EmbeddedResource]
+                Error result with resource link or list of MCP content items
 
             Notes
             -----
@@ -205,23 +216,27 @@ class ScryfallMCPServer:
 
             # Check User-Agent configuration before processing
             if not is_user_agent_configured():
-                # Raise error with reference to setup guide resource
-                error_message = (
-                    "❌ **User-Agent が設定されていません**\n\n"
-                    "Scryfall APIを使用するには、環境変数 SCRYFALL_MCP_USER_AGENT の設定が必要です。\n\n"
-                    "📖 **詳細なセットアップガイド:**\n"
-                    "MCP Resourcesから `scryfall://setup-guide` を参照してください。\n"
-                    "または、以下の手順で設定してください：\n\n"
-                    "1. Claude Desktop設定ファイルを開く\n"
-                    "   - macOS/Linux: ~/Library/Application Support/Claude/claude_desktop_config.json\n"
-                    "   - Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n\n"
-                    "2. SCRYFALL_MCP_USER_AGENT 環境変数を追加\n"
-                    '   "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n\n'
-                    "3. Claude Desktopを再起動\n\n"
-                    "詳細: https://scryfall.com/docs/api"
+                # Return error with resource link to setup guide
+                return CallToolResult(
+                    isError=True,
+                    content=[
+                        TextContent(
+                            type="text",
+                            text=(
+                                "❌ User-Agentが設定されていません\n\n"
+                                "Scryfall APIを使用するには、環境変数 SCRYFALL_MCP_USER_AGENT の設定が必要です。\n\n"
+                                "詳細なセットアップガイドについては、下記のリソースを参照してください。"
+                            ),
+                        ),
+                        ResourceLink(
+                            type="resource_link",
+                            uri="scryfall://setup-guide",  # type: ignore[arg-type]
+                            name="Scryfall API Setup Guide",
+                            description="User-Agent configuration guide for Scryfall API",
+                            mimeType="text/markdown",
+                        ),
+                    ],
                 )
-                await ctx.error(error_message)
-                raise ValueError(error_message)
 
             await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"

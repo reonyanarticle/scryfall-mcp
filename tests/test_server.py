@@ -263,7 +263,7 @@ if __name__ == "__main__":
                         return func
                     return decorator
 
-                def resource(self, uri):
+                def resource(self, uri=None, name=None, description=None, mime_type=None):
                     def decorator(func):
                         return func
                     return decorator
@@ -280,16 +280,29 @@ if __name__ == "__main__":
 
                 assert search_cards_func is not None
 
-                # Should raise ValueError with setup guide reference
-                with pytest.raises(ValueError) as exc_info:
-                    await search_cards_func(mock_ctx, "test query")
+                # Should return CallToolResult with isError=True and resource link
+                from mcp.types import CallToolResult, ResourceLink, TextContent
 
-                error_message = str(exc_info.value)
-                assert "User-Agent" in error_message
-                assert "scryfall://setup-guide" in error_message
+                result = await search_cards_func(mock_ctx, "test query")
 
-                # Should have called ctx.error
-                mock_ctx.error.assert_called_once()
+                # Verify result is CallToolResult
+                assert isinstance(result, CallToolResult)
+                assert result.isError is True
+
+                # Verify content contains TextContent and ResourceLink
+                assert len(result.content) == 2
+                assert isinstance(result.content[0], TextContent)
+                assert isinstance(result.content[1], ResourceLink)
+
+                # Verify error message content
+                text_content = result.content[0]
+                assert "User-Agent" in text_content.text
+
+                # Verify resource link content
+                resource_link = result.content[1]
+                assert str(resource_link.uri) == "scryfall://setup-guide"
+                assert resource_link.name == "Scryfall API Setup Guide"
+                assert resource_link.mimeType == "text/markdown"
 
     @pytest.mark.asyncio
     async def test_search_cards_with_user_agent(self) -> None:
@@ -326,7 +339,7 @@ if __name__ == "__main__":
                         return func
                     return decorator
 
-                def resource(self, uri):
+                def resource(self, uri=None, name=None, description=None, mime_type=None):
                     def decorator(func):
                         return func
                     return decorator
@@ -402,8 +415,7 @@ if __name__ == "__main__":
 
         # Verify result
         assert isinstance(result, str)
-        assert "🔧" in result
-        assert "Scryfall API 初回セットアップ" in result
+        assert "# Scryfall API 初回セットアップ" in result
         assert "SCRYFALL_MCP_USER_AGENT" in result
         assert "Claude Desktop" in result
         assert "claude_desktop_config.json" in result
