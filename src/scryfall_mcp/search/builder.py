@@ -193,11 +193,20 @@ class QueryBuilder:
         str
             Text with converted basic terms
         """
-        for term, scryfall_term in self._mapping.search_keywords.items():
+        # Sort terms by length (longest first) to avoid partial replacements
+        sorted_terms = sorted(
+            self._mapping.search_keywords.items(), key=lambda x: len(x[0]), reverse=True
+        )
+
+        for term, scryfall_term in sorted_terms:
             if scryfall_term:  # Only replace if there's a mapping
-                # Use word boundaries for exact matches
-                pattern = rf"\b{re.escape(term)}\b"
-                text = re.sub(pattern, scryfall_term, text, flags=re.IGNORECASE)
+                # For Japanese text, use simple replacement
+                # For English, use word boundaries
+                if self._mapping.language_code == "ja":
+                    text = text.replace(term, scryfall_term)
+                else:
+                    pattern = rf"\b{re.escape(term)}\b"
+                    text = re.sub(pattern, scryfall_term, text, flags=re.IGNORECASE)
 
         return text
 

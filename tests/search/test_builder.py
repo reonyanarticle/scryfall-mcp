@@ -327,3 +327,154 @@ class TestQueryBuilder:
         for ja_term, expected in test_cases:
             result = query_builder._convert_basic_terms(ja_term)
             assert expected in result
+
+    def test_japanese_keyword_ability_search_single(self, query_builder):
+        """Test Japanese keyword ability search - single keyword.
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Test Case 1: Single keyword ability with creature type.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test single keyword abilities
+        test_cases = [
+            ("多相を持つクリーチャー", ["keyword:changeling", "t:creature"]),
+            ("飛行を持つクリーチャー", ["keyword:flying", "t:creature"]),
+            ("速攻持ちクリーチャー", ["keyword:haste", "t:creature"]),
+            ("接死を持つクリーチャー", ["keyword:deathtouch", "t:creature"]),
+            ("威迫を持つクリーチャー", ["keyword:menace", "t:creature"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_keyword_ability_search_multiple(self, query_builder):
+        """Test Japanese keyword ability search - multiple keywords.
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Test Case 2: Multiple keyword abilities combined.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test multiple keyword abilities
+        test_cases = [
+            (
+                "速攻と飛行を持つクリーチャー",
+                ["keyword:haste", "keyword:flying", "t:creature"],
+            ),
+            (
+                "警戒と絆魂を持つクリーチャー",
+                ["keyword:vigilance", "keyword:lifelink", "t:creature"],
+            ),
+            (
+                "トランプルと接死持ちクリーチャー",
+                ["keyword:trample", "keyword:deathtouch", "t:creature"],
+            ),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_keyword_ability_with_colors(self, query_builder):
+        """Test Japanese keyword ability search combined with colors.
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Test Case 3: Keyword abilities combined with color and type filters.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test keyword abilities combined with colors
+        test_cases = [
+            (
+                "飛行を持つ赤いクリーチャー",
+                ["keyword:flying", "c:r", "t:creature"],
+            ),
+            (
+                "速攻を持つ緑のクリーチャー",
+                ["keyword:haste", "c:g", "t:creature"],
+            ),
+            (
+                "威迫を持つ黒いクリーチャー",
+                ["keyword:menace", "c:b", "t:creature"],
+            ),
+            (
+                "絆魂を持つ白いクリーチャー",
+                ["keyword:lifelink", "c:w", "t:creature"],
+            ),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_keyword_ability_quoted_keywords(self, query_builder):
+        """Test Japanese keyword abilities that require quotes in Scryfall syntax.
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Special test for multi-word keyword abilities like "first strike" and "double strike".
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test keyword abilities that require quotes
+        test_cases = [
+            ("先制攻撃を持つクリーチャー", ['keyword:"first strike"', "t:creature"]),
+            ("二段攻撃を持つクリーチャー", ['keyword:"double strike"', "t:creature"]),
+            (
+                "先制攻撃と飛行を持つクリーチャー",
+                ['keyword:"first strike"', "keyword:flying", "t:creature"],
+            ),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_keyword_ability_all_variations(self, query_builder):
+        """Test all Japanese keyword ability variations.
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Ensures all three variations (base, を持つ, 持ち) work correctly.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test all three variations for a keyword
+        keyword = "飛行"
+        variations = [
+            ("飛行", "keyword:flying"),
+            ("飛行を持つ", "keyword:flying"),
+            ("飛行持ち", "keyword:flying"),
+        ]
+
+        for variation, expected in variations:
+            result = query_builder._convert_basic_terms(variation)
+            assert expected in result, (
+                f"Expected '{expected}' for variation '{variation}', but got: {result}"
+            )

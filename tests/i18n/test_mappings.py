@@ -289,6 +289,99 @@ class TestJapaneseMapping:
         assert keywords["レア"] == "r:rare"
         assert keywords["神話レア"] == "r:mythic"
 
+    def test_japanese_keyword_ability_mappings_phase1(self):
+        """Test Japanese keyword ability mappings - Phase 1 (Evergreen keywords).
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Phase 1 covers evergreen keyword abilities that appear in most sets.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Test evergreen keyword abilities with all variations
+        # 飛行 (flying)
+        assert keywords["飛行"] == "keyword:flying"
+        assert keywords["飛行を持つ"] == "keyword:flying"
+        assert keywords["飛行持ち"] == "keyword:flying"
+
+        # 速攻 (haste)
+        assert keywords["速攻"] == "keyword:haste"
+        assert keywords["速攻を持つ"] == "keyword:haste"
+        assert keywords["速攻持ち"] == "keyword:haste"
+
+        # 接死 (deathtouch)
+        assert keywords["接死"] == "keyword:deathtouch"
+        assert keywords["接死を持つ"] == "keyword:deathtouch"
+        assert keywords["接死持ち"] == "keyword:deathtouch"
+
+        # トランプル (trample)
+        assert keywords["トランプル"] == "keyword:trample"
+        assert keywords["トランプルを持つ"] == "keyword:trample"
+        assert keywords["トランプル持ち"] == "keyword:trample"
+
+        # 警戒 (vigilance)
+        assert keywords["警戒"] == "keyword:vigilance"
+        assert keywords["警戒を持つ"] == "keyword:vigilance"
+        assert keywords["警戒持ち"] == "keyword:vigilance"
+
+        # 先制攻撃 (first strike) - requires quotes
+        assert keywords["先制攻撃"] == 'keyword:"first strike"'
+        assert keywords["先制攻撃を持つ"] == 'keyword:"first strike"'
+        assert keywords["先制攻撃持ち"] == 'keyword:"first strike"'
+
+        # 二段攻撃 (double strike) - requires quotes
+        assert keywords["二段攻撃"] == 'keyword:"double strike"'
+        assert keywords["二段攻撃を持つ"] == 'keyword:"double strike"'
+        assert keywords["二段攻撃持ち"] == 'keyword:"double strike"'
+
+        # 絆魂 (lifelink)
+        assert keywords["絆魂"] == "keyword:lifelink"
+        assert keywords["絆魂を持つ"] == "keyword:lifelink"
+        assert keywords["絆魂持ち"] == "keyword:lifelink"
+
+        # 呪禁 (hexproof)
+        assert keywords["呪禁"] == "keyword:hexproof"
+        assert keywords["呪禁を持つ"] == "keyword:hexproof"
+        assert keywords["呪禁持ち"] == "keyword:hexproof"
+
+        # 到達 (reach)
+        assert keywords["到達"] == "keyword:reach"
+        assert keywords["到達を持つ"] == "keyword:reach"
+        assert keywords["到達持ち"] == "keyword:reach"
+
+    def test_japanese_keyword_ability_mappings_phase2(self):
+        """Test Japanese keyword ability mappings - Phase 2 (Common deciduous keywords).
+
+        Tests implementation of Issue #2: キーワード能力による自然言語検索の精度向上
+        Phase 2 covers common deciduous keyword abilities.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Test common deciduous keyword abilities
+        # 威迫 (menace)
+        assert keywords["威迫"] == "keyword:menace"
+        assert keywords["威迫を持つ"] == "keyword:menace"
+        assert keywords["威迫持ち"] == "keyword:menace"
+
+        # 瞬速 (flash)
+        assert keywords["瞬速"] == "keyword:flash"
+        assert keywords["瞬速を持つ"] == "keyword:flash"
+        assert keywords["瞬速持ち"] == "keyword:flash"
+
+        # 多相 (changeling)
+        assert keywords["多相"] == "keyword:changeling"
+        assert keywords["多相を持つ"] == "keyword:changeling"
+        assert keywords["多相持ち"] == "keyword:changeling"
+
+        # 防衛 (defender)
+        assert keywords["防衛"] == "keyword:defender"
+        assert keywords["防衛を持つ"] == "keyword:defender"
+        assert keywords["防衛持ち"] == "keyword:defender"
+
+        # 護法 (ward)
+        assert keywords["護法"] == "keyword:ward"
+        assert keywords["護法を持つ"] == "keyword:ward"
+        assert keywords["護法持ち"] == "keyword:ward"
+
 
 class TestMappingValidation:
     """Test mapping validation and consistency."""
