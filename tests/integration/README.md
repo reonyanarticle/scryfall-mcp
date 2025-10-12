@@ -8,6 +8,26 @@ Scryfall MCP Serverの結合テストスイートです。
 
 ## テストファイル
 
+### test_e2e_query_pipeline.py
+クエリ処理パイプライン全体のエンドツーエンドテストです。
+
+- Parser → Builder → Processor → Presenterの全体フロー検証
+- 日本語キーワード能力検索のテスト（Issue #2実装の検証）
+- 英語・日本語両方のクエリ変換テスト
+- 複雑度評価、ロケール切り替えのテスト
+
+```bash
+uv run pytest tests/integration/test_e2e_query_pipeline.py -v
+```
+
+**テスト対象**:
+- 日本語キーワード能力検索（飛行、接死、速攻など）
+- 複雑な日本語クエリ（複数条件、マナ総量、レアリティなど）
+- 英語クエリの変換
+- ロケール切り替え
+- 空クエリの処理
+- クエリ複雑度評価
+
 ### test_mcp_connection.py
 MCPプロトコルの基本的な接続をテストします。
 

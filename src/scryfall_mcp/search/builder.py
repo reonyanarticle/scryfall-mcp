@@ -61,10 +61,12 @@ class QueryBuilder:
             Built query with metadata and suggestions
         """
         # Start with normalized text and apply transformations
-        query = self._convert_basic_terms(parsed.normalized_text)
+        # IMPORTANT: _convert_operators must run before _convert_basic_terms
+        # to handle patterns like "パワー3以上" before "パワー" gets converted to "p"
+        query = self._convert_operators(parsed.normalized_text)
         query = self._convert_colors(query)
         query = self._convert_types(query)
-        query = self._convert_operators(query)
+        query = self._convert_basic_terms(query)
         query = self._convert_card_names(query)
         query = self._convert_phrases(query)
         query = self._clean_query(query)
@@ -111,10 +113,12 @@ class QueryBuilder:
         normalized_text = self._normalize_text(text)
 
         # Process the text through various conversion steps
-        query = self._convert_basic_terms(normalized_text)
+        # IMPORTANT: _convert_operators must run before _convert_basic_terms
+        # to handle patterns like "パワー3以上" before "パワー" gets converted to "p"
+        query = self._convert_operators(normalized_text)
         query = self._convert_colors(query)
         query = self._convert_types(query)
-        query = self._convert_operators(query)
+        query = self._convert_basic_terms(query)
         query = self._convert_card_names(query)
         query = self._convert_phrases(query)
         query = self._clean_query(query)
@@ -193,11 +197,20 @@ class QueryBuilder:
         str
             Text with converted basic terms
         """
-        for term, scryfall_term in self._mapping.search_keywords.items():
+        # Sort terms by length (longest first) to avoid partial replacements
+        sorted_terms = sorted(
+            self._mapping.search_keywords.items(), key=lambda x: len(x[0]), reverse=True
+        )
+
+        for term, scryfall_term in sorted_terms:
             if scryfall_term:  # Only replace if there's a mapping
-                # Use word boundaries for exact matches
-                pattern = rf"\b{re.escape(term)}\b"
-                text = re.sub(pattern, scryfall_term, text, flags=re.IGNORECASE)
+                # For Japanese text, use simple replacement
+                # For English, use word boundaries
+                if self._mapping.language_code == "ja":
+                    text = text.replace(term, scryfall_term)
+                else:
+                    pattern = rf"\b{re.escape(term)}\b"
+                    text = re.sub(pattern, scryfall_term, text, flags=re.IGNORECASE)
 
         return text
 
