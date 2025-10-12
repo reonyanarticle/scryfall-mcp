@@ -15,6 +15,7 @@ from scryfall_mcp.i18n.locales import (
     get_locale_manager,
     set_current_locale,
 )
+from scryfall_mcp.models import LanguageMapping
 
 
 class TestLocaleInfo:
@@ -64,6 +65,94 @@ class TestLocaleManager:
     def locale_manager(self):
         """Create a fresh locale manager for testing."""
         return LocaleManager()
+
+    @staticmethod
+    def _create_test_mapping(language_code: str, language_name: str, locale_code: str) -> LanguageMapping:
+        """Create a test LanguageMapping with standard test data.
+
+        This helper reduces duplication in tests that need to create mappings.
+        """
+        return LanguageMapping(
+            language_code=language_code,
+            language_name=language_name,
+            locale_code=locale_code,
+            colors={
+                "white": "w",
+                "blue": "u",
+                "black": "b",
+                "red": "r",
+                "green": "g",
+                "colorless": "c",
+            },
+            types={
+                "artifact": "artifact",
+                "creature": "creature",
+                "enchantment": "enchantment",
+                "instant": "instant",
+                "land": "land",
+                "planeswalker": "planeswalker",
+                "sorcery": "sorcery",
+                "basic": "basic",
+                "legendary": "legendary",
+                "snow": "snow",
+                "equipment": "equipment",
+                "aura": "aura",
+                "vehicle": "vehicle",
+                "token": "token",
+            },
+            operators={
+                "equals": "=",
+                "not_equals": "!=",
+                "less_than": "<",
+                "less_than_or_equal": "<=",
+                "greater_than": ">",
+                "greater_than_or_equal": ">=",
+                "contains": ":",
+                "not_contains": "-",
+            },
+            formats={
+                "standard": "standard",
+                "pioneer": "pioneer",
+                "modern": "modern",
+                "legacy": "legacy",
+                "vintage": "vintage",
+                "commander": "commander",
+                "pauper": "pauper",
+                "historic": "historic",
+                "alchemy": "alchemy",
+                "brawl": "brawl",
+            },
+            rarities={
+                "common": "common",
+                "uncommon": "uncommon",
+                "rare": "rare",
+                "mythic": "mythic",
+                "special": "special",
+                "bonus": "bonus",
+            },
+            set_types={
+                "core": "core",
+                "expansion": "expansion",
+                "masters": "masters",
+                "draft_innovation": "draft_innovation",
+                "commander": "commander",
+                "planechase": "planechase",
+                "archenemy": "archenemy",
+                "from_the_vault": "from_the_vault",
+                "premium_deck": "premium_deck",
+                "duel_deck": "duel_deck",
+                "starter": "starter",
+                "box": "box",
+                "promo": "promo",
+                "token": "token",
+                "memorabilia": "memorabilia",
+                "treasure_chest": "treasure_chest",
+                "spellbook": "spellbook",
+                "arsenal": "arsenal",
+            },
+            search_keywords={},
+            phrases={},
+        )
 
     def test_initialization(self, locale_manager):
         """Test locale manager initialization."""
@@ -199,90 +288,8 @@ class TestLocaleManager:
 
     def test_add_mapping(self, locale_manager):
         """Test adding new language mapping."""
-        from scryfall_mcp.models import LanguageMapping
-
-        # Create a mock mapping
-        new_mapping = LanguageMapping(
-            language_code="fr",
-            language_name="Français",
-            locale_code="fr_FR",
-            colors={
-                "white": "w",
-                "blue": "u",
-                "black": "b",
-                "red": "r",
-                "green": "g",
-                "colorless": "c",
-            },
-            types={
-                "artifact": "artifact",
-                "creature": "creature",
-                "enchantment": "enchantment",
-                "instant": "instant",
-                "land": "land",
-                "planeswalker": "planeswalker",
-                "sorcery": "sorcery",
-                "basic": "basic",
-                "legendary": "legendary",
-                "snow": "snow",
-                "equipment": "equipment",
-                "aura": "aura",
-                "vehicle": "vehicle",
-                "token": "token",
-            },
-            operators={
-                "equals": "=",
-                "not_equals": "!=",
-                "less_than": "<",
-                "less_than_or_equal": "<=",
-                "greater_than": ">",
-                "greater_than_or_equal": ">=",
-                "contains": ":",
-                "not_contains": "-",
-            },
-            formats={
-                "standard": "standard",
-                "pioneer": "pioneer",
-                "modern": "modern",
-                "legacy": "legacy",
-                "vintage": "vintage",
-                "commander": "commander",
-                "pauper": "pauper",
-                "historic": "historic",
-                "alchemy": "alchemy",
-                "brawl": "brawl",
-            },
-            rarities={
-                "common": "common",
-                "uncommon": "uncommon",
-                "rare": "rare",
-                "mythic": "mythic",
-                "special": "special",
-                "bonus": "bonus",
-            },
-            set_types={
-                "core": "core",
-                "expansion": "expansion",
-                "masters": "masters",
-                "draft_innovation": "draft_innovation",
-                "commander": "commander",
-                "planechase": "planechase",
-                "archenemy": "archenemy",
-                "from_the_vault": "from_the_vault",
-                "premium_deck": "premium_deck",
-                "duel_deck": "duel_deck",
-                "starter": "starter",
-                "box": "box",
-                "promo": "promo",
-                "token": "token",
-                "memorabilia": "memorabilia",
-                "treasure_chest": "treasure_chest",
-                "spellbook": "spellbook",
-                "arsenal": "arsenal",
-            },
-            search_keywords={},
-            phrases={},
-        )
+        # Create a mock mapping using helper
+        new_mapping = self._create_test_mapping("fr", "Français", "fr_FR")
 
         # Add mapping
         result = locale_manager.add_mapping(new_mapping)
@@ -297,90 +304,8 @@ class TestLocaleManager:
         """Test reloading mappings."""
         original_count = len(locale_manager._mappings)
 
-        # Add a temporary mapping
-        from scryfall_mcp.models import LanguageMapping
-
-        temp_mapping = LanguageMapping(
-            language_code="temp",
-            language_name="Temporary",
-            locale_code="temp",
-            colors={
-                "white": "w",
-                "blue": "u",
-                "black": "b",
-                "red": "r",
-                "green": "g",
-                "colorless": "c",
-            },
-            types={
-                "artifact": "artifact",
-                "creature": "creature",
-                "enchantment": "enchantment",
-                "instant": "instant",
-                "land": "land",
-                "planeswalker": "planeswalker",
-                "sorcery": "sorcery",
-                "basic": "basic",
-                "legendary": "legendary",
-                "snow": "snow",
-                "equipment": "equipment",
-                "aura": "aura",
-                "vehicle": "vehicle",
-                "token": "token",
-            },
-            operators={
-                "equals": "=",
-                "not_equals": "!=",
-                "less_than": "<",
-                "less_than_or_equal": "<=",
-                "greater_than": ">",
-                "greater_than_or_equal": ">=",
-                "contains": ":",
-                "not_contains": "-",
-            },
-            formats={
-                "standard": "standard",
-                "pioneer": "pioneer",
-                "modern": "modern",
-                "legacy": "legacy",
-                "vintage": "vintage",
-                "commander": "commander",
-                "pauper": "pauper",
-                "historic": "historic",
-                "alchemy": "alchemy",
-                "brawl": "brawl",
-            },
-            rarities={
-                "common": "common",
-                "uncommon": "uncommon",
-                "rare": "rare",
-                "mythic": "mythic",
-                "special": "special",
-                "bonus": "bonus",
-            },
-            set_types={
-                "core": "core",
-                "expansion": "expansion",
-                "masters": "masters",
-                "draft_innovation": "draft_innovation",
-                "commander": "commander",
-                "planechase": "planechase",
-                "archenemy": "archenemy",
-                "from_the_vault": "from_the_vault",
-                "premium_deck": "premium_deck",
-                "duel_deck": "duel_deck",
-                "starter": "starter",
-                "box": "box",
-                "promo": "promo",
-                "token": "token",
-                "memorabilia": "memorabilia",
-                "treasure_chest": "treasure_chest",
-                "spellbook": "spellbook",
-                "arsenal": "arsenal",
-            },
-            search_keywords={},
-            phrases={},
-        )
+        # Add a temporary mapping using helper
+        temp_mapping = self._create_test_mapping("temp", "Temporary", "temp")
         locale_manager.add_mapping(temp_mapping)
         assert len(locale_manager._mappings) == original_count + 1
 
@@ -388,6 +313,51 @@ class TestLocaleManager:
         locale_manager.reload_mappings()
         assert len(locale_manager._mappings) == original_count
         assert not locale_manager.is_supported("temp")
+
+    def test_detect_locale_system_locale_supported(self, locale_manager, monkeypatch):
+        """Test detection when system locale is supported."""
+        # Clear environment variables
+        monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.delenv("LC_CTYPE", raising=False)
+        monkeypatch.delenv("LANG", raising=False)
+        monkeypatch.delenv("LANGUAGE", raising=False)
+
+        # Mock getdefaultlocale to return a supported locale
+        import locale as locale_module
+
+        def mock_getdefaultlocale():
+            return ("ja_JP.UTF-8", "UTF-8")
+
+        monkeypatch.setattr(locale_module, "getdefaultlocale", mock_getdefaultlocale)
+
+        # This should cover lines 84-86
+        result = locale_manager.detect_locale()
+        assert result == "ja"
+
+    def test_get_mapping_no_fallback_available(self):
+        """Test get_mapping when fallback locale is missing (edge case)."""
+        from scryfall_mcp.i18n.locales import LocaleManager
+
+        # Create a manager with no fallback
+        manager = LocaleManager()
+        # Save one mapping before clearing
+        saved_mapping = manager._mappings["en"]
+        # Clear all mappings except one
+        manager._mappings.clear()
+        manager._mappings["test"] = saved_mapping
+        manager._fallback_locale = "nonexistent"
+
+        # This should cover lines 155-161 (last resort fallback)
+        result = manager.get_mapping("unknown")
+        assert result is not None
+
+    def test_set_current_locale_unsupported(self):
+        """Test setting an unsupported locale."""
+        from scryfall_mcp.i18n.locales import set_current_locale
+
+        # This should cover line 341
+        result = set_current_locale("unsupported_locale_xyz")
+        assert result is False
 
 
 class TestGlobalFunctions:
