@@ -46,7 +46,7 @@ class QueryBuilder:
             Language-specific mappings for query building
         """
         self._mapping = locale_mapping
-        
+
         # Initialize pattern matcher for Japanese (Phase 2)
         self._pattern_matcher = None
         if locale_mapping.language_code == "ja":
@@ -54,7 +54,7 @@ class QueryBuilder:
                 AbilityPatternMatcher,
                 create_japanese_patterns,
             )
-            
+
             patterns = create_japanese_patterns(locale_mapping.search_keywords)
             self._pattern_matcher = AbilityPatternMatcher(patterns)
 
@@ -71,15 +71,27 @@ class QueryBuilder:
         BuiltQuery
             Built query with metadata and suggestions
         """
+        # Phase 2: Apply pattern matching FIRST (before other conversions)
+        # This prevents other conversions from interfering with pattern matching
+        ability_tokens: list[str] = []
+        working_text = parsed.normalized_text
+        if self._pattern_matcher is not None:
+            working_text, ability_tokens = self._pattern_matcher.apply(working_text)
+
         # Start with normalized text and apply transformations
         # IMPORTANT: _convert_operators must run before _convert_basic_terms
         # to handle patterns like "パワー3以上" before "パワー" gets converted to "p"
-        query = self._convert_operators(parsed.normalized_text)
+        query = self._convert_operators(working_text)
         query = self._convert_colors(query)
         query = self._convert_types(query)
         query = self._convert_basic_terms(query)
         query = self._convert_card_names(query)
         query = self._convert_phrases(query)
+
+        # Add ability tokens from Phase 2 pattern matching
+        if ability_tokens:
+            query = f"{query} {' '.join(ability_tokens)}"
+
         query = self._clean_query(query)
 
         # Generate suggestions based on parsed data
@@ -119,14 +131,14 @@ class QueryBuilder:
 
             manager = get_locale_manager()
             self._mapping = manager.get_mapping(locale)
-            
+
             # Re-initialize pattern matcher if locale changed to Japanese
             if self._mapping.language_code == "ja":
                 from .ability_patterns import (
                     AbilityPatternMatcher,
                     create_japanese_patterns,
                 )
-                
+
                 patterns = create_japanese_patterns(self._mapping.search_keywords)
                 self._pattern_matcher = AbilityPatternMatcher(patterns)
             else:
@@ -134,7 +146,7 @@ class QueryBuilder:
 
         # Clean and normalize the input
         normalized_text = self._normalize_text(text)
-        
+
         # Phase 2: Apply pattern matching FIRST (before other conversions)
         # This prevents other conversions from interfering with pattern matching
         ability_tokens: list[str] = []
@@ -150,11 +162,11 @@ class QueryBuilder:
         query = self._convert_basic_terms(query)
         query = self._convert_card_names(query)
         query = self._convert_phrases(query)
-        
+
         # Add ability tokens from pattern matching
         if ability_tokens:
             query = f"{query} {' '.join(ability_tokens)}"
-        
+
         query = self._clean_query(query)
 
         return query
@@ -391,8 +403,8 @@ class QueryBuilder:
 
     def _convert_phrases(self, text: str) -> str:
         """Convert common phrases using dictionary replacements.
-        
-        Note: Pattern matching (Phase 2) is now handled in build_query() 
+
+        Note: Pattern matching (Phase 2) is now handled in build_query()
         before this method is called.
 
         Parameters
@@ -409,7 +421,7 @@ class QueryBuilder:
         for phrase, replacement in self._mapping.phrases.items():
             if replacement:  # Only replace if there's a mapping
                 text = text.replace(phrase, replacement)
-        
+
         return text
 
     def _clean_query(self, query: str) -> str:

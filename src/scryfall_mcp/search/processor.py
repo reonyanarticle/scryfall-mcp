@@ -188,24 +188,36 @@ class SearchProcessor:
             types = [mappings["types"].get(t.lower(), t) for t in type_matches]
             parts.append(f"{mappings['labels']['types']}: {', '.join(types)}")
 
+        # Format based on language (Japanese has no spaces, English has spaces)
+        is_japanese = self._mapping.language_code == "ja"
+
         # Power
         if power_matches:
             for op, val in power_matches:
                 op_name = mappings["operators"].get(op, op)
-                parts.append(f"{mappings['labels']['power']}{val}{op_name}")
+                if is_japanese:
+                    parts.append(f"{mappings['labels']['power']}{val}{op_name}")
+                else:
+                    parts.append(f"{mappings['labels']['power']} {op_name} {val}")
 
         # Toughness
         if toughness_matches:
             for op, val in toughness_matches:
                 op_name = mappings["operators"].get(op, op)
-                parts.append(f"{mappings['labels']['toughness']}{val}{op_name}")
+                if is_japanese:
+                    parts.append(f"{mappings['labels']['toughness']}{val}{op_name}")
+                else:
+                    parts.append(f"{mappings['labels']['toughness']} {op_name} {val}")
 
         # Mana value
         if mana_matches:
             for field, op, val in mana_matches:
                 field_name = mappings["fields"].get(field, field)
                 op_name = mappings["operators"].get(op, op)
-                parts.append(f"{field_name}{val}{op_name}")
+                if is_japanese:
+                    parts.append(f"{field_name}{val}{op_name}")
+                else:
+                    parts.append(f"{field_name} {op_name} {val}")
 
         separator = "、" if self._mapping.language_code == "ja" else ", "
         return separator.join(parts) if parts else mappings["labels"]["general_search"]

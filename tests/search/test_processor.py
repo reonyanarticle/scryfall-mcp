@@ -226,7 +226,7 @@ class TestSearchProcessor:
         explanation = processor.get_query_explanation(query)
 
         assert "Colors: R" in explanation
-        assert "Types: creature" in explanation
+        assert "Types: Creature" in explanation
         assert "Power >= 3" in explanation
 
     def test_get_query_explanation_japanese(self, processor):
@@ -247,7 +247,7 @@ class TestSearchProcessor:
         explanation = processor.get_query_explanation(query)
 
         assert "Colors: W, U" in explanation
-        assert "Types: creature" in explanation
+        assert "Types: Creature" in explanation
         assert "Power >= 3" in explanation
         assert "Toughness <= 5" in explanation
         assert "Mana Value = 4" in explanation

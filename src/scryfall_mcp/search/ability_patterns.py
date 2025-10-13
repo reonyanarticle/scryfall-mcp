@@ -7,8 +7,8 @@ phrases, enabling Phase 2 support for queries like "死亡時にカードを1枚
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 
 @dataclass
@@ -76,27 +76,32 @@ class AbilityPatternMatcher:
         tuple[str, list[str]]
             Tuple of (remaining text with matches removed, list of oracle tokens)
         """
-        tokens: list[str] = []
+        all_tokens: list[str] = []
         remaining = text
 
         for pattern_spec in self.patterns:
             # Find all matches for this pattern
             matches = list(pattern_spec.pattern.finditer(remaining))
 
-            # Process matches in reverse order to avoid index issues
-            for match in reversed(matches):
-                # Generate replacement tokens
+            # Store match positions and tokens to preserve order
+            match_data: list[tuple[int, int, list[str]]] = []
+            for match in matches:
                 new_tokens = pattern_spec.replacement(match)
-                tokens.extend(new_tokens)
+                match_data.append((match.start(), match.end(), new_tokens))
 
+            # Process matches in reverse order to avoid index issues when removing
+            for start, end, tokens in reversed(match_data):
                 # Remove matched text, replace with space
-                start, end = match.span()
                 remaining = remaining[:start] + " " + remaining[end:]
+
+            # Add tokens in original order (not reversed)
+            for _, _, tokens in match_data:
+                all_tokens.extend(tokens)
 
         # Clean up extra whitespace
         remaining = " ".join(remaining.split())
 
-        return remaining, tokens
+        return remaining, all_tokens
 
 
 def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern]:
@@ -132,7 +137,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="death_trigger_with_effect",
-            pattern=re.compile(rf"死亡時に(.+?)(?=する|{color_type_pattern}|。|$)"),
+            pattern=re.compile(rf"死亡時に(.+?)する?(?= |{color_type_pattern}|$)"),
             replacement=death_trigger_replacement,
             priority=100,
         )
@@ -150,7 +155,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="etb_trigger_with_effect",
-            pattern=re.compile(rf"戦場に出たときに?(.+?)(?=する|{color_type_pattern}|。|$)"),
+            pattern=re.compile(rf"戦場に出たときに?(.+?)する?(?= |{color_type_pattern}|$)"),
             replacement=etb_trigger_replacement,
             priority=100,
         )
@@ -168,7 +173,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="attack_trigger_with_effect",
-            pattern=re.compile(rf"攻撃したときに?(.+?)(?=する|{color_type_pattern}|。|$)"),
+            pattern=re.compile(rf"攻撃したときに?(.+?)する?(?= |{color_type_pattern}|$)"),
             replacement=attack_trigger_replacement,
             priority=100,
         )

@@ -638,128 +638,178 @@ class TestQueryBuilder:
         assert "t:creature" in result
 
     def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
-        """Test Phase 2: death trigger with effect - Issue #4 Phase 2."""
+        """Test Phase 2: death trigger with effect - Issue #4 Phase 2.
+
+        Tests the production path (Parser -> QueryBuilder.build()).
+        """
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
-        
+        parser = SearchParser(mapping)
+
         # "死亡時にカードを1枚引く黒いクリーチャー"
         query = "死亡時にカードを1枚引く黒いクリーチャー"
-        result = query_builder.build_query(query)
-        
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
+
         # Should contain death trigger
-        assert 'o:"when ~ dies"' in result
+        assert 'o:"when ~ dies"' in result.scryfall_query
         # Should contain draw effect
-        assert ('o:"draw a card"' in result or 'o:"draw"' in result)
+        assert ('o:"draw a card"' in result.scryfall_query or 'o:"draw"' in result.scryfall_query)
         # Should contain color and type
-        assert "c:b" in result
-        assert "t:creature" in result
+        assert "c:b" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
+        # Should NOT contain Japanese particles
+        assert "する" not in result.scryfall_query
+        assert "に" not in result.scryfall_query or "に" in query  # Allow if it was in original
 
     def test_japanese_phase2_etb_with_effect(self, query_builder):
-        """Test Phase 2: ETB trigger with effect - Issue #4 Phase 2."""
+        """Test Phase 2: ETB trigger with effect - Issue #4 Phase 2.
+
+        Tests the production path (Parser -> QueryBuilder.build()).
+        """
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
-        
+        parser = SearchParser(mapping)
+
         # "戦場に出たときにトークンを生成する白いクリーチャー"
         query = "戦場に出たときにトークンを生成する白いクリーチャー"
-        result = query_builder.build_query(query)
-        
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
+
         # Should contain ETB trigger
-        assert 'o:"enters the battlefield"' in result
+        assert 'o:"enters the battlefield"' in result.scryfall_query
         # Should contain create effect
-        assert 'o:"create"' in result
+        assert 'o:"create"' in result.scryfall_query
         # Should contain color and type
-        assert "c:w" in result
-        assert "t:creature" in result
+        assert "c:w" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
+        # Should NOT contain Japanese particles
+        assert "する" not in result.scryfall_query
 
     def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
-        """Test Phase 2: attack trigger with effect - Issue #4 Phase 2."""
+        """Test Phase 2: attack trigger with effect - Issue #4 Phase 2.
+
+        Tests the production path (Parser -> QueryBuilder.build()).
+        """
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
-        
+        parser = SearchParser(mapping)
+
         # "攻撃したときにダメージを与える赤いクリーチャー"
         query = "攻撃したときにダメージを与える赤いクリーチャー"
-        result = query_builder.build_query(query)
-        
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
+
         # Should contain attack trigger
-        assert 'o:"whenever ~ attacks"' in result
+        assert 'o:"whenever ~ attacks"' in result.scryfall_query
         # Should contain damage effect
-        assert 'o:"deals damage"' in result
+        assert 'o:"deals damage"' in result.scryfall_query
         # Should contain color and type
-        assert "c:r" in result
-        assert "t:creature" in result
+        assert "c:r" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
+        # Should NOT contain Japanese particles
+        assert "する" not in result.scryfall_query
 
     def test_japanese_phase2_complex_multi_ability(self, query_builder):
-        """Test Phase 2: complex query with multiple abilities."""
+        """Test Phase 2: complex query with multiple abilities.
+
+        Tests the production path (Parser -> QueryBuilder.build()).
+        """
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
-        
+        parser = SearchParser(mapping)
+
         # "死亡時にカードを引く飛行を持つ青いクリーチャー"
         query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
-        result = query_builder.build_query(query)
-        
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
+
         # Should contain death trigger
-        assert 'o:"when ~ dies"' in result
+        assert 'o:"when ~ dies"' in result.scryfall_query
         # Should contain draw effect
-        assert 'o:"draw"' in result
+        assert 'o:"draw"' in result.scryfall_query
         # Should contain flying keyword
-        assert "keyword:flying" in result
+        assert "keyword:flying" in result.scryfall_query
         # Should contain color and type
-        assert "c:u" in result
-        assert "t:creature" in result
+        assert "c:u" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
+        # Should NOT contain Japanese particles
+        assert "する" not in result.scryfall_query
 
     def test_japanese_phase2_control_with_effect(self, query_builder):
         """Test Phase 2: control phrase combined with other search terms.
 
         Note: Complex patterns like "あなたがコントロールする〜を〜する" are Phase 3 material.
         Phase 2 focuses on trigger patterns like "死亡時に〜する".
+        Tests that Phase 1 control phrases still work.
         """
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
+        parser = SearchParser(mapping)
 
         # Simple control phrase (Phase 1 behavior preserved)
         query = "あなたがコントロールする緑のクリーチャー"
-        result = query_builder.build_query(query)
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
 
         # Should contain control phrase
-        assert 'o:"you control"' in result
+        assert 'o:"you control"' in result.scryfall_query
         # Should contain color and type
-        assert "c:g" in result
-        assert "t:creature" in result
+        assert "c:g" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
 
     def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
         """Test that Phase 2 preserves Phase 1 exact phrase matches."""
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("ja")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
-        
+        parser = SearchParser(mapping)
+
         # Phase 1 exact match should still work
         query = "死亡時黒いクリーチャー"
-        result = query_builder.build_query(query)
-        
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
+
         # Should use Phase 1 dictionary lookup
-        assert 'o:"when ~ dies"' in result
-        assert "c:b" in result
-        assert "t:creature" in result
+        assert 'o:"when ~ dies"' in result.scryfall_query
+        assert "c:b" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
 
     def test_english_queries_unaffected_by_phase2(self, query_builder):
         """Test that English queries are not affected by Phase 2 patterns."""
+        from scryfall_mcp.search.parser import SearchParser
+
         set_current_locale("en")
         mapping = get_current_mapping()
         query_builder = QueryBuilder(mapping)
+        parser = SearchParser(mapping)
 
         # English queries use Scryfall syntax directly
         query = "c:r t:creature keyword:flying"
-        result = query_builder.build_query(query)
+        parsed = parser.parse(query)
+        result = query_builder.build(parsed)
 
         # Should remain unchanged
-        assert "c:r" in result
-        assert "t:creature" in result
-        assert "keyword:flying" in result
+        assert "c:r" in result.scryfall_query
+        assert "t:creature" in result.scryfall_query
+        assert "keyword:flying" in result.scryfall_query
 
     def test_build_with_parsed_query(self, query_builder):
         """Test build() method with ParsedQuery object."""
