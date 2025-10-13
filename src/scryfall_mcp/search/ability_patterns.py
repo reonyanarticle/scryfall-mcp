@@ -10,6 +10,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ..i18n.constants import ABILITY_COLOR_TYPE_PATTERN, ABILITY_KNOWN_EFFECTS
+
 
 @dataclass
 class AbilityPattern:
@@ -119,11 +121,6 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     """
     patterns: list[AbilityPattern] = []
 
-    # Priority 1: Trigger + effect chains
-    # Use negative lookahead to stop before color/type/keyword ability keywords
-    # Stop patterns before: 白い, 白の, 青い, 青の, 黒い, 黒の, etc.
-    color_type_pattern = r"(?:白い|白の|青い|青の|黒い|黒の|赤い|赤の|緑い|緑の|無色の|無色|クリーチャー|インスタント|ソーサリー|アーティファクト|エンチャント|飛行|速攻|接死|トランプル|警戒|絆魂|呪禁|到達|威迫|瞬速|先制攻撃|二段攻撃)"
-
     # "死亡時に〜する" pattern
     def death_trigger_replacement(match: re.Match) -> list[str]:
         tokens = ['o:"when ~ dies"']
@@ -137,7 +134,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="death_trigger_with_effect",
-            pattern=re.compile(rf"死亡時に(.+?)する?(?= |{color_type_pattern}|$)"),
+            pattern=re.compile(rf"死亡時に(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
             replacement=death_trigger_replacement,
             priority=100,
         )
@@ -155,7 +152,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="etb_trigger_with_effect",
-            pattern=re.compile(rf"戦場に出たときに?(.+?)する?(?= |{color_type_pattern}|$)"),
+            pattern=re.compile(rf"戦場に出たときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
             replacement=etb_trigger_replacement,
             priority=100,
         )
@@ -173,7 +170,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="attack_trigger_with_effect",
-            pattern=re.compile(rf"攻撃したときに?(.+?)する?(?= |{color_type_pattern}|$)"),
+            pattern=re.compile(rf"攻撃したときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
             replacement=attack_trigger_replacement,
             priority=100,
         )
@@ -209,24 +206,7 @@ def _parse_effect(effect_text: str, keyword_map: dict[str, str]) -> list[str]:
         return tokens
 
     # Try partial matches for known phrases
-    known_effects = {
-        "カードを引く": 'o:"draw"',
-        "カードを1枚引く": 'o:"draw a card"',
-        "カードを2枚引く": 'o:"draw two cards"',
-        "破壊": 'o:"destroy"',
-        "破壊する": 'o:"destroy"',
-        "追放": 'o:"exile"',
-        "追放する": 'o:"exile"',
-        "生け贄": 'o:"sacrifice"',
-        "生け贄に捧げる": 'o:"sacrifice"',
-        "ライフを得る": 'o:"gain life"',
-        "ライフを失う": 'o:"lose life"',
-        "ダメージを与える": 'o:"deals damage"',
-        "トークンを生成": 'o:"create"',
-        "トークンを生成する": 'o:"create"',
-    }
-
-    for phrase, token in known_effects.items():
+    for phrase, token in ABILITY_KNOWN_EFFECTS.items():
         if phrase in effect_text:
             tokens.append(token)
 

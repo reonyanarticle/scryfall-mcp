@@ -108,6 +108,259 @@ class ScryfallAPIClient:
             await self._session.aclose()
             self._session = None
 
+    def _build_error_context(
+        self, endpoint: str, params: dict[str, Any] | None, **kwargs: Any
+    ) -> dict[str, Any]:
+        """Build error context dictionary for error handling.
+
+        Parameters
+        ----------
+        endpoint : str
+            API endpoint path
+        params : dict, optional
+            Query parameters
+        **kwargs : Any
+            Additional context fields
+
+        Returns
+        -------
+        dict
+            Error context dictionary
+        """
+        context = {
+            "query": params.get("q") if params else None,
+            "endpoint": endpoint,
+        }
+        context.update(kwargs)
+        return context
+
+    async def _execute_http_request(
+        self, method: str, url: str, params: dict[str, Any] | None
+    ) -> httpx.Response:
+        """Execute HTTP request with rate limiting and circuit breaker.
+
+        Parameters
+        ----------
+        method : str
+            HTTP method (GET, POST, etc.)
+        url : str
+            Full request URL
+        params : dict, optional
+            Query parameters
+
+        Returns
+        -------
+        httpx.Response
+            HTTP response
+
+        Raises
+        ------
+        CircuitBreakerOpenError
+            If circuit breaker is open
+        """
+        await self._rate_limiter.acquire()
+        response = await self._circuit_breaker.call(
+            self._session.request,  # type: ignore[union-attr]
+            method,
+            url,
+            params=params,
+        )
+        return response
+
+    def _should_retry(self, status_code: int, retry_count: int) -> bool:
+        """Check if error should be retried.
+
+        Parameters
+        ----------
+        status_code : int
+            HTTP status code
+        retry_count : int
+            Current retry attempt count
+
+        Returns
+        -------
+        bool
+            True if should retry, False otherwise
+        """
+        return status_code in (429, 503, 502, 504) and retry_count < self._max_retries
+
+    def _parse_error_data(self, response: httpx.Response) -> dict[str, Any]:
+        """Parse error data from HTTP response.
+
+        Parameters
+        ----------
+        response : httpx.Response
+            HTTP response
+
+        Returns
+        -------
+        dict
+            Parsed error data or empty dict
+        """
+        error_data: dict[str, Any] = {}
+        with contextlib.suppress(json.JSONDecodeError):
+            error_data = response.json()
+        return error_data
+
+    def _is_scryfall_error_object(self, error_data: dict[str, Any]) -> bool:
+        """Check if error data is a Scryfall error object.
+
+        Parameters
+        ----------
+        error_data : dict
+            Parsed error data
+
+        Returns
+        -------
+        bool
+            True if Scryfall error object, False otherwise
+        """
+        return "object" in error_data and error_data["object"] == "error"
+
+    def _build_api_error_context(
+        self,
+        status_code: int,
+        endpoint: str,
+        params: dict[str, Any] | None,
+        response: httpx.Response,
+    ) -> dict[str, Any]:
+        """Build error context for Scryfall API errors.
+
+        Parameters
+        ----------
+        status_code : int
+            HTTP status code
+        endpoint : str
+            API endpoint path
+        params : dict, optional
+            Query parameters
+        response : httpx.Response
+            HTTP response
+
+        Returns
+        -------
+        dict
+            Error context dictionary
+        """
+        context = self._build_error_context(endpoint, params, category="api_error")
+
+        if status_code == 400:
+            context["category"] = "search_syntax"
+        elif status_code == 429:
+            context["category"] = "rate_limit"
+            context["retry_after"] = response.headers.get("Retry-After", "5")
+
+        return context
+
+    async def _handle_error_response(
+        self,
+        response: httpx.Response,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None,
+        retry_count: int,
+    ) -> dict[str, Any]:
+        """Handle non-200 HTTP responses.
+
+        Parameters
+        ----------
+        response : httpx.Response
+            HTTP response
+        method : str
+            HTTP method
+        endpoint : str
+            API endpoint path
+        params : dict, optional
+            Query parameters
+        retry_count : int
+            Current retry attempt count
+
+        Returns
+        -------
+        dict
+            Parsed JSON response (if retry succeeds)
+
+        Raises
+        ------
+        ScryfallAPIError
+            If error is not retryable or max retries exceeded
+        """
+        # Parse error data
+        error_data = self._parse_error_data(response)
+
+        # Record failure for rate limiting
+        self._rate_limiter.record_failure(response.status_code)
+
+        # Handle retryable errors
+        if self._should_retry(response.status_code, retry_count):
+            logger.warning(
+                f"Retryable error {response.status_code}, "
+                f"retry {retry_count + 1}/{self._max_retries}",
+            )
+            await asyncio.sleep(2**retry_count)  # Exponential backoff
+            return await self._make_request(method, endpoint, params, retry_count + 1)
+
+        # Handle Scryfall API errors
+        if self._is_scryfall_error_object(error_data):
+            context = self._build_api_error_context(
+                response.status_code, endpoint, params, response
+            )
+            raise ScryfallAPIError(
+                error_data.get("details", f"API error: {response.status_code}"),
+                response.status_code,
+                context,
+            )
+
+        # Handle other HTTP errors
+        context = self._build_error_context(endpoint, params, category="http_error")
+        raise ScryfallAPIError(
+            f"HTTP error {response.status_code}: {response.text}",
+            response.status_code,
+            context,
+        )
+
+    async def _handle_timeout(
+        self,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None,
+        retry_count: int,
+    ) -> dict[str, Any]:
+        """Handle request timeout exceptions.
+
+        Parameters
+        ----------
+        method : str
+            HTTP method
+        endpoint : str
+            API endpoint path
+        params : dict, optional
+            Query parameters
+        retry_count : int
+            Current retry attempt count
+
+        Returns
+        -------
+        dict
+            Parsed JSON response (if retry succeeds)
+
+        Raises
+        ------
+        ScryfallAPIError
+            If max retries exceeded
+        """
+        self._rate_limiter.record_failure()
+
+        if retry_count < self._max_retries:
+            logger.warning(
+                f"Request timeout, retry {retry_count + 1}/{self._max_retries}"
+            )
+            await asyncio.sleep(2**retry_count)
+            return await self._make_request(method, endpoint, params, retry_count + 1)
+
+        context = self._build_error_context(endpoint, params, category="timeout")
+        raise ScryfallAPIError("Request timeout", 408, context) from None
+
     async def _make_request(
         self,
         method: str,
@@ -144,110 +397,35 @@ class ScryfallAPIClient:
         url = urljoin(self._base_url, endpoint)
 
         try:
-            # Apply rate limiting
-            await self._rate_limiter.acquire()
+            # Execute HTTP request with rate limiting and circuit breaker
+            response = await self._execute_http_request(method, url, params)
 
-            # Make request through circuit breaker
-            response = await self._circuit_breaker.call(
-                self._session.request,
-                method,
-                url,
-                params=params,
-            )
-
-            # Handle response
+            # Handle successful response
             if response.status_code == 200:
                 self._rate_limiter.record_success()
                 return dict(response.json())
 
-            # Handle errors
-            error_data: dict[str, Any] = {}
-            with contextlib.suppress(json.JSONDecodeError):
-                error_data = response.json()
-
-            # Record failure for rate limiting
-            self._rate_limiter.record_failure(response.status_code)
-
-            # Handle retryable errors
-            if (
-                response.status_code in (429, 503, 502, 504)
-                and retry_count < self._max_retries
-            ):
-                logger.warning(
-                    f"Retryable error {response.status_code}, "
-                    f"retry {retry_count + 1}/{self._max_retries}",
-                )
-                await asyncio.sleep(2**retry_count)  # Exponential backoff
-                return await self._make_request(
-                    method, endpoint, params, retry_count + 1
-                )
-
-            # Handle API errors
-            if "object" in error_data and error_data["object"] == "error":
-                context = {
-                    "category": "api_error",
-                    "query": params.get("q") if params else None,
-                    "endpoint": endpoint,
-                }
-                if response.status_code == 400:
-                    context["category"] = "search_syntax"
-                elif response.status_code == 429:
-                    context["category"] = "rate_limit"
-                    context["retry_after"] = response.headers.get("Retry-After", "5")
-
-                raise ScryfallAPIError(
-                    error_data.get("details", f"API error: {response.status_code}"),
-                    response.status_code,
-                    context,
-                )
-
-            # Handle other HTTP errors
-            context = {
-                "category": "http_error",
-                "query": params.get("q") if params else None,
-                "endpoint": endpoint,
-            }
-            raise ScryfallAPIError(
-                f"HTTP error {response.status_code}: {response.text}",
-                response.status_code,
-                context,
+            # Handle error responses
+            return await self._handle_error_response(
+                response, method, endpoint, params, retry_count
             )
 
         except CircuitBreakerOpenError as e:
-            context = {
-                "category": "service_unavailable",
-                "query": params.get("q") if params else None,
-            }
+            context = self._build_error_context(
+                endpoint, params, category="service_unavailable"
+            )
             raise ScryfallAPIError(
                 "Service temporarily unavailable (circuit breaker open)",
                 503,
                 context,
             ) from e
         except httpx.TimeoutException:
-            self._rate_limiter.record_failure()
-            if retry_count < self._max_retries:
-                logger.warning(
-                    f"Request timeout, retry {retry_count + 1}/{self._max_retries}"
-                )
-                await asyncio.sleep(2**retry_count)
-                return await self._make_request(
-                    method, endpoint, params, retry_count + 1
-                )
-
-            context = {
-                "category": "timeout",
-                "query": params.get("q") if params else None,
-                "endpoint": endpoint,
-            }
-            raise ScryfallAPIError("Request timeout", 408, context) from None
+            return await self._handle_timeout(method, endpoint, params, retry_count)
         except httpx.RequestError as e:
             self._rate_limiter.record_failure()
-            context = {
-                "category": "network_error",
-                "query": params.get("q") if params else None,
-                "endpoint": endpoint,
-                "error_type": type(e).__name__,
-            }
+            context = self._build_error_context(
+                endpoint, params, category="network_error", error_type=type(e).__name__
+            )
             raise ScryfallAPIError(f"Request failed: {e}", None, context) from e
 
     async def search_cards(

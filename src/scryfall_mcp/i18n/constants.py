@@ -263,6 +263,31 @@ CARD_LABELS: dict[str, dict[str, str]] = {
 }
 
 # ============================================================================
+# Ability Pattern Matching Constants (Phase 2)
+# ============================================================================
+
+# Pattern to match color/type/keyword ability keywords (stops pattern matching before these)
+ABILITY_COLOR_TYPE_PATTERN = r"(?:白い|白の|青い|青の|黒い|黒の|赤い|赤の|緑い|緑の|無色の|無色|クリーチャー|インスタント|ソーサリー|アーティファクト|エンチャント|飛行|速攻|接死|トランプル|警戒|絆魂|呪禁|到達|威迫|瞬速|先制攻撃|二段攻撃)"
+
+# Known effect phrases for Phase 2 pattern matching
+ABILITY_KNOWN_EFFECTS: dict[str, str] = {
+    "カードを引く": 'o:"draw"',
+    "カードを1枚引く": 'o:"draw a card"',
+    "カードを2枚引く": 'o:"draw two cards"',
+    "破壊": 'o:"destroy"',
+    "破壊する": 'o:"destroy"',
+    "追放": 'o:"exile"',
+    "追放する": 'o:"exile"',
+    "生け贄": 'o:"sacrifice"',
+    "生け贄に捧げる": 'o:"sacrifice"',
+    "ライフを得る": 'o:"gain life"',
+    "ライフを失う": 'o:"lose life"',
+    "ダメージを与える": 'o:"deals damage"',
+    "トークンを生成": 'o:"create"',
+    "トークンを生成する": 'o:"create"',
+}
+
+# ============================================================================
 # Query Explanation Mappings (for processor)
 # ============================================================================
 

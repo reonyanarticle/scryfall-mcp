@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from ..settings import get_settings
+from ..settings import MAX_BACKOFF_SECONDS, get_settings
 
 
 class RateLimiter:
@@ -35,10 +35,8 @@ class RateLimiter:
         self._last_request_time: float = 0.0
         self._backoff_until: float = 0.0
         self._consecutive_failures: int = 0
-        self._max_backoff_seconds: float = 300.0  # 5 minutes max
-        self._lock = (
-            asyncio.Lock()
-        )  # Protect shared state from concurrent access  # 5 minutes max
+        self._max_backoff_seconds: float = MAX_BACKOFF_SECONDS
+        self._lock = asyncio.Lock()  # Protect shared state from concurrent access
 
     async def acquire(self) -> None:
         """Acquire permission to make a request.

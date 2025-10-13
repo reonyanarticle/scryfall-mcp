@@ -18,6 +18,12 @@ Magic: The GatheringのカードデータをMCP (Model Context Protocol)経由�
 - **docstring必須**: Numpy styleで記載
 - **非同期処理**: すべてのI/O処理はasync/await
 - **早期リターン推奨**: 深いネスト回避
+- **言語依存ファイル命名規則**: 言語コードを拡張子として使用
+  - 形式: `{base_name}.{language_code}`
+  - 例: `setup_guide.ja` (日本語), `setup_guide.en` (英語)
+  - フォールバック: デフォルト言語ファイル（拡張子なし）または`.ja`
+  - 実装: `Path(__file__).parent / f"setup_guide.{language}"`
+  - 目的: 言語別リソースの管理を簡潔化し、ファイル命名の一貫性を保つ
 
 ### ドキュメント方針
 - **動的情報は記載しない**: テスト数、カバレッジ率、コミットハッシュ、日付などの変動する情報は記載しない
