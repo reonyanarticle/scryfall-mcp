@@ -46,6 +46,17 @@ class QueryBuilder:
             Language-specific mappings for query building
         """
         self._mapping = locale_mapping
+        
+        # Initialize pattern matcher for Japanese (Phase 2)
+        self._pattern_matcher = None
+        if locale_mapping.language_code == "ja":
+            from .ability_patterns import (
+                AbilityPatternMatcher,
+                create_japanese_patterns,
+            )
+            
+            patterns = create_japanese_patterns(locale_mapping.search_keywords)
+            self._pattern_matcher = AbilityPatternMatcher(patterns)
 
     def build(self, parsed: ParsedQuery) -> BuiltQuery:
         """Build Scryfall query from parsed data.
@@ -108,9 +119,27 @@ class QueryBuilder:
 
             manager = get_locale_manager()
             self._mapping = manager.get_mapping(locale)
+            
+            # Re-initialize pattern matcher if locale changed to Japanese
+            if self._mapping.language_code == "ja":
+                from .ability_patterns import (
+                    AbilityPatternMatcher,
+                    create_japanese_patterns,
+                )
+                
+                patterns = create_japanese_patterns(self._mapping.search_keywords)
+                self._pattern_matcher = AbilityPatternMatcher(patterns)
+            else:
+                self._pattern_matcher = None
 
         # Clean and normalize the input
         normalized_text = self._normalize_text(text)
+        
+        # Phase 2: Apply pattern matching FIRST (before other conversions)
+        # This prevents other conversions from interfering with pattern matching
+        ability_tokens: list[str] = []
+        if self._pattern_matcher is not None:
+            normalized_text, ability_tokens = self._pattern_matcher.apply(normalized_text)
 
         # Process the text through various conversion steps
         # IMPORTANT: _convert_operators must run before _convert_basic_terms
@@ -121,6 +150,11 @@ class QueryBuilder:
         query = self._convert_basic_terms(query)
         query = self._convert_card_names(query)
         query = self._convert_phrases(query)
+        
+        # Add ability tokens from pattern matching
+        if ability_tokens:
+            query = f"{query} {' '.join(ability_tokens)}"
+        
         query = self._clean_query(query)
 
         return query
@@ -356,7 +390,10 @@ class QueryBuilder:
         return text
 
     def _convert_phrases(self, text: str) -> str:
-        """Convert common phrases.
+        """Convert common phrases using dictionary replacements.
+        
+        Note: Pattern matching (Phase 2) is now handled in build_query() 
+        before this method is called.
 
         Parameters
         ----------
@@ -368,10 +405,11 @@ class QueryBuilder:
         str
             Text with converted phrases
         """
+        # Dictionary-based replacement (Phase 1)
         for phrase, replacement in self._mapping.phrases.items():
             if replacement:  # Only replace if there's a mapping
                 text = text.replace(phrase, replacement)
-
+        
         return text
 
     def _clean_query(self, query: str) -> str:

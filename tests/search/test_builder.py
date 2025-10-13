@@ -637,6 +637,130 @@ class TestQueryBuilder:
         assert 'o:"you control"' in result
         assert "t:creature" in result
 
+    def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
+        """Test Phase 2: death trigger with effect - Issue #4 Phase 2."""
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+        
+        # "死亡時にカードを1枚引く黒いクリーチャー"
+        query = "死亡時にカードを1枚引く黒いクリーチャー"
+        result = query_builder.build_query(query)
+        
+        # Should contain death trigger
+        assert 'o:"when ~ dies"' in result
+        # Should contain draw effect
+        assert ('o:"draw a card"' in result or 'o:"draw"' in result)
+        # Should contain color and type
+        assert "c:b" in result
+        assert "t:creature" in result
+
+    def test_japanese_phase2_etb_with_effect(self, query_builder):
+        """Test Phase 2: ETB trigger with effect - Issue #4 Phase 2."""
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+        
+        # "戦場に出たときにトークンを生成する白いクリーチャー"
+        query = "戦場に出たときにトークンを生成する白いクリーチャー"
+        result = query_builder.build_query(query)
+        
+        # Should contain ETB trigger
+        assert 'o:"enters the battlefield"' in result
+        # Should contain create effect
+        assert 'o:"create"' in result
+        # Should contain color and type
+        assert "c:w" in result
+        assert "t:creature" in result
+
+    def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
+        """Test Phase 2: attack trigger with effect - Issue #4 Phase 2."""
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+        
+        # "攻撃したときにダメージを与える赤いクリーチャー"
+        query = "攻撃したときにダメージを与える赤いクリーチャー"
+        result = query_builder.build_query(query)
+        
+        # Should contain attack trigger
+        assert 'o:"whenever ~ attacks"' in result
+        # Should contain damage effect
+        assert 'o:"deals damage"' in result
+        # Should contain color and type
+        assert "c:r" in result
+        assert "t:creature" in result
+
+    def test_japanese_phase2_complex_multi_ability(self, query_builder):
+        """Test Phase 2: complex query with multiple abilities."""
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+        
+        # "死亡時にカードを引く飛行を持つ青いクリーチャー"
+        query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
+        result = query_builder.build_query(query)
+        
+        # Should contain death trigger
+        assert 'o:"when ~ dies"' in result
+        # Should contain draw effect
+        assert 'o:"draw"' in result
+        # Should contain flying keyword
+        assert "keyword:flying" in result
+        # Should contain color and type
+        assert "c:u" in result
+        assert "t:creature" in result
+
+    def test_japanese_phase2_control_with_effect(self, query_builder):
+        """Test Phase 2: control phrase combined with other search terms.
+
+        Note: Complex patterns like "あなたがコントロールする〜を〜する" are Phase 3 material.
+        Phase 2 focuses on trigger patterns like "死亡時に〜する".
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Simple control phrase (Phase 1 behavior preserved)
+        query = "あなたがコントロールする緑のクリーチャー"
+        result = query_builder.build_query(query)
+
+        # Should contain control phrase
+        assert 'o:"you control"' in result
+        # Should contain color and type
+        assert "c:g" in result
+        assert "t:creature" in result
+
+    def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
+        """Test that Phase 2 preserves Phase 1 exact phrase matches."""
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+        
+        # Phase 1 exact match should still work
+        query = "死亡時黒いクリーチャー"
+        result = query_builder.build_query(query)
+        
+        # Should use Phase 1 dictionary lookup
+        assert 'o:"when ~ dies"' in result
+        assert "c:b" in result
+        assert "t:creature" in result
+
+    def test_english_queries_unaffected_by_phase2(self, query_builder):
+        """Test that English queries are not affected by Phase 2 patterns."""
+        set_current_locale("en")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # English queries use Scryfall syntax directly
+        query = "c:r t:creature keyword:flying"
+        result = query_builder.build_query(query)
+
+        # Should remain unchanged
+        assert "c:r" in result
+        assert "t:creature" in result
+        assert "keyword:flying" in result
+
     def test_build_with_parsed_query(self, query_builder):
         """Test build() method with ParsedQuery object."""
         from scryfall_mcp.models import ParsedQuery

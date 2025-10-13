@@ -164,6 +164,9 @@ class SearchProcessor:
         str
             Human-readable explanation
         """
+        from ..i18n.constants import QUERY_EXPLANATION_MAPPINGS
+
+        mappings = QUERY_EXPLANATION_MAPPINGS[self._mapping.language_code]
         parts = []
 
         # Parse different parts of the query
@@ -173,92 +176,36 @@ class SearchProcessor:
         toughness_matches = re.findall(r"tou([<>=!]+)(\d+)", query, re.IGNORECASE)
         mana_matches = re.findall(r"(mv|cmc)([<>=!]+)(\d+)", query, re.IGNORECASE)
 
-        if self._mapping.language_code == "ja":
-            if color_matches:
-                color_names = {
-                    "w": "白",
-                    "u": "青",
-                    "b": "黒",
-                    "r": "赤",
-                    "g": "緑",
-                    "c": "無色",
-                }
-                colors = [
-                    color_names.get(c, c) for match in color_matches for c in match
-                ]
-                parts.append(f"色: {', '.join(colors)}")
-
-            if type_matches:
-                type_names = {
-                    "creature": "クリーチャー",
-                    "artifact": "アーティファクト",
-                    "enchantment": "エンチャント",
-                    "instant": "インスタント",
-                    "sorcery": "ソーサリー",
-                    "land": "土地",
-                    "planeswalker": "プレインズウォーカー",
-                }
-                types = [type_names.get(t.lower(), t) for t in type_matches]
-                parts.append(f"タイプ: {', '.join(types)}")
-
-            if power_matches:
-                for op, val in power_matches:
-                    op_name = {
-                        ">=": "以上",
-                        "<=": "以下",
-                        ">": "より大きい",
-                        "<": "未満",
-                        "=": "等しい",
-                    }.get(op, op)
-                    parts.append(f"パワー{val}{op_name}")
-
-            if toughness_matches:
-                for op, val in toughness_matches:
-                    op_name = {
-                        ">=": "以上",
-                        "<=": "以下",
-                        ">": "より大きい",
-                        "<": "未満",
-                        "=": "等しい",
-                    }.get(op, op)
-                    parts.append(f"タフネス{val}{op_name}")
-
-            if mana_matches:
-                for field, op, val in mana_matches:
-                    field_name = {"mv": "マナ総量", "cmc": "点数で見たマナコスト"}.get(
-                        field, field
-                    )
-                    op_name = {
-                        ">=": "以上",
-                        "<=": "以下",
-                        ">": "より大きい",
-                        "<": "未満",
-                        "=": "等しい",
-                    }.get(op, op)
-                    parts.append(f"{field_name}{val}{op_name}")
-
-            return "、".join(parts) if parts else "一般的な検索"
-
+        # Colors
         if color_matches:
-            colors = [c.upper() for match in color_matches for c in match]
-            parts.append(f"Colors: {', '.join(colors)}")
+            colors = [
+                mappings["colors"].get(c, c) for match in color_matches for c in match
+            ]
+            parts.append(f"{mappings['labels']['colors']}: {', '.join(colors)}")
 
+        # Types
         if type_matches:
-            parts.append(f"Types: {', '.join(type_matches)}")
+            types = [mappings["types"].get(t.lower(), t) for t in type_matches]
+            parts.append(f"{mappings['labels']['types']}: {', '.join(types)}")
 
+        # Power
         if power_matches:
             for op, val in power_matches:
-                parts.append(f"Power {op} {val}")
+                op_name = mappings["operators"].get(op, op)
+                parts.append(f"{mappings['labels']['power']}{val}{op_name}")
 
+        # Toughness
         if toughness_matches:
             for op, val in toughness_matches:
-                parts.append(f"Toughness {op} {val}")
+                op_name = mappings["operators"].get(op, op)
+                parts.append(f"{mappings['labels']['toughness']}{val}{op_name}")
 
+        # Mana value
         if mana_matches:
             for field, op, val in mana_matches:
-                field_name = {"mv": "Mana Value", "cmc": "CMC"}.get(
-                    field, field.upper()
-                )
-                parts.append(f"{field_name} {op} {val}")
+                field_name = mappings["fields"].get(field, field)
+                op_name = mappings["operators"].get(op, op)
+                parts.append(f"{field_name}{val}{op_name}")
 
-        return ", ".join(parts) if parts else "General search"
+        separator = "、" if self._mapping.language_code == "ja" else ", "
+        return separator.join(parts) if parts else mappings["labels"]["general_search"]
