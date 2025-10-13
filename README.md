@@ -9,6 +9,8 @@ Scryfall MCP Serverは、Magic: The Gatheringのカード検索と情報取得�
 ## 主要機能
 
 - **自然言語カード検索**: 日本語・英語での自然な検索クエリに対応
+  - **能力フレーズ検索**: 「死亡時」「戦場に出たとき」などの複雑な能力フレーズに対応
+  - **キーワード能力検索**: 「飛行」「速攻」などのキーワード能力に対応
 - **MCP準拠の構造化出力**: TextContent、EmbeddedResourceによる高品質なデータ提供
 - **リアルタイム進捗報告**: FastMCP Context注入による詳細なログとプログレス通知
 - **レート制限**: Scryfall API制限に準拠した安全なリクエスト管理（スレッドセーフ実装）
@@ -111,6 +113,11 @@ Claude Desktop で以下のように質問できます。
 「赤いクリーチャーを検索して」
 「稲妻のカード情報を教えて」
 
+# 能力フレーズでの検索（自然言語対応）
+「死亡時にカードを引くクリーチャーを探して」
+「戦場に出たときに効果がある緑のクリーチャーを教えて」
+「飛行を持つあなたがコントロールするクリーチャーを検索」
+
 # 英語での検索
 "Search for blue counterspells"
 "Find Lightning Bolt card details"
@@ -142,6 +149,16 @@ search_cards(query="白いクリーチャー", language="ja")
 
 # フォーマット指定検索
 search_cards(query="青いカウンター", format_filter="standard")
+
+# 能力フレーズでの検索（Issue #4対応）
+search_cards(query="死亡時黒いクリーチャー", language="ja")
+# -> "死亡時" が 'o:"when ~ dies"' に変換され、黒いクリーチャーを検索
+
+search_cards(query="戦場に出たとき緑のクリーチャー", language="ja")
+# -> ETB (Enters the Battlefield) トリガーを持つ緑のクリーチャーを検索
+
+search_cards(query="飛行を持つあなたがコントロールするクリーチャー", language="ja")
+# -> キーワード能力と能力フレーズを組み合わせた複雑なクエリに対応
 ```
 
 ### 自動補完

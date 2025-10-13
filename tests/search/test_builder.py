@@ -478,6 +478,165 @@ class TestQueryBuilder:
                 f"Expected '{expected}' for variation '{variation}', but got: {result}"
             )
 
+    def test_japanese_ability_phrases_death_trigger(self, query_builder):
+        """Test death trigger ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests death trigger phrases combined with colors and types.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test death trigger phrases
+        test_cases = [
+            ("死亡時黒いクリーチャー", ['o:"when ~ dies"', "c:b", "t:creature"]),
+            ("死亡したとき緑のクリーチャー", ['o:"when ~ dies"', "c:g", "t:creature"]),
+            ("墓地に置かれたとき赤いクリーチャー", ['o:"when ~ dies"', "c:r", "t:creature"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_ability_phrases_etb(self, query_builder):
+        """Test ETB ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests ETB (enters the battlefield) phrases.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test ETB phrases
+        test_cases = [
+            ("戦場に出たとき白いクリーチャー", ['o:"enters the battlefield"', "c:w", "t:creature"]),
+            ("戦場を離れたとき青いクリーチャー", ['o:"leaves the battlefield"', "c:u", "t:creature"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_ability_phrases_control(self, query_builder):
+        """Test control-related ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests control-related phrases.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test control phrases
+        test_cases = [
+            ("あなたがコントロールする緑のクリーチャー", ['o:"you control"', "c:g", "t:creature"]),
+            ("対戦相手がコントロールする黒いクリーチャー", ['o:"opponent controls"', "c:b", "t:creature"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_ability_phrases_effects(self, query_builder):
+        """Test common effect ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests common effect phrases like draw, destroy, exile.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test effect phrases
+        test_cases = [
+            ("カードを引く青いクリーチャー", ['o:"draw"', "c:u", "t:creature"]),
+            ("カードを1枚引く青いインスタント", ['o:"draw a card"', "c:u", "t:instant"]),
+            ("破壊黒いインスタント", ['o:"destroy"', "c:b", "t:instant"]),
+            ("追放白いソーサリー", ['o:"exile"', "c:w", "t:sorcery"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_ability_phrases_targeting(self, query_builder):
+        """Test targeting ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests targeting phrases.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Test targeting phrases
+        test_cases = [
+            ("クリーチャーを対象とする赤いインスタント", ['o:"target creature"', "c:r", "t:instant"]),
+            ("プレイヤーを対象とする赤いソーサリー", ['o:"target player"', "c:r", "t:sorcery"]),
+        ]
+
+        for input_query, expected_parts in test_cases:
+            result = query_builder.build_query(input_query)
+            for expected_part in expected_parts:
+                assert expected_part in result, (
+                    f"Expected '{expected_part}' in result for query '{input_query}', "
+                    f"but got: {result}"
+                )
+
+    def test_japanese_complex_ability_query(self, query_builder):
+        """Test complex queries with ability phrases - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Phase 1: Individual ability phrases are supported.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Phase 1: Individual phrases work
+        query = "死亡時黒いクリーチャー"
+        result = query_builder.build_query(query)
+        assert 'o:"when ~ dies"' in result
+        assert "c:b" in result
+        assert "t:creature" in result
+
+    def test_japanese_ability_phrases_with_keywords(self, query_builder):
+        """Test ability phrases combined with keyword abilities - Issue #4.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests combining ability phrases with keyword abilities from Issue #2.
+        """
+        set_current_locale("ja")
+        mapping = get_current_mapping()
+        query_builder = QueryBuilder(mapping)
+
+        # Combine ability phrase with keyword ability
+        query = "飛行を持つあなたがコントロールするクリーチャー"
+        result = query_builder.build_query(query)
+
+        # Should contain both keyword and ability phrase
+        assert "keyword:flying" in result
+        assert 'o:"you control"' in result
+        assert "t:creature" in result
+
     def test_build_with_parsed_query(self, query_builder):
         """Test build() method with ParsedQuery object."""
         from scryfall_mcp.models import ParsedQuery

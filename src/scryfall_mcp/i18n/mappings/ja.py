@@ -258,6 +258,39 @@ class JapaneseMapping(LanguageMapping):
                 "以上": ">=",
                 "含む": ":",
                 "含まない": "-",
+                # Ability phrases - Issue #4: 長文クエリ対応
+                # 1. Trigger abilities (トリガー能力)
+                "死亡時": 'o:"when ~ dies"',
+                "死亡したとき": 'o:"when ~ dies"',
+                "墓地に置かれたとき": 'o:"when ~ dies"',
+                "戦場に出たとき": 'o:"enters the battlefield"',
+                "戦場を離れたとき": 'o:"leaves the battlefield"',
+                "攻撃したとき": 'o:"whenever ~ attacks"',
+                "ブロックしたとき": 'o:"whenever ~ blocks"',
+                "ダメージを与えたとき": 'o:"whenever ~ deals damage"',
+                # 2. Control-related (コントロール関連)
+                "あなたがコントロールする": 'o:"you control"',
+                "対戦相手がコントロールする": 'o:"opponent controls"',
+                "対戦相手を対象とする": 'o:"target opponent"',
+                # 3. Common effects (一般的な効果)
+                "カードを引く": 'o:"draw"',
+                "カードを1枚引く": 'o:"draw a card"',
+                "カードを2枚引く": 'o:"draw two cards"',
+                "破壊": 'o:"destroy"',
+                "破壊する": 'o:"destroy"',
+                "追放": 'o:"exile"',
+                "追放する": 'o:"exile"',
+                "生け贄": 'o:"sacrifice"',
+                "生け贄に捧げる": 'o:"sacrifice"',
+                "ライフを得る": 'o:"gain life"',
+                "ライフを失う": 'o:"lose life"',
+                "ダメージを与える": 'o:"deals damage"',
+                "ダメージを受ける": 'o:"damage"',
+                # 4. Targeting (ターゲティング)
+                "クリーチャーを対象とする": 'o:"target creature"',
+                "プレイヤーを対象とする": 'o:"target player"',
+                "パーマネントを対象とする": 'o:"target permanent"',
+                "呪文を対象とする": 'o:"target spell"',
             },
             phrases={
                 # Common search phrases
