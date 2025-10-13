@@ -30,8 +30,8 @@ class AbilityPattern:
     """
 
     name: str
-    pattern: re.Pattern
-    replacement: Callable[[re.Match], list[str]]
+    pattern: re.Pattern[str]
+    replacement: Callable[[re.Match[str]], list[str]]
     priority: int = 0
 
 
@@ -122,7 +122,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns: list[AbilityPattern] = []
 
     # "死亡時に〜する" pattern
-    def death_trigger_replacement(match: re.Match) -> list[str]:
+    def death_trigger_replacement(match: re.Match[str]) -> list[str]:
         tokens = ['o:"when ~ dies"']
         effect = match.group(1).strip()
         if effect:
@@ -141,7 +141,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     )
 
     # "戦場に出たときに〜する" pattern
-    def etb_trigger_replacement(match: re.Match) -> list[str]:
+    def etb_trigger_replacement(match: re.Match[str]) -> list[str]:
         tokens = ['o:"enters the battlefield"']
         effect = match.group(1).strip()
         if effect:
@@ -159,7 +159,7 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     )
 
     # "攻撃したときに〜する" pattern
-    def attack_trigger_replacement(match: re.Match) -> list[str]:
+    def attack_trigger_replacement(match: re.Match[str]) -> list[str]:
         tokens = ['o:"whenever ~ attacks"']
         effect = match.group(1).strip()
         if effect:

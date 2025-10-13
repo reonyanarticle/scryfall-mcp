@@ -10,7 +10,7 @@ import asyncio
 import contextlib
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -165,7 +165,7 @@ class ScryfallAPIClient:
             url,
             params=params,
         )
-        return response
+        return cast("httpx.Response", response)
 
     def _should_retry(self, status_code: int, retry_count: int) -> bool:
         """Check if error should be retried.

@@ -10,7 +10,7 @@ import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastmcp import Context, FastMCP
 from mcp.types import EmbeddedResource, ImageContent, TextContent
@@ -38,7 +38,7 @@ async def _handle_tool_error(
     error: Exception,
     tool_name: str,
     language: str | None = None,
-) -> list[TextContent]:
+) -> list[TextContent | ImageContent | EmbeddedResource]:
     """Handle tool execution errors with logging and localized messages.
 
     Parameters
@@ -54,7 +54,7 @@ async def _handle_tool_error(
 
     Returns
     -------
-    list[TextContent]
+    list[TextContent | ImageContent | EmbeddedResource]
         Error message as MCP text content
     """
     await ctx.error(f"Error in {tool_name}: {error}")
@@ -241,7 +241,7 @@ class ScryfallMCPServer:
             ctx: Context,
             query: str,
             language: str | None = None,
-        ) -> list[TextContent]:
+        ) -> list[TextContent | ImageContent | EmbeddedResource]:
             """Get card name autocompletion suggestions.
 
             Parameters
@@ -255,7 +255,7 @@ class ScryfallMCPServer:
 
             Returns
             -------
-            list[TextContent]
+            list[TextContent | ImageContent | EmbeddedResource]
                 List of MCP text content with suggestions
             """
             await ctx.info(f"Autocomplete called: query='{query}', language={language}")
@@ -270,7 +270,7 @@ class ScryfallMCPServer:
             try:
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
-                return result
+                return cast("list[TextContent | ImageContent | EmbeddedResource]", result)
             except Exception as e:
                 return await _handle_tool_error(ctx, e, "autocomplete", language)
 
