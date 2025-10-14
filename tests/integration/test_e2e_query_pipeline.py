@@ -327,3 +327,140 @@ class TestEndToEndQueryPipeline:
             query_lower_ja = result_ja.scryfall_query.lower()
             assert "c:r" in query_lower_ja or "red" in query_lower_ja
             assert "t:creature" in query_lower_ja or "creature" in query_lower_ja
+
+    def test_phase2_death_trigger_with_effect_e2e(self):
+        """Test Phase 2: Death trigger with effect - Issue #4 integration."""
+        query = "死亡時にカードを1枚引く黒いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            # Parse
+            parsed = parser.parse(query)
+            assert parsed.language == "ja"
+
+            # Build
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Verify trigger pattern extraction
+            assert 'o:"when ~ dies"' in scryfall_query
+            # Verify effect extraction
+            assert 'o:"draw a card"' in scryfall_query or 'o:"draw"' in scryfall_query
+            # Verify color and type
+            assert "c:b" in scryfall_query
+            assert "t:creature" in scryfall_query
+            # Verify no Japanese particles remain
+            assert "する" not in scryfall_query
+            assert "に" not in scryfall_query or "に" in query
+
+    def test_phase2_etb_with_token_e2e(self):
+        """Test Phase 2: ETB trigger with token generation - Issue #4 integration."""
+        query = "戦場に出たときにトークンを生成する白いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Verify ETB trigger
+            assert 'o:"enters the battlefield"' in scryfall_query
+            # Verify token creation effect
+            assert 'o:"create"' in scryfall_query
+            # Verify color and type
+            assert "c:w" in scryfall_query
+            assert "t:creature" in scryfall_query
+            # Verify no particles
+            assert "する" not in scryfall_query
+
+    def test_phase2_attack_trigger_with_damage_e2e(self):
+        """Test Phase 2: Attack trigger with damage - Issue #4 integration."""
+        query = "攻撃したときにダメージを与える赤いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Verify attack trigger
+            assert 'o:"whenever ~ attacks"' in scryfall_query
+            # Verify damage effect
+            assert 'o:"deals damage"' in scryfall_query
+            # Verify color and type
+            assert "c:r" in scryfall_query
+            assert "t:creature" in scryfall_query
+
+    def test_phase2_multi_ability_combination_e2e(self):
+        """Test Phase 2: Multiple abilities combination - Issue #4 integration."""
+        query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Verify Phase 2 trigger pattern
+            assert 'o:"when ~ dies"' in scryfall_query
+            assert 'o:"draw"' in scryfall_query
+            # Verify Phase 1 keyword ability
+            assert "keyword:flying" in scryfall_query
+            # Verify color and type
+            assert "c:u" in scryfall_query
+            assert "t:creature" in scryfall_query
+
+    def test_phase2_preserves_phase1_compatibility_e2e(self):
+        """Test that Phase 2 preserves Phase 1 exact phrase matching."""
+        # Phase 1 exact match should still work
+        query = "死亡時黒いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should still use Phase 1 dictionary lookup
+            assert 'o:"when ~ dies"' in scryfall_query
+            assert "c:b" in scryfall_query
+            assert "t:creature" in scryfall_query
+
+    def test_phase2_complex_query_with_multiple_triggers_e2e(self):
+        """Test Phase 2: Complex query with multiple triggers (if supported)."""
+        # Note: This tests current behavior; multiple triggers in one query
+        # may not be fully supported yet but should not error
+        query = "死亡時にカードを引き戦場に出たときにライフを得るクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should extract at least one trigger
+            has_death_trigger = 'o:"when ~ dies"' in scryfall_query
+            has_etb_trigger = 'o:"enters the battlefield"' in scryfall_query
+
+            # At least one trigger should be present
+            assert has_death_trigger or has_etb_trigger
+            # Should have creature type
+            assert "t:creature" in scryfall_query

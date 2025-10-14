@@ -382,6 +382,84 @@ class TestJapaneseMapping:
         assert keywords["護法を持つ"] == "keyword:ward"
         assert keywords["護法持ち"] == "keyword:ward"
 
+    def test_japanese_ability_phrases_triggers(self):
+        """Test Japanese ability phrase mappings - Trigger abilities.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests trigger ability phrases.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Death triggers
+        assert keywords["死亡時"] == 'o:"when ~ dies"'
+        assert keywords["死亡したとき"] == 'o:"when ~ dies"'
+        assert keywords["墓地に置かれたとき"] == 'o:"when ~ dies"'
+
+        # ETB/LTB triggers
+        assert keywords["戦場に出たとき"] == 'o:"enters the battlefield"'
+        assert keywords["戦場を離れたとき"] == 'o:"leaves the battlefield"'
+
+        # Combat triggers
+        assert keywords["攻撃したとき"] == 'o:"whenever ~ attacks"'
+        assert keywords["ブロックしたとき"] == 'o:"whenever ~ blocks"'
+        assert keywords["ダメージを与えたとき"] == 'o:"whenever ~ deals damage"'
+
+    def test_japanese_ability_phrases_control(self):
+        """Test Japanese ability phrase mappings - Control-related.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests control-related phrases.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Control phrases
+        assert keywords["あなたがコントロールする"] == 'o:"you control"'
+        assert keywords["対戦相手がコントロールする"] == 'o:"opponent controls"'
+        assert keywords["対戦相手を対象とする"] == 'o:"target opponent"'
+
+    def test_japanese_ability_phrases_effects(self):
+        """Test Japanese ability phrase mappings - Common effects.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests common effect phrases.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Draw effects
+        assert keywords["カードを引く"] == 'o:"draw"'
+        assert keywords["カードを1枚引く"] == 'o:"draw a card"'
+        assert keywords["カードを2枚引く"] == 'o:"draw two cards"'
+
+        # Removal effects
+        assert keywords["破壊"] == 'o:"destroy"'
+        assert keywords["破壊する"] == 'o:"destroy"'
+        assert keywords["追放"] == 'o:"exile"'
+        assert keywords["追放する"] == 'o:"exile"'
+        assert keywords["生け贄"] == 'o:"sacrifice"'
+        assert keywords["生け贄に捧げる"] == 'o:"sacrifice"'
+
+        # Life effects
+        assert keywords["ライフを得る"] == 'o:"gain life"'
+        assert keywords["ライフを失う"] == 'o:"lose life"'
+
+        # Damage effects
+        assert keywords["ダメージを与える"] == 'o:"deals damage"'
+        assert keywords["ダメージを受ける"] == 'o:"damage"'
+
+    def test_japanese_ability_phrases_targeting(self):
+        """Test Japanese ability phrase mappings - Targeting.
+
+        Tests implementation of Issue #4: 長文クエリ対応
+        Tests targeting phrases.
+        """
+        keywords = japanese_mapping.search_keywords
+
+        # Targeting phrases
+        assert keywords["クリーチャーを対象とする"] == 'o:"target creature"'
+        assert keywords["プレイヤーを対象とする"] == 'o:"target player"'
+        assert keywords["パーマネントを対象とする"] == 'o:"target permanent"'
+        assert keywords["呪文を対象とする"] == 'o:"target spell"'
+
 
 class TestMappingValidation:
     """Test mapping validation and consistency."""

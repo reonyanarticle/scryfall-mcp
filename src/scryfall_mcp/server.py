@@ -10,7 +10,7 @@ import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastmcp import Context, FastMCP
 from mcp.types import EmbeddedResource, ImageContent, TextContent
@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 from .api.client import close_client
 from .i18n import detect_and_set_locale, get_locale_manager
+from .resources import load_setup_guide
 from .settings import get_settings
 from .tools.search import AutocompleteTool, CardSearchTool
 
@@ -30,6 +31,49 @@ logging.basicConfig(
     stream=sys.stderr,  # MCP uses stdout for communication
 )
 logger = logging.getLogger(__name__)
+
+
+async def _handle_tool_error(
+    ctx: Context,
+    error: Exception,
+    tool_name: str,
+    language: str | None = None,
+) -> list[TextContent | ImageContent | EmbeddedResource]:
+    """Handle tool execution errors with logging and localized messages.
+
+    Parameters
+    ----------
+    ctx : Context
+        FastMCP context for error reporting
+    error : Exception
+        The exception that occurred
+    tool_name : str
+        Name of the tool that errored
+    language : str | None, optional
+        Language code for error message
+
+    Returns
+    -------
+    list[TextContent | ImageContent | EmbeddedResource]
+        Error message as MCP text content
+    """
+    await ctx.error(f"Error in {tool_name}: {error}")
+    logger.exception(f"Error in {tool_name}")
+
+    # Localized error messages
+    if language == "ja":
+        error_messages = {
+            "search_cards": f"検索エラー: {error}",
+            "autocomplete": f"オートコンプリートエラー: {error}",
+        }
+    else:
+        error_messages = {
+            "search_cards": f"Search error: {error}",
+            "autocomplete": f"Autocomplete error: {error}",
+        }
+
+    error_msg = error_messages.get(tool_name, f"Error in {tool_name}: {error}")
+    return [TextContent(type="text", text=error_msg)]
 
 
 @asynccontextmanager
@@ -96,33 +140,7 @@ class ScryfallMCPServer:
             str
                 Complete setup instructions for configuring SCRYFALL_MCP_USER_AGENT
             """
-            return (
-                "🔧 **Scryfall API 初回セットアップ**\n\n"
-                "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
-                "**1. Claude Desktop設定ファイルを開く**\n"
-                "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
-                "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                "**2. 以下の内容を追加**\n"
-                "```json\n"
-                "{\n"
-                '  "mcpServers": {\n'
-                '    "scryfall": {\n'
-                '      "command": "uv",\n'
-                '      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],\n'
-                '      "env": {\n'
-                '        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n'
-                "      }\n"
-                "    }\n"
-                "  }\n"
-                "}\n"
-                "```\n\n"
-                "**3. プレースホルダーを実際の値に置き換え**\n"
-                "- `your-email@example.com` → 実際のメールアドレス\n"
-                "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
-                "**4. Claude Desktopを再起動**\n\n"
-                "設定完了後、再度カード検索をお試しください。\n\n"
-                "詳細情報: https://scryfall.com/docs/api"
-            )
+            return load_setup_guide(language="ja")
 
     def _setup_resources(self) -> None:
         """Set up MCP resources using fastmcp decorators."""
@@ -136,33 +154,7 @@ class ScryfallMCPServer:
             str
                 Complete setup instructions with configuration examples
             """
-            return (
-                "🔧 **Scryfall API 初回セットアップ**\n\n"
-                "Scryfall APIをご利用いただくには、以下の設定を行ってください：\n\n"
-                "**1. Claude Desktop設定ファイルを開く**\n"
-                "- macOS/Linux: `~/Library/Application Support/Claude/claude_desktop_config.json`\n"
-                "- Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`\n\n"
-                "**2. 以下の内容を追加**\n"
-                "```json\n"
-                "{\n"
-                '  "mcpServers": {\n'
-                '    "scryfall": {\n'
-                '      "command": "uv",\n'
-                '      "args": ["--directory", "/path/to/scryfall-mcp", "run", "scryfall-mcp"],\n'
-                '      "env": {\n'
-                '        "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n'
-                "      }\n"
-                "    }\n"
-                "  }\n"
-                "}\n"
-                "```\n\n"
-                "**3. プレースホルダーを実際の値に置き換え**\n"
-                "- `your-email@example.com` → 実際のメールアドレス\n"
-                "- `/path/to/scryfall-mcp` → 実際のインストールパス\n\n"
-                "**4. Claude Desktopを再起動**\n\n"
-                "設定完了後、再度カード検索をお試しください。\n\n"
-                "詳細情報: https://scryfall.com/docs/api"
-            )
+            return load_setup_guide(language="ja")
 
     def _setup_tools(self) -> None:
         """Set up MCP tools using fastmcp decorators."""
@@ -241,12 +233,7 @@ class ScryfallMCPServer:
                 await ctx.report_progress(100, 100, "Search complete")
                 return result
             except Exception as e:
-                await ctx.error(f"Error in search_cards: {e}")
-                logger.exception("Error in search_cards")
-                error_msg = (
-                    f"検索エラー: {e}" if language == "ja" else f"Search error: {e}"
-                )
-                return [TextContent(type="text", text=error_msg)]
+                return await _handle_tool_error(ctx, e, "search_cards", language)
 
         # Autocomplete tool
         @self.app.tool()
@@ -254,7 +241,7 @@ class ScryfallMCPServer:
             ctx: Context,
             query: str,
             language: str | None = None,
-        ) -> list[TextContent]:
+        ) -> list[TextContent | ImageContent | EmbeddedResource]:
             """Get card name autocompletion suggestions.
 
             Parameters
@@ -268,7 +255,7 @@ class ScryfallMCPServer:
 
             Returns
             -------
-            list[TextContent]
+            list[TextContent | ImageContent | EmbeddedResource]
                 List of MCP text content with suggestions
             """
             await ctx.info(f"Autocomplete called: query='{query}', language={language}")
@@ -283,16 +270,9 @@ class ScryfallMCPServer:
             try:
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
-                return result
+                return cast("list[TextContent | ImageContent | EmbeddedResource]", result)
             except Exception as e:
-                await ctx.error(f"Error in autocomplete: {e}")
-                logger.exception("Error in autocomplete")
-                error_msg = (
-                    f"オートコンプリートエラー: {e}"
-                    if language == "ja"
-                    else f"Autocomplete error: {e}"
-                )
-                return [TextContent(type="text", text=error_msg)]
+                return await _handle_tool_error(ctx, e, "autocomplete", language)
 
     async def run(self) -> None:
         """Run the MCP server.

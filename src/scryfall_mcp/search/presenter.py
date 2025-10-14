@@ -104,9 +104,14 @@ class SearchPresenter:
         TextContent
             Summary content item
         """
-        if self._mapping.language_code == "ja":
+        from ..i18n.constants import CARD_LABELS
+
+        labels = CARD_LABELS[self._mapping.language_code]
+        is_japanese = self._mapping.language_code == "ja"
+
+        if is_japanese:
             summary_text = (
-                f"🔍 **検索結果**\n\n"
+                f"🔍 **{labels['search_results']}**\n\n"
                 f"**元のクエリ**: {built_query.original_query}\n"
                 f"**Scryfallクエリ**: `{built_query.scryfall_query}`\n"
                 f"**見つかったカード**: {search_result.total_cards}枚"
@@ -120,7 +125,7 @@ class SearchPresenter:
 
         else:
             summary_text = (
-                f"🔍 **Search Results**\n\n"
+                f"🔍 **{labels['search_results']}**\n\n"
                 f"**Original Query**: {built_query.original_query}\n"
                 f"**Scryfall Query**: `{built_query.scryfall_query}`\n"
                 f"**Cards Found**: {search_result.total_cards}"
@@ -186,17 +191,17 @@ class SearchPresenter:
         TextContent
             Formatted card content
         """
+        from ..i18n.constants import CARD_LABELS
+
         is_japanese = self._mapping.language_code == "ja"
+        labels = CARD_LABELS[self._mapping.language_code]
 
         # Use printed name for Japanese if available
         card_name = (
             card.printed_name if (is_japanese and card.printed_name) else card.name
         )
 
-        if is_japanese:
-            card_text = f"## {index}. {card_name}"
-        else:
-            card_text = f"## {index}. {card_name}"
+        card_text = f"## {index}. {card_name}"
 
         # Add mana cost if available
         if card.mana_cost:
@@ -212,17 +217,11 @@ class SearchPresenter:
         )
 
         if type_line_display:
-            if is_japanese:
-                card_text += f"**タイプ**: {type_line_display}\n"
-            else:
-                card_text += f"**Type**: {type_line_display}\n"
+            card_text += f"**{labels['type']}**: {type_line_display}\n"
 
         # Add power/toughness for creatures
         if card.power is not None and card.toughness is not None:
-            if is_japanese:
-                card_text += f"**パワー/タフネス**: {card.power}/{card.toughness}\n"
-            else:
-                card_text += f"**Power/Toughness**: {card.power}/{card.toughness}\n"
+            card_text += f"**{labels['power_toughness']}**: {card.power}/{card.toughness}\n"
 
         # Add oracle text - ALWAYS show if available
         # Use printed text for Japanese if available, otherwise use oracle_text
@@ -233,17 +232,11 @@ class SearchPresenter:
         )
 
         if oracle_text_display:
-            if is_japanese:
-                card_text += f"\n**効果**:\n{oracle_text_display}\n"
-            else:
-                card_text += f"\n**Oracle Text**:\n{oracle_text_display}\n"
+            card_text += f"\n**{labels['oracle_text']}**:\n{oracle_text_display}\n"
 
         # Add set information
         if card.set_name:
-            if is_japanese:
-                card_text += f"\n**セット**: {card.set_name}"
-            else:
-                card_text += f"\n**Set**: {card.set_name}"
+            card_text += f"\n**{labels['set']}**: {card.set_name}"
 
             if card.rarity:
                 rarity_map = self._RARITY_JA if is_japanese else self._RARITY_EN
@@ -258,10 +251,7 @@ class SearchPresenter:
 
         # Add Scryfall link
         if card.scryfall_uri:
-            if is_japanese:
-                card_text += f"\n\n[Scryfallで詳細を見る]({card.scryfall_uri})"
-            else:
-                card_text += f"\n\n[View on Scryfall]({card.scryfall_uri})"
+            card_text += f"\n\n[{labels['view_on_scryfall']}]({card.scryfall_uri})"
 
         card_text += "\n\n---\n"
 

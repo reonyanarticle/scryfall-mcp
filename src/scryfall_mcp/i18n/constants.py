@@ -220,3 +220,202 @@ SEARCH_PATTERNS: dict[str, str] = {
     "quoted_text_pattern": r'"[^"]*"',
     "card_name_pattern": r"![^!]*!",
 }
+
+# ============================================================================
+# Card Label Translations (for presenter formatting)
+# ============================================================================
+
+CARD_LABELS: dict[str, dict[str, str]] = {
+    "ja": {
+        "type": "タイプ",
+        "mana_cost": "マナコスト",
+        "power_toughness": "パワー/タフネス",
+        "loyalty": "忠誠度",
+        "oracle_text": "効果",
+        "flavor_text": "フレーバーテキスト",
+        "set": "セット",
+        "rarity": "レアリティ",
+        "artist": "アーティスト",
+        "collector_number": "コレクター番号",
+        "view_on_scryfall": "Scryfallで詳細を見る",
+        "search_results": "検索結果",
+        "showing_results": "件中",
+        "total_results": "件を表示",
+        "of": "の",
+    },
+    "en": {
+        "type": "Type",
+        "mana_cost": "Mana Cost",
+        "power_toughness": "Power/Toughness",
+        "loyalty": "Loyalty",
+        "oracle_text": "Oracle Text",
+        "flavor_text": "Flavor Text",
+        "set": "Set",
+        "rarity": "Rarity",
+        "artist": "Artist",
+        "collector_number": "Collector Number",
+        "view_on_scryfall": "View on Scryfall",
+        "search_results": "Search Results",
+        "showing_results": "Showing",
+        "total_results": "results",
+        "of": "of",
+    },
+}
+
+# ============================================================================
+# Ability Pattern Matching Constants (Phase 2)
+# ============================================================================
+
+# Pattern to match color/type/keyword ability keywords (stops pattern matching before these)
+ABILITY_COLOR_TYPE_PATTERN = r"(?:白い|白の|青い|青の|黒い|黒の|赤い|赤の|緑い|緑の|無色の|無色|クリーチャー|インスタント|ソーサリー|アーティファクト|エンチャント|飛行|速攻|接死|トランプル|警戒|絆魂|呪禁|到達|威迫|瞬速|先制攻撃|二段攻撃)"
+
+# Known effect phrases for Phase 2 pattern matching
+ABILITY_KNOWN_EFFECTS: dict[str, str] = {
+    "カードを引く": 'o:"draw"',
+    "カードを1枚引く": 'o:"draw a card"',
+    "カードを2枚引く": 'o:"draw two cards"',
+    "破壊": 'o:"destroy"',
+    "破壊する": 'o:"destroy"',
+    "追放": 'o:"exile"',
+    "追放する": 'o:"exile"',
+    "生け贄": 'o:"sacrifice"',
+    "生け贄に捧げる": 'o:"sacrifice"',
+    "ライフを得る": 'o:"gain life"',
+    "ライフを失う": 'o:"lose life"',
+    "ダメージを与える": 'o:"deals damage"',
+    "トークンを生成": 'o:"create"',
+    "トークンを生成する": 'o:"create"',
+}
+
+# ============================================================================
+# Query Explanation Mappings (for processor)
+# ============================================================================
+
+QUERY_EXPLANATION_MAPPINGS: dict[str, dict[str, dict[str, str]]] = {
+    "ja": {
+        "colors": {
+            "w": "白",
+            "u": "青",
+            "b": "黒",
+            "r": "赤",
+            "g": "緑",
+            "c": "無色",
+        },
+        "types": {
+            "creature": "クリーチャー",
+            "artifact": "アーティファクト",
+            "enchantment": "エンチャント",
+            "instant": "インスタント",
+            "sorcery": "ソーサリー",
+            "land": "土地",
+            "planeswalker": "プレインズウォーカー",
+            "legendary": "伝説の",
+            "basic": "基本",
+            "snow": "雪",
+        },
+        "operators": {
+            ">=": "以上",
+            "<=": "以下",
+            ">": "より大きい",
+            "<": "未満",
+            "=": "等しい",
+            ":": "含む",
+        },
+        "fields": {
+            "mv": "マナ総量",
+            "cmc": "点数で見たマナコスト",
+            "pow": "パワー",
+            "power": "パワー",
+            "tou": "タフネス",
+            "toughness": "タフネス",
+            "loy": "忠誠度",
+            "loyalty": "忠誠度",
+        },
+        "keywords": {
+            "flying": "飛行",
+            "haste": "速攻",
+            "deathtouch": "接死",
+            "trample": "トランプル",
+            "vigilance": "警戒",
+            "lifelink": "絆魂",
+            "hexproof": "呪禁",
+            "reach": "到達",
+            "menace": "威迫",
+            "flash": "瞬速",
+        },
+        "labels": {
+            "colors": "色",
+            "types": "タイプ",
+            "power": "パワー",
+            "toughness": "タフネス",
+            "loyalty": "忠誠度",
+            "mana_value": "マナ総量",
+            "keyword": "キーワード",
+            "oracle_text": "効果",
+            "general_search": "一般的な検索",
+        },
+    },
+    "en": {
+        "colors": {
+            "w": "W",
+            "u": "U",
+            "b": "B",
+            "r": "R",
+            "g": "G",
+            "c": "C",
+        },
+        "types": {
+            "creature": "Creature",
+            "artifact": "Artifact",
+            "enchantment": "Enchantment",
+            "instant": "Instant",
+            "sorcery": "Sorcery",
+            "land": "Land",
+            "planeswalker": "Planeswalker",
+            "legendary": "Legendary",
+            "basic": "Basic",
+            "snow": "Snow",
+        },
+        "operators": {
+            ">=": ">=",
+            "<=": "<=",
+            ">": ">",
+            "<": "<",
+            "=": "=",
+            ":": "contains",
+        },
+        "fields": {
+            "mv": "Mana Value",
+            "cmc": "CMC",
+            "pow": "Power",
+            "power": "Power",
+            "tou": "Toughness",
+            "toughness": "Toughness",
+            "loy": "Loyalty",
+            "loyalty": "Loyalty",
+        },
+        "keywords": {
+            "flying": "Flying",
+            "haste": "Haste",
+            "deathtouch": "Deathtouch",
+            "trample": "Trample",
+            "vigilance": "Vigilance",
+            "lifelink": "Lifelink",
+            "hexproof": "Hexproof",
+            "reach": "Reach",
+            "menace": "Menace",
+            "flash": "Flash",
+        },
+        "labels": {
+            "colors": "Colors",
+            "types": "Types",
+            "power": "Power",
+            "toughness": "Toughness",
+            "loyalty": "Loyalty",
+            "mana_value": "Mana Value",
+            "keyword": "Keyword",
+            "oracle_text": "Oracle Text",
+            "general_search": "General search",
+        },
+    },
+}

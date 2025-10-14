@@ -11,6 +11,9 @@ import sys
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Rate limiting constants
+MAX_BACKOFF_SECONDS = 300.0  # 5 minutes maximum backoff time for exponential backoff
+
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
@@ -168,6 +171,56 @@ class Settings(BaseSettings):
         description="Use mock API responses for testing",
     )
 
+    # Query Processing Settings
+    query_complexity_operator_high: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Operator count threshold for high complexity queries",
+    )
+    query_complexity_field_high: int = Field(
+        default=5,
+        ge=1,
+        le=15,
+        description="Field count threshold for high complexity queries",
+    )
+    query_complexity_operator_moderate: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="Operator count threshold for moderate complexity queries",
+    )
+    query_complexity_field_moderate: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Field count threshold for moderate complexity queries",
+    )
+    query_specificity_high: int = Field(
+        default=4,
+        ge=1,
+        le=10,
+        description="Specificity threshold for high specificity queries",
+    )
+    query_specificity_moderate: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Specificity threshold for moderate specificity queries",
+    )
+    cache_key_hash_threshold: int = Field(
+        default=100,
+        ge=50,
+        le=500,
+        description="Max parameter string length before hashing cache keys",
+    )
+    autocomplete_max_suggestions: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of autocomplete suggestions to return",
+    )
+
     @field_validator("supported_locales")
     @classmethod
     def validate_supported_locales(cls, v: list[str]) -> list[str]:
@@ -244,40 +297,64 @@ def get_settings() -> Settings:
     """
     global _settings
 
-    if _settings is None:
-        _settings = Settings()
+    # Return existing settings if already initialized
+    if _settings is not None:
+        return _settings
 
-        # Load User-Agent from setup wizard if not provided via environment
-        user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
+    # Initialize new settings
+    _settings = Settings()
 
-        if not user_agent_val:
-            # Only run setup wizard in interactive mode (not in Claude Desktop stdio mode)
-            if sys.stdin.isatty() and sys.stdout.isatty():
-                from .setup_wizard import get_user_agent
+    # Check if User-Agent is already configured via environment
+    user_agent_val = _settings.user_agent.strip() if _settings.user_agent else ""
+    if user_agent_val:
+        return _settings
 
-                _settings.user_agent = get_user_agent()
-            else:
-                # In non-interactive mode, check for saved config
-                from .setup_wizard import load_config
-
-                config = load_config()
-                if config:
-                    _settings.user_agent = config.get(
-                        "user_agent", "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
-                    )
-                else:
-                    # No config found - use default and warn
-                    _settings.user_agent = "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
-                    print(
-                        "WARNING: User-Agent not configured. Run 'scryfall-mcp setup' to add contact info.",
-                        file=sys.stderr,
-                    )
-                    print(
-                        "Using default User-Agent. Scryfall API guidelines recommend including contact information.",
-                        file=sys.stderr,
-                    )
-
+    # User-Agent not configured - try loading from saved config or wizard
+    _settings.user_agent = _load_user_agent_from_config()
     return _settings
+
+
+def _load_user_agent_from_config() -> str:
+    """Load User-Agent from setup wizard or config file.
+
+    This helper function handles loading User-Agent configuration from either
+    the interactive setup wizard or saved configuration file.
+
+    Returns
+    -------
+    str
+        User-Agent string (may be default placeholder if not configured)
+    """
+    # Interactive mode: run setup wizard
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        from .setup_wizard import get_user_agent
+
+        return get_user_agent()
+
+    # Non-interactive mode: check for saved config
+    from .setup_wizard import load_config
+
+    config = load_config()
+    if config:
+        return config.get(
+            "user_agent", "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
+        )
+
+    # No config found - use default and warn
+    _print_user_agent_warning()
+    return "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
+
+
+def _print_user_agent_warning() -> None:
+    """Print warning message when User-Agent is not configured."""
+    print(
+        "WARNING: User-Agent not configured. Run 'scryfall-mcp setup' to add contact info.",
+        file=sys.stderr,
+    )
+    print(
+        "Using default User-Agent. Scryfall API guidelines recommend including contact information.",
+        file=sys.stderr,
+    )
 
 
 def reload_settings() -> Settings:
