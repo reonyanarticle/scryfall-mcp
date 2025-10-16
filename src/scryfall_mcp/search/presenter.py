@@ -299,7 +299,11 @@ class SearchPresenter:
         # Add MCP Annotations
         annotations = None
         if options.use_annotations:
-            annotations = Annotations(audience=["user"], priority=PRIORITY_USER_CONTENT)
+            # 重要: audience=["user", "assistant"] でUIとLLM両方に確実に表示
+            annotations = Annotations(
+                audience=["user", "assistant"],  # UI and LLM both
+                priority=PRIORITY_USER_CONTENT
+            )
 
         return TextContent(type="text", text=card_text, annotations=annotations)
 

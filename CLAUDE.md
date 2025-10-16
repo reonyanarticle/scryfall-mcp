@@ -157,11 +157,13 @@ Annotations(
 
 #### audience（対象者）
 
-| 値 | 意味 | 使用例 |
-|----|------|--------|
-| `["user"]` | ユーザー向け（UIに表示） | カード情報（TextContent） |
-| `["assistant"]` | アシスタント向け（LLMコンテキストのみ） | 構造化データ（EmbeddedResource） |
-| `["user", "assistant"]` | 両方 | エラーメッセージ |
+| 値 | 意味 | 実際の動作 | 使用例 |
+|----|------|-----------|--------|
+| `["user"]` | ユーザー向け | UIに表示される**可能性がある**が、保証されない | ❌ 非推奨（表示されない場合あり） |
+| `["assistant"]` | アシスタント向け | LLMコンテキストに含まれるが、UIに表示されない | 構造化データ（EmbeddedResource） |
+| `["user", "assistant"]` | 両方 | **UIとLLMコンテキストの両方に確実に表示** | ✅ 推奨: カード情報、エラーメッセージ |
+
+**重要**: `audience=["user"]`は仕様上UIに表示されると書かれているが、Claude DesktopなどのMCPクライアントでは表示されないことがある。**確実にUIに表示するには`["user", "assistant"]`を使用すること。**
 
 #### priority（優先度）
 
@@ -201,8 +203,9 @@ def _format_single_card(
     # MCP Annotations付与
     annotations = None
     if options.use_annotations:
+        # 重要: audience=["user", "assistant"] でUIとLLM両方に確実に表示
         annotations = Annotations(
-            audience=["user"],
+            audience=["user", "assistant"],
             priority=0.8
         )
 

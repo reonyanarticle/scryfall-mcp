@@ -863,7 +863,7 @@ class TestSearchPresenter:
         card_text = en_presenter._format_single_card(card, 1, options)
 
         assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user"]
+        assert card_text.annotations.audience == ["user", "assistant"]
         assert card_text.annotations.priority == 0.8
 
     def test_annotations_disabled_in_format_single_card(self, en_presenter, sample_card_data):
@@ -1062,7 +1062,7 @@ class TestSearchPresenter:
         assert "Legal" in card_text.text
         assert "Illustrated by Seb McKinnon" in card_text.text
         assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user"]
+        assert card_text.annotations.audience == ["user", "assistant"]
 
         # Test EmbeddedResource (machine-readable)
         import json
