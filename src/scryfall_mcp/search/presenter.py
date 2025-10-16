@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from mcp.types import EmbeddedResource, ImageContent, TextContent, TextResourceContents
+from mcp.types import Annotations, EmbeddedResource, ImageContent, TextContent, TextResourceContents
 from pydantic import AnyUrl
 
 if TYPE_CHECKING:
@@ -164,7 +164,7 @@ class SearchPresenter:
             content_items.append(card_content)
 
             # Add structured card data as EmbeddedResource for metadata preservation
-            card_resource = self._create_card_resource(card, i)
+            card_resource = self._create_card_resource(card, i, options)
             content_items.append(card_resource)
 
             # Note: ImageContent removed - MCP spec requires base64 data, not URLs
@@ -219,9 +219,22 @@ class SearchPresenter:
         if type_line_display:
             card_text += f"**{labels['type']}**: {type_line_display}\n"
 
+        # Add keywords (Phase 1)
+        if options.include_keywords and card.keywords:
+            keywords_label = "キーワード能力" if is_japanese else "Keywords"
+            card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
+
         # Add power/toughness for creatures
         if card.power is not None and card.toughness is not None:
             card_text += f"**{labels['power_toughness']}**: {card.power}/{card.toughness}\n"
+
+        # Add mana production for lands (Phase 1)
+        if (options.include_mana_production and
+            "Land" in card.type_line and
+            card.produced_mana):
+            produces_label = "生成マナ" if is_japanese else "Produces"
+            mana_symbols = ' '.join([f"{{{m}}}" for m in card.produced_mana])
+            card_text += f"**{produces_label}**: {mana_symbols}\n"
 
         # Add oracle text - ALWAYS show if available
         # Use printed text for Japanese if available, otherwise use oracle_text
@@ -243,11 +256,30 @@ class SearchPresenter:
                 rarity_display = rarity_map.get(card.rarity, card.rarity.title())
                 card_text += f" ({rarity_display})"
 
+        # Add format legality when format_filter is specified (Phase 1)
+        if options.format_filter:
+            legality = getattr(card.legalities, options.format_filter, None)
+            if legality:
+                format_name = options.format_filter.title()
+                legality_labels = {
+                    "legal": "適正" if is_japanese else "Legal",
+                    "not_legal": "不適正" if is_japanese else "Not Legal",
+                    "restricted": "制限" if is_japanese else "Restricted",
+                    "banned": "禁止" if is_japanese else "Banned",
+                }
+                legality_display = legality_labels.get(legality, legality)
+                card_text += f"\n**{format_name}**: {legality_display}"
+
         # Add prices if available
         if card.prices:
             price_text = self._format_prices(card.prices.model_dump())
             if price_text:
                 card_text += f"\n{price_text}"
+
+        # Add artist info (Phase 1)
+        if options.include_artist and card.artist:
+            illustrated_by = "イラスト" if is_japanese else "Illustrated by"
+            card_text += f"\n\n*{illustrated_by} {card.artist}*"
 
         # Add Scryfall link
         if card.scryfall_uri:
@@ -255,7 +287,15 @@ class SearchPresenter:
 
         card_text += "\n\n---\n"
 
-        return TextContent(type="text", text=card_text)
+        # Add MCP Annotations (Phase 1)
+        annotations = None
+        if options.use_annotations:
+            annotations = Annotations(
+                audience=["user"],
+                priority=0.8
+            )
+
+        return TextContent(type="text", text=card_text, annotations=annotations)
 
     def _format_prices(self, prices: dict[str, str | None]) -> str:
         """Format card pricing information.
@@ -371,7 +411,7 @@ class SearchPresenter:
 
         return TextContent(type="text", text=explanation_text)
 
-    def _create_card_resource(self, card: Card, index: int) -> EmbeddedResource:
+    def _create_card_resource(self, card: Card, index: int, options: SearchOptions) -> EmbeddedResource:
         """Create an EmbeddedResource with minimal essential card metadata.
 
         This method creates a compact card resource containing only essential
@@ -384,6 +424,8 @@ class SearchPresenter:
             Card object to create resource for
         index : int
             Card index in search results
+        options : SearchOptions
+            Formatting options
 
         Returns
         -------
@@ -449,6 +491,30 @@ class SearchPresenter:
                 for face in card.card_faces
             ]
 
+        # Add Phase 1 fields
+        if card.keywords:
+            card_metadata["keywords"] = card.keywords
+
+        if card.flavor_text:
+            card_metadata["flavor_text"] = card.flavor_text
+
+        if card.artist:
+            card_metadata["artist"] = card.artist
+
+        if card.produced_mana:
+            card_metadata["produced_mana"] = card.produced_mana
+
+        if card.edhrec_rank is not None:
+            card_metadata["edhrec_rank"] = card.edhrec_rank
+
+        # Add MCP Annotations (Phase 1)
+        annotations = None
+        if options.use_annotations:
+            annotations = Annotations(
+                audience=["assistant"],
+                priority=0.6
+            )
+
         return EmbeddedResource(
             type="resource",
             resource=TextResourceContents(
@@ -456,6 +522,7 @@ class SearchPresenter:
                 mimeType="application/json",
                 text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
             ),
+            annotations=annotations
         )
 
     def _serialize_urls(self, data: dict[str, Any]) -> dict[str, str | None]:

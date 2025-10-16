@@ -140,6 +140,11 @@ class CardSearchTool:
                     max_results=request.max_results or 10,
                     format_filter=request.format_filter,
                     language=request.language,
+                    # Phase 1: MCP Annotations and display control
+                    use_annotations=request.use_annotations,
+                    include_keywords=request.include_keywords,
+                    include_artist=request.include_artist,
+                    include_mana_production=request.include_mana_production,
                 )
 
                 return presenter.present_results(search_result, built, search_options)

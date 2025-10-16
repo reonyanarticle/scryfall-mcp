@@ -32,6 +32,101 @@ Magic: The GatheringのカードデータをMCP (Model Context Protocol)経由�
 - **OK**: "全テスト合格"、"カバレッジ90%以上を維持"（目標値）
 - **NG**: "389テスト合格"、"95%カバレッジ"（具体的な数値）、"2025-10-05"（日付）
 
+## カード表示仕様（MCP出力フォーマット）
+
+### 表示フィールド一覧
+
+MCPツール（`search_cards`）でカード検索結果を返す際、以下のフィールドを表示します：
+
+#### 必須フィールド（常に表示）
+1. **カード名** (`name` / `printed_name`)
+   - 日本語検索時は`printed_name`を優先表示
+   - フォールバック: `name`（英語名）
+
+2. **マナコスト** (`mana_cost`)
+   - シンボル形式: `{R}`, `{2}{U}{U}`等
+   - マナコストがないカード（土地等）は表示なし
+
+3. **タイプライン** (`type_line` / `printed_type_line`)
+   - 日本語検索時は`printed_type_line`を優先表示
+   - フォールバック: `type_line`（英語タイプ）
+
+4. **パワー/タフネス** (`power` / `toughness`)
+   - クリーチャーカードのみ表示
+   - 形式: `3/3`, `*/1+*`等
+
+5. **オラクルテキスト** (`oracle_text` / `printed_text`)
+   - 日本語検索時は`printed_text`を優先表示
+   - フォールバック: `oracle_text`（英語テキスト）
+   - カードの能力や効果を記載
+
+6. **セット情報、レアリティ** (`set_name`, `rarity`)
+   - セット名: 日本語または英語
+   - レアリティ: コモン、アンコモン、レア、神話レア
+
+#### Phase 1追加フィールド（Issue #7対応）
+
+7. **キーワード能力** (`keywords`)
+   - 飛行、速攻、接死、トランプル等のキーワード一覧
+   - リスト形式: `["Flying", "Haste"]`
+   - 表示形式: カンマ区切り
+
+8. **イラストレーター** (`artist`)
+   - カードイラストの作成者名
+   - 表示形式: `*イラスト: アーティスト名*`（日本語）/ `*Illustrated by Artist Name*`（英語）
+
+9. **マナ生成情報** (`produced_mana`)
+   - **土地カード専用**のフィールド
+   - 生成可能なマナ色のリスト: `["W", "U"]`等
+   - 表示形式: `{W} {U}`（マナシンボル形式）
+
+10. **フォーマット適格性** (`legalities`)
+    - 各フォーマット（Standard、Modern、Legacy等）での適格性
+    - 値: `legal`, `not_legal`, `restricted`, `banned`
+    - **表示制御**: `format_filter`パラメータ指定時のみ、そのフォーマットの適格性を表示
+
+### MCP Annotations仕様
+
+すべてのコンテンツに**MCP Annotations**を付与し、クライアント側での適切な表示制御を可能にします。
+
+```python
+# ユーザー向けコンテンツ（TextContent）
+TextContent(
+    type="text",
+    text="カード情報...",
+    annotations=Annotations(
+        audience=["user"],    # UIに表示
+        priority=0.8          # 高優先度
+    )
+)
+
+# アシスタント向けコンテンツ（EmbeddedResource）
+EmbeddedResource(
+    type="resource",
+    resource=TextResourceContents(...),
+    annotations=Annotations(
+        audience=["assistant"],  # LLMコンテキストのみ
+        priority=0.6             # 中優先度
+    )
+)
+```
+
+### 優先度ガイドライン
+
+| フィールド | Priority | 理由 |
+|-----------|----------|------|
+| カード名、マナコスト、タイプ | 1.0 | 最重要（カード識別に必須） |
+| オラクルテキスト、P/T | 0.8 | 高優先度（ゲームプレイに重要） |
+| keywords、produced_mana | 0.7 | 高優先度（頻繁に参照） |
+| セット、レアリティ、価格 | 0.5 | 中優先度（補助情報） |
+| artist、legalities | 0.3-0.5 | 中-低優先度（オプション情報） |
+
+### 実装参照
+
+- 詳細設計: `docs/MCP-OUTPUT-DESIGN-REPORT.md`
+- 現在の実装: `src/scryfall_mcp/search/presenter.py`
+- データモデル: `src/scryfall_mcp/models.py` (Card: lines 388-476)
+
 ## 実装済みアーキテクチャ
 
 ### 並行性セーフなロケール管理
