@@ -12,6 +12,10 @@ if TYPE_CHECKING:
     from ..i18n import LanguageMapping
     from ..models import BuiltQuery, Card, SearchOptions, SearchResult
 
+# MCP Annotations priority levels
+PRIORITY_USER_CONTENT = 0.8  # User-facing card display
+PRIORITY_METADATA = 0.6  # Machine-readable card data
+
 
 class SearchPresenter:
     """Presents search results in MCP-compatible format."""
@@ -203,7 +207,6 @@ class SearchPresenter:
 
         card_text = f"## {index}. {card_name}"
 
-        # Add mana cost if available
         if card.mana_cost:
             card_text += f" {card.mana_cost}"
 
@@ -219,16 +222,15 @@ class SearchPresenter:
         if type_line_display:
             card_text += f"**{labels['type']}**: {type_line_display}\n"
 
-        # Add keywords (Phase 1)
+        # Add keywords
         if options.include_keywords and card.keywords:
             keywords_label = "キーワード能力" if is_japanese else "Keywords"
             card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
 
-        # Add power/toughness for creatures
         if card.power is not None and card.toughness is not None:
             card_text += f"**{labels['power_toughness']}**: {card.power}/{card.toughness}\n"
 
-        # Add mana production for lands (Phase 1)
+        # Add mana production for lands
         if (options.include_mana_production and
             "Land" in card.type_line and
             card.produced_mana):
@@ -247,7 +249,6 @@ class SearchPresenter:
         if oracle_text_display:
             card_text += f"\n**{labels['oracle_text']}**:\n{oracle_text_display}\n"
 
-        # Add set information
         if card.set_name:
             card_text += f"\n**{labels['set']}**: {card.set_name}"
 
@@ -256,7 +257,7 @@ class SearchPresenter:
                 rarity_display = rarity_map.get(card.rarity, card.rarity.title())
                 card_text += f" ({rarity_display})"
 
-        # Add format legality when format_filter is specified (Phase 1)
+        # Add format legality when format_filter is specified
         if options.format_filter:
             legality = getattr(card.legalities, options.format_filter, None)
             if legality:
@@ -270,29 +271,27 @@ class SearchPresenter:
                 legality_display = legality_labels.get(legality, legality)
                 card_text += f"\n**{format_name}**: {legality_display}"
 
-        # Add prices if available
         if card.prices:
             price_text = self._format_prices(card.prices.model_dump())
             if price_text:
                 card_text += f"\n{price_text}"
 
-        # Add artist info (Phase 1)
+        # Add artist info
         if options.include_artist and card.artist:
             illustrated_by = "イラスト" if is_japanese else "Illustrated by"
             card_text += f"\n\n*{illustrated_by} {card.artist}*"
 
-        # Add Scryfall link
         if card.scryfall_uri:
             card_text += f"\n\n[{labels['view_on_scryfall']}]({card.scryfall_uri})"
 
         card_text += "\n\n---\n"
 
-        # Add MCP Annotations (Phase 1)
+        # Add MCP Annotations
         annotations = None
         if options.use_annotations:
             annotations = Annotations(
                 audience=["user"],
-                priority=0.8
+                priority=PRIORITY_USER_CONTENT
             )
 
         return TextContent(type="text", text=card_text, annotations=annotations)
@@ -491,7 +490,7 @@ class SearchPresenter:
                 for face in card.card_faces
             ]
 
-        # Add Phase 1 fields
+        # Add optional display fields
         if card.keywords:
             card_metadata["keywords"] = card.keywords
 
@@ -507,7 +506,7 @@ class SearchPresenter:
         if card.edhrec_rank is not None:
             card_metadata["edhrec_rank"] = card.edhrec_rank
 
-        # Phase 3: Minimal legalities (legal/banned/restricted only, not_legal excluded)
+        # Minimal legalities (legal/banned/restricted only, not_legal excluded)
         if options.include_legalities:
             legalities_compact = {
                 fmt: status
@@ -517,12 +516,12 @@ class SearchPresenter:
             if legalities_compact:
                 card_metadata["legalities"] = legalities_compact
 
-        # Add MCP Annotations (Phase 1)
+        # Add MCP Annotations
         annotations = None
         if options.use_annotations:
             annotations = Annotations(
                 audience=["assistant"],
-                priority=0.6
+                priority=PRIORITY_METADATA
             )
 
         return EmbeddedResource(

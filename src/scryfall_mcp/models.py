@@ -70,13 +70,13 @@ class SearchOptions(BaseModel):
     format_filter: str | None = None
     language: str | None = None
 
-    # Phase 1: MCP Annotations and display control
+    # Display control parameters
     use_annotations: bool = True
     include_keywords: bool = True
     include_artist: bool = True
     include_mana_production: bool = True
 
-    # Phase 3: Opt-in legalities information
+    # Opt-in legalities information
     include_legalities: bool = False
 
 
@@ -105,7 +105,7 @@ class SearchCardsRequest(BaseModel):
         default=None, description="Filter by Magic format (standard, modern, etc.)"
     )
 
-    # Phase 1: MCP Annotations and display control
+    # Display control parameters
     use_annotations: bool = Field(
         default=True, description="Use MCP Annotations for metadata"
     )
@@ -117,7 +117,7 @@ class SearchCardsRequest(BaseModel):
         default=True, description="Include mana production for lands"
     )
 
-    # Phase 3: Opt-in legalities information
+    # Opt-in legalities information
     include_legalities: bool = Field(
         default=False, description="Include format legalities (legal/banned/restricted only)"
     )
