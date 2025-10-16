@@ -75,15 +75,15 @@ class CacheProtocol(ABC):
 class MemoryCache(CacheProtocol):
     """In-memory LRU cache with TTL support."""
 
-    def __init__(self, max_size: int = 1000, default_ttl: int | None = None):
+    def __init__(self, max_size: int = 1000, default_ttl: int | None = None) -> None:
         """Initialize the memory cache.
 
         Parameters
         ----------
         max_size : int
             Maximum number of entries in cache
-        default_ttl : int, optional
-            Default TTL in seconds
+        default_ttl : int | None, optional
+            Default TTL in seconds (default: None)
         """
         self.max_size = max_size
         self.default_ttl = default_ttl

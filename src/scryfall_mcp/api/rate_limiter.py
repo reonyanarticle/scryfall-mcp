@@ -27,7 +27,7 @@ class RateLimiter:
 
         Parameters
         ----------
-        rate_limit_ms : int, optional
+        rate_limit_ms : int | None, optional (default: None)
             Rate limit interval in milliseconds. If None, uses settings value.
         """
         settings = get_settings()
@@ -78,7 +78,7 @@ class RateLimiter:
 
         Parameters
         ----------
-        status_code : int, optional
+        status_code : int | None, optional (default: None)
             HTTP status code of the failed request. Used to determine
             if exponential backoff should be applied.
         """
@@ -132,9 +132,9 @@ class CircuitBreaker:
 
         Parameters
         ----------
-        failure_threshold : int, optional
+        failure_threshold : int | None, optional (default: None)
             Number of consecutive failures before opening the circuit.
-        recovery_timeout : int, optional
+        recovery_timeout : int | None, optional (default: None)
             Time in seconds to wait before trying to close the circuit.
         """
         settings = get_settings()

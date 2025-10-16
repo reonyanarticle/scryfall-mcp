@@ -406,7 +406,8 @@ class TestSearchPresenter:
 
     def test_create_card_resource(self, en_presenter, sample_card):
         """Test creating embedded card resource."""
-        resource = en_presenter._create_card_resource(sample_card, 1)
+        options = SearchOptions(max_results=10)
+        resource = en_presenter._create_card_resource(sample_card, 1, options)
 
         assert isinstance(resource, EmbeddedResource)
         assert resource.type == "resource"
@@ -416,7 +417,8 @@ class TestSearchPresenter:
 
     def test_create_card_resource_with_faces(self, en_presenter, double_faced_card):
         """Test creating embedded resource for double-faced card."""
-        resource = en_presenter._create_card_resource(double_faced_card, 1)
+        options = SearchOptions(max_results=10)
+        resource = en_presenter._create_card_resource(double_faced_card, 1, options)
 
         assert isinstance(resource, EmbeddedResource)
         assert "card_faces" in resource.resource.text
@@ -669,3 +671,420 @@ class TestSearchPresenter:
         # Should not display Japanese fields
         assert "稲妻" not in card_text.text
         assert "インスタント" not in card_text.text
+
+    # Phase 1 Tests: Keywords, Artist, Mana Production, Legalities, Annotations
+
+    def test_keywords_display_en(self, en_presenter, sample_card_data):
+        """Test keywords display in English."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Haste", "Trample"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_keywords=True)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Keywords" in card_text.text
+        assert "Flying, Haste, Trample" in card_text.text
+
+    def test_keywords_display_ja(self, ja_presenter, sample_card_data):
+        """Test keywords display in Japanese."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Haste"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_keywords=True)
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        assert "キーワード能力" in card_text.text
+        assert "Flying, Haste" in card_text.text
+
+    def test_keywords_hidden_when_disabled(self, en_presenter, sample_card_data):
+        """Test keywords are hidden when include_keywords=False."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Haste"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_keywords=False)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Keywords" not in card_text.text
+        assert "Flying" not in card_text.text
+
+    def test_artist_display_en(self, en_presenter, sample_card_data):
+        """Test artist display in English."""
+        data = sample_card_data.copy()
+        data["artist"] = "Christopher Rush"
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_artist=True)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Illustrated by Christopher Rush" in card_text.text
+
+    def test_artist_display_ja(self, ja_presenter, sample_card_data):
+        """Test artist display in Japanese."""
+        data = sample_card_data.copy()
+        data["artist"] = "Christopher Rush"
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_artist=True)
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        assert "イラスト Christopher Rush" in card_text.text
+
+    def test_artist_hidden_when_disabled(self, en_presenter, sample_card_data):
+        """Test artist is hidden when include_artist=False."""
+        data = sample_card_data.copy()
+        data["artist"] = "Christopher Rush"
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_artist=False)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Illustrated by" not in card_text.text
+
+    def test_mana_production_display_en(self, en_presenter, sample_card_data):
+        """Test mana production display for lands in English."""
+        data = sample_card_data.copy()
+        data["type_line"] = "Land"
+        data["produced_mana"] = ["W", "U"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_mana_production=True)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Produces" in card_text.text
+        assert "{W}" in card_text.text
+        assert "{U}" in card_text.text
+
+    def test_mana_production_display_ja(self, ja_presenter, sample_card_data):
+        """Test mana production display for lands in Japanese."""
+        data = sample_card_data.copy()
+        data["type_line"] = "Land"  # type_line is always in English in real API data
+        data["printed_type_line"] = "土地"  # Japanese printed type
+        data["produced_mana"] = ["R", "G"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_mana_production=True)
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        assert "生成マナ" in card_text.text
+        assert "{R}" in card_text.text
+        assert "{G}" in card_text.text
+
+    def test_mana_production_not_shown_for_nonlands(self, en_presenter, sample_card_data):
+        """Test mana production is not shown for non-land cards."""
+        data = sample_card_data.copy()
+        data["type_line"] = "Creature — Elf Druid"
+        data["produced_mana"] = ["G"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_mana_production=True)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Produces" not in card_text.text
+
+    def test_mana_production_hidden_when_disabled(self, en_presenter, sample_card_data):
+        """Test mana production is hidden when include_mana_production=False."""
+        data = sample_card_data.copy()
+        data["type_line"] = "Land"
+        data["produced_mana"] = ["W"]
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_mana_production=False)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Produces" not in card_text.text
+
+    def test_format_legality_display_en(self, en_presenter, sample_card_data):
+        """Test format legality display in English."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "legal",
+            "modern": "banned",
+            "legacy": "restricted",
+            "vintage": "not_legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, format_filter="modern")
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Modern" in card_text.text
+        assert "Banned" in card_text.text
+
+    def test_format_legality_display_ja(self, ja_presenter, sample_card_data):
+        """Test format legality display in Japanese."""
+        data = sample_card_data.copy()
+        data["legalities"] = {"standard": "legal"}
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, format_filter="standard")
+        card_text = ja_presenter._format_single_card(card, 1, options)
+
+        assert "Standard" in card_text.text
+        assert "適正" in card_text.text
+
+    def test_format_legality_all_statuses(self, en_presenter, sample_card_data):
+        """Test all format legality statuses."""
+        statuses = {
+            "legal": "Legal",
+            "not_legal": "Not Legal",
+            "restricted": "Restricted",
+            "banned": "Banned",
+        }
+
+        for status, expected in statuses.items():
+            data = sample_card_data.copy()
+            data["legalities"] = {"modern": status}
+            card = Card(**data)
+
+            options = SearchOptions(max_results=10, format_filter="modern")
+            card_text = en_presenter._format_single_card(card, 1, options)
+
+            assert expected in card_text.text
+
+    def test_format_legality_not_shown_without_filter(self, en_presenter, sample_card_data):
+        """Test format legality is not shown when no format_filter is set."""
+        data = sample_card_data.copy()
+        data["legalities"] = {"modern": "legal"}
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert "Modern" not in card_text.text or "Type" in card_text.text  # "Modern" might appear elsewhere
+
+    def test_annotations_in_format_single_card(self, en_presenter, sample_card_data):
+        """Test MCP Annotations are included in _format_single_card."""
+        card = Card(**sample_card_data)
+
+        options = SearchOptions(max_results=10, use_annotations=True)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert card_text.annotations is not None
+        assert card_text.annotations.audience == ["user"]
+        assert card_text.annotations.priority == 0.8
+
+    def test_annotations_disabled_in_format_single_card(self, en_presenter, sample_card_data):
+        """Test Annotations are not included when use_annotations=False."""
+        card = Card(**sample_card_data)
+
+        options = SearchOptions(max_results=10, use_annotations=False)
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        assert card_text.annotations is None
+
+    def test_annotations_in_create_card_resource(self, en_presenter, sample_card_data):
+        """Test MCP Annotations are included in _create_card_resource."""
+        card = Card(**sample_card_data)
+
+        options = SearchOptions(max_results=10, use_annotations=True)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        assert resource.annotations is not None
+        assert resource.annotations.audience == ["assistant"]
+        assert resource.annotations.priority == 0.6
+
+    def test_annotations_disabled_in_create_card_resource(self, en_presenter, sample_card_data):
+        """Test Annotations are not included in resource when use_annotations=False."""
+        card = Card(**sample_card_data)
+
+        options = SearchOptions(max_results=10, use_annotations=False)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        assert resource.annotations is None
+
+    def test_phase1_metadata_in_resource(self, en_presenter, sample_card_data):
+        """Test Phase 1 metadata fields are included in card resource."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Haste"]
+        data["flavor_text"] = "The spark of genius ignites in the strangest of places."
+        data["artist"] = "Christopher Rush"
+        data["produced_mana"] = ["R"]
+        data["edhrec_rank"] = 42
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        assert resource_data["keywords"] == ["Flying", "Haste"]
+        assert resource_data["flavor_text"] == "The spark of genius ignites in the strangest of places."
+        assert resource_data["artist"] == "Christopher Rush"
+        assert resource_data["produced_mana"] == ["R"]
+        assert resource_data["edhrec_rank"] == 42
+
+    def test_combined_phase1_features(self, en_presenter, sample_card_data):
+        """Test all Phase 1 features working together."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Vigilance"]
+        data["artist"] = "Seb McKinnon"
+        data["type_line"] = "Land"
+        data["produced_mana"] = ["W", "U"]
+        data["legalities"] = {"modern": "legal"}
+        card = Card(**data)
+
+        options = SearchOptions(
+            max_results=10,
+            format_filter="modern",
+            include_keywords=True,
+            include_artist=True,
+            include_mana_production=True,
+            use_annotations=True,
+        )
+        card_text = en_presenter._format_single_card(card, 1, options)
+
+        # All Phase 1 features should be present
+        assert "Keywords" in card_text.text
+        assert "Flying, Vigilance" in card_text.text
+        assert "Produces" in card_text.text
+        assert "{W}" in card_text.text
+        assert "{U}" in card_text.text
+        assert "Modern" in card_text.text
+        assert "Legal" in card_text.text
+        assert "Illustrated by Seb McKinnon" in card_text.text
+        assert card_text.annotations is not None
+
+    # Phase 3 Tests: include_legalities
+
+    def test_legalities_in_resource_when_enabled(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities are included in resource when include_legalities=True."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "not_legal",
+            "modern": "legal",
+            "legacy": "legal",
+            "vintage": "restricted",
+            "commander": "banned",
+            "pauper": "not_legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=True)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # Should include legalities, but exclude "not_legal" entries
+        assert "legalities" in resource_data
+        assert "modern" in resource_data["legalities"]
+        assert resource_data["legalities"]["modern"] == "legal"
+        assert "legacy" in resource_data["legalities"]
+        assert resource_data["legalities"]["legacy"] == "legal"
+        assert "vintage" in resource_data["legalities"]
+        assert resource_data["legalities"]["vintage"] == "restricted"
+        assert "commander" in resource_data["legalities"]
+        assert resource_data["legalities"]["commander"] == "banned"
+        # not_legal entries should be excluded
+        assert "standard" not in resource_data["legalities"]
+        assert "pauper" not in resource_data["legalities"]
+
+    def test_legalities_not_in_resource_when_disabled(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities are excluded when include_legalities=False (default)."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "legal",
+            "modern": "legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=False)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # legalities should not be included when disabled
+        assert "legalities" not in resource_data
+
+    def test_legalities_empty_when_all_not_legal(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities field is not added if all statuses are not_legal."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "not_legal",
+            "modern": "not_legal",
+            "legacy": "not_legal",
+            "vintage": "not_legal",
+            "commander": "not_legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=True)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # legalities field should not be present if all entries are not_legal
+        assert "legalities" not in resource_data
+
+    def test_all_features_combined_phase1_and_phase3(self, en_presenter, sample_card_data):
+        """Test Phase 1 + Phase 3: All features working together."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Vigilance", "Lifelink"]
+        data["artist"] = "Seb McKinnon"
+        data["type_line"] = "Land"
+        data["produced_mana"] = ["W", "U", "B"]
+        data["legalities"] = {
+            "standard": "legal",
+            "modern": "legal",
+            "legacy": "legal",
+            "vintage": "restricted",
+            "commander": "legal",
+            "pauper": "not_legal",
+        }
+        card = Card(**data)
+
+        # Enable ALL Phase 1 + Phase 3 features
+        options = SearchOptions(
+            max_results=10,
+            format_filter="modern",
+            include_keywords=True,
+            include_artist=True,
+            include_mana_production=True,
+            include_legalities=True,  # Phase 3
+            use_annotations=True,
+        )
+
+        # Test TextContent (user-facing)
+        card_text = en_presenter._format_single_card(card, 1, options)
+        assert "Keywords" in card_text.text
+        assert "Flying, Vigilance, Lifelink" in card_text.text
+        assert "Produces" in card_text.text
+        assert "{W}" in card_text.text
+        assert "{U}" in card_text.text
+        assert "{B}" in card_text.text
+        assert "Modern" in card_text.text
+        assert "Legal" in card_text.text
+        assert "Illustrated by Seb McKinnon" in card_text.text
+        assert card_text.annotations is not None
+        assert card_text.annotations.audience == ["user"]
+
+        # Test EmbeddedResource (machine-readable)
+        import json
+        resource = en_presenter._create_card_resource(card, 1, options)
+        resource_data = json.loads(resource.resource.text)
+
+        # Phase 1 fields in resource
+        assert resource_data["keywords"] == ["Flying", "Vigilance", "Lifelink"]
+        assert resource_data["artist"] == "Seb McKinnon"
+        assert resource_data["produced_mana"] == ["W", "U", "B"]
+
+        # Phase 3: legalities in resource (not_legal excluded)
+        assert "legalities" in resource_data
+        assert "standard" in resource_data["legalities"]
+        assert resource_data["legalities"]["standard"] == "legal"
+        assert "modern" in resource_data["legalities"]
+        assert "legacy" in resource_data["legalities"]
+        assert "vintage" in resource_data["legalities"]
+        assert resource_data["legalities"]["vintage"] == "restricted"
+        assert "commander" in resource_data["legalities"]
+        assert "pauper" not in resource_data["legalities"]  # not_legal excluded
+
+        # Annotations in resource
+        assert resource.annotations is not None
+        assert resource.annotations.audience == ["assistant"]

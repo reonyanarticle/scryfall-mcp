@@ -51,6 +51,14 @@ class SearchOptions(BaseModel):
         Optional format filter (e.g., "standard", "modern")
     language : str | None
         Optional language code for search (e.g., "en", "ja")
+    use_annotations : bool
+        Whether to use MCP Annotations for content (default: True)
+    include_keywords : bool
+        Include keyword abilities in output (default: True)
+    include_artist : bool
+        Include artist information in output (default: True)
+    include_mana_production : bool
+        Include mana production for lands (default: True)
 
     Notes
     -----
@@ -61,6 +69,15 @@ class SearchOptions(BaseModel):
     max_results: int = 10  # Reduced from 20 to prevent pipe overflow
     format_filter: str | None = None
     language: str | None = None
+
+    # Display control parameters
+    use_annotations: bool = True
+    include_keywords: bool = True
+    include_artist: bool = True
+    include_mana_production: bool = True
+
+    # Opt-in legalities information
+    include_legalities: bool = False
 
 
 # ============================================================================
@@ -86,6 +103,24 @@ class SearchCardsRequest(BaseModel):
     )
     format_filter: str | None = Field(
         default=None, description="Filter by Magic format (standard, modern, etc.)"
+    )
+
+    # Display control parameters
+    use_annotations: bool = Field(
+        default=True, description="Use MCP Annotations for metadata"
+    )
+    include_keywords: bool = Field(
+        default=True, description="Include keyword abilities"
+    )
+    include_artist: bool = Field(default=True, description="Include artist information")
+    include_mana_production: bool = Field(
+        default=True, description="Include mana production for lands"
+    )
+
+    # Opt-in legalities information
+    include_legalities: bool = Field(
+        default=False,
+        description="Include format legalities (legal/banned/restricted only)",
     )
 
 

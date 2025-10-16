@@ -130,7 +130,7 @@ class LocaleManager:
 
         Parameters
         ----------
-        locale_code : str, optional
+        locale_code : str | None, optional (default: None)
             Locale code. If None, uses current locale.
 
         Returns
@@ -240,7 +240,7 @@ class LocaleManager:
 
         Parameters
         ----------
-        locale_code : str, optional
+        locale_code : str | None, optional (default: None)
             Locale code. If None, uses current locale.
 
         Returns

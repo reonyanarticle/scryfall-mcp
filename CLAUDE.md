@@ -95,6 +95,165 @@ Accept: application/json;q=0.9,*/*;q=0.8
 - 最大リトライ: 5回
 - タイムアウト: 30秒
 
+## カード表示仕様（MCP出力フォーマット）
+
+### 表示フィールド一覧
+
+MCPツール（`search_cards`）でカード検索結果を返す際、以下のフィールドを表示します。
+
+#### 必須フィールド（常に表示）
+
+| # | フィールド | データモデル | 表示条件 | 説明 |
+|---|-----------|------------|---------|------|
+| 1 | **カード名** | `name` / `printed_name` | 常に表示 | 日本語検索時は`printed_name`優先 |
+| 2 | **マナコスト** | `mana_cost` | 値が存在する場合 | `{R}`, `{2}{U}{U}`等のシンボル形式 |
+| 3 | **タイプライン** | `type_line` / `printed_type_line` | 常に表示 | 日本語検索時は`printed_type_line`優先 |
+| 4 | **パワー/タフネス** | `power` / `toughness` | クリーチャーのみ | 形式: `3/3`, `*/1+*`等 |
+| 5 | **オラクルテキスト** | `oracle_text` / `printed_text` | 値が存在する場合 | 日本語検索時は`printed_text`優先 |
+| 6 | **セット情報** | `set_name`, `rarity` | 常に表示 | セット名とレアリティを括弧内に表示 |
+
+#### Phase 1追加フィールド（Issue #7対応）
+
+| # | フィールド | データモデル | デフォルト | 表示制御パラメータ | 説明 |
+|---|-----------|------------|----------|-------------------|------|
+| 7 | **キーワード能力** | `keywords` | ON | `include_keywords` | 飛行、速攻等のキーワード一覧（カンマ区切り） |
+| 8 | **イラストレーター** | `artist` | ON | `include_artist` | カードイラストの作成者名 |
+| 9 | **マナ生成** | `produced_mana` | ON | `include_mana_production` | **土地専用**: 生成可能なマナ色 |
+| 10 | **フォーマット適格性** | `legalities` | 条件付き | `format_filter` | format_filter指定時のみ表示 |
+
+### 表示制御オプション
+
+```python
+class SearchOptions(BaseModel):
+    """Search presentation options."""
+
+    max_results: int = 10
+    format_filter: str | None = None
+    language: str | None = None
+
+    # Phase 1: MCP Annotations制御
+    use_annotations: bool = True
+
+    # Phase 1: 表示フィールド制御
+    include_keywords: bool = True        # デフォルトON
+    include_artist: bool = True          # デフォルトON
+    include_mana_production: bool = True # デフォルトON（土地専用）
+```
+
+### MCP Annotations仕様（Phase 1実装）
+
+すべてのコンテンツにMCP Annotationsを付与し、クライアント側での適切な表示制御を実現します。
+
+#### Annotationsフィールド
+
+```python
+from mcp.types import Annotations
+
+Annotations(
+    audience: list[Literal['user', 'assistant']] | None = None,
+    priority: float (0.0-1.0) | None = None,
+)
+```
+
+#### audience（対象者）
+
+| 値 | 意味 | 実際の動作 | 使用例 |
+|----|------|-----------|--------|
+| `["user"]` | ユーザー向け | UIに表示される**可能性がある**が、保証されない | ❌ 非推奨（表示されない場合あり） |
+| `["assistant"]` | アシスタント向け | LLMコンテキストに含まれるが、UIに表示されない | 構造化データ（EmbeddedResource） |
+| `["user", "assistant"]` | 両方 | **UIとLLMコンテキストの両方に確実に表示** | ✅ 推奨: カード情報、エラーメッセージ |
+
+**重要**: `audience=["user"]`は仕様上UIに表示されると書かれているが、Claude DesktopなどのMCPクライアントでは表示されないことがある。**確実にUIに表示するには`["user", "assistant"]`を使用すること。**
+
+#### priority（優先度）
+
+| 範囲 | 意味 | 使用例 |
+|------|------|--------|
+| `1.0` | 最重要 | カード名、マナコスト、タイプライン |
+| `0.7-0.9` | 高優先度 | オラクルテキスト、P/T、keywords |
+| `0.4-0.6` | 中優先度 | セット、レアリティ、価格 |
+| `0.1-0.3` | 低優先度 | artist、EDHREC順位 |
+
+### 実装例
+
+```python
+# ユーザー向けコンテンツ（TextContent）
+def _format_single_card(
+    self, card: Card, index: int, options: SearchOptions
+) -> TextContent:
+    """Format a single card with MCP Annotations."""
+
+    card_text = f"## {index}. {card.name}"
+
+    if card.mana_cost:
+        card_text += f" {card.mana_cost}"
+
+    # ... カード情報をマークダウンで整形 ...
+
+    # キーワード能力（Phase 1新規）
+    if options.include_keywords and card.keywords:
+        keywords_label = "キーワード能力" if is_japanese else "Keywords"
+        card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
+
+    # イラストレーター（Phase 1新規）
+    if options.include_artist and card.artist:
+        illustrated_by = "イラスト" if is_japanese else "Illustrated by"
+        card_text += f"*{illustrated_by} {card.artist}*\n"
+
+    # MCP Annotations付与
+    annotations = None
+    if options.use_annotations:
+        # 重要: audience=["user", "assistant"] でUIとLLM両方に確実に表示
+        annotations = Annotations(
+            audience=["user", "assistant"],
+            priority=0.8
+        )
+
+    return TextContent(type="text", text=card_text, annotations=annotations)
+
+# アシスタント向けコンテンツ（EmbeddedResource）
+def _create_card_resource(
+    self, card: Card, index: int, options: SearchOptions
+) -> EmbeddedResource:
+    """Create EmbeddedResource with full metadata and Annotations."""
+
+    card_metadata = {
+        "id": str(card.id),
+        "name": card.name,
+        # ... 既存フィールド ...
+
+        # Phase 1新規フィールド
+        "keywords": card.keywords if card.keywords else [],
+        "artist": card.artist,
+        "produced_mana": card.produced_mana,
+    }
+
+    # MCP Annotations付与
+    annotations = None
+    if options.use_annotations:
+        annotations = Annotations(
+            audience=["assistant"],
+            priority=0.6
+        )
+
+    return EmbeddedResource(
+        type="resource",
+        resource=TextResourceContents(
+            uri=AnyUrl(f"card://scryfall/{card.id}"),
+            mimeType="application/json",
+            text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
+        ),
+        annotations=annotations
+    )
+```
+
+### 実装参照
+
+- **詳細設計**: `docs/MCP-OUTPUT-DESIGN-REPORT.md`
+- **現在の実装**: `src/scryfall_mcp/search/presenter.py` (lines 175-258)
+- **データモデル**: `src/scryfall_mcp/models.py` (Card: lines 388-476)
+- **MCP仕様**: https://modelcontextprotocol.io/specification/2025-06-18
+
 ## コーディング規約
 
 ### Python型アノテーション

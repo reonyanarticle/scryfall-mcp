@@ -140,6 +140,11 @@ class CardSearchTool:
                     max_results=request.max_results or 10,
                     format_filter=request.format_filter,
                     language=request.language,
+                    use_annotations=request.use_annotations,
+                    include_keywords=request.include_keywords,
+                    include_artist=request.include_artist,
+                    include_mana_production=request.include_mana_production,
+                    include_legalities=request.include_legalities,
                 )
 
                 return presenter.present_results(search_result, built, search_options)

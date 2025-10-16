@@ -37,7 +37,7 @@ class QueryBuilder:
         "えんちゃんと": "エンチャント",
     }
 
-    def __init__(self, locale_mapping: LanguageMapping):
+    def __init__(self, locale_mapping: LanguageMapping) -> None:
         """Initialize the query builder with locale-specific mappings.
 
         Parameters
@@ -114,7 +114,7 @@ class QueryBuilder:
         ----------
         text : str
             Natural language search text
-        locale : str, optional
+        locale : str | None, optional (default: None)
             Locale code for language-specific processing
 
         Returns
@@ -151,7 +151,9 @@ class QueryBuilder:
         # This prevents other conversions from interfering with pattern matching
         ability_tokens: list[str] = []
         if self._pattern_matcher is not None:
-            normalized_text, ability_tokens = self._pattern_matcher.apply(normalized_text)
+            normalized_text, ability_tokens = self._pattern_matcher.apply(
+                normalized_text
+            )
 
         # Process the text through various conversion steps
         # IMPORTANT: _convert_operators must run before _convert_basic_terms

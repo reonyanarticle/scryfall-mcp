@@ -336,9 +336,7 @@ def _load_user_agent_from_config() -> str:
 
     config = load_config()
     if config:
-        return config.get(
-            "user_agent", "Scryfall-MCP-Server/0.1.0 (setup-recommended)"
-        )
+        return config.get("user_agent", "Scryfall-MCP-Server/0.1.0 (setup-recommended)")
 
     # No config found - use default and warn
     _print_user_agent_warning()
@@ -368,7 +366,6 @@ def reload_settings() -> Settings:
     global _settings
     _settings = None  # Reset to trigger reload
     return get_settings()
-
 
 
 def is_user_agent_configured() -> bool:
