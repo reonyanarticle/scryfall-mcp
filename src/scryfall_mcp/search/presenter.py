@@ -5,7 +5,13 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from mcp.types import Annotations, EmbeddedResource, ImageContent, TextContent, TextResourceContents
+from mcp.types import (
+    Annotations,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    TextResourceContents,
+)
 from pydantic import AnyUrl
 
 if TYPE_CHECKING:
@@ -35,7 +41,7 @@ class SearchPresenter:
         "mythic": "Mythic Rare",
     }
 
-    def __init__(self, locale_mapping: LanguageMapping):
+    def __init__(self, locale_mapping: LanguageMapping) -> None:
         """Initialize the presenter with locale-specific mappings.
 
         Parameters
@@ -228,14 +234,18 @@ class SearchPresenter:
             card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
 
         if card.power is not None and card.toughness is not None:
-            card_text += f"**{labels['power_toughness']}**: {card.power}/{card.toughness}\n"
+            card_text += (
+                f"**{labels['power_toughness']}**: {card.power}/{card.toughness}\n"
+            )
 
         # Add mana production for lands
-        if (options.include_mana_production and
-            "Land" in card.type_line and
-            card.produced_mana):
+        if (
+            options.include_mana_production
+            and "Land" in card.type_line
+            and card.produced_mana
+        ):
             produces_label = "生成マナ" if is_japanese else "Produces"
-            mana_symbols = ' '.join([f"{{{m}}}" for m in card.produced_mana])
+            mana_symbols = " ".join([f"{{{m}}}" for m in card.produced_mana])
             card_text += f"**{produces_label}**: {mana_symbols}\n"
 
         # Add oracle text - ALWAYS show if available
@@ -289,10 +299,7 @@ class SearchPresenter:
         # Add MCP Annotations
         annotations = None
         if options.use_annotations:
-            annotations = Annotations(
-                audience=["user"],
-                priority=PRIORITY_USER_CONTENT
-            )
+            annotations = Annotations(audience=["user"], priority=PRIORITY_USER_CONTENT)
 
         return TextContent(type="text", text=card_text, annotations=annotations)
 
@@ -410,7 +417,9 @@ class SearchPresenter:
 
         return TextContent(type="text", text=explanation_text)
 
-    def _create_card_resource(self, card: Card, index: int, options: SearchOptions) -> EmbeddedResource:
+    def _create_card_resource(
+        self, card: Card, index: int, options: SearchOptions
+    ) -> EmbeddedResource:
         """Create an EmbeddedResource with minimal essential card metadata.
 
         This method creates a compact card resource containing only essential
@@ -520,8 +529,7 @@ class SearchPresenter:
         annotations = None
         if options.use_annotations:
             annotations = Annotations(
-                audience=["assistant"],
-                priority=PRIORITY_METADATA
+                audience=["assistant"], priority=PRIORITY_METADATA
             )
 
         return EmbeddedResource(
@@ -531,7 +539,7 @@ class SearchPresenter:
                 mimeType="application/json",
                 text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
             ),
-            annotations=annotations
+            annotations=annotations,
         )
 
     def _serialize_urls(self, data: dict[str, Any]) -> dict[str, str | None]:

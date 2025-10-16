@@ -49,7 +49,7 @@ async def _handle_tool_error(
         The exception that occurred
     tool_name : str
         Name of the tool that errored
-    language : str | None, optional
+    language : str | None, optional (default: None)
         Language code for error message
 
     Returns
@@ -176,11 +176,11 @@ class ScryfallMCPServer:
                 FastMCP context for progress reporting and logging
             query : str
                 Search query (natural language or Scryfall syntax)
-            language : str | None, optional
+            language : str | None, optional (default: None)
                 Language code ("en", "ja")
-            max_results : int, optional
+            max_results : int, optional (default: 10)
                 Maximum number of results (1-175, default: 10)
-            format_filter : str | None, optional
+            format_filter : str | None, optional (default: None)
                 Format filter ("standard", "modern", etc.)
 
             Returns
@@ -250,7 +250,7 @@ class ScryfallMCPServer:
                 FastMCP context for progress reporting and logging
             query : str
                 Partial card name to complete
-            language : str | None, optional
+            language : str | None, optional (default: None)
                 Language code for completion
 
             Returns
@@ -270,7 +270,9 @@ class ScryfallMCPServer:
             try:
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
-                return cast("list[TextContent | ImageContent | EmbeddedResource]", result)
+                return cast(
+                    "list[TextContent | ImageContent | EmbeddedResource]", result
+                )
             except Exception as e:
                 return await _handle_tool_error(ctx, e, "autocomplete", language)
 
@@ -305,9 +307,12 @@ def sync_main() -> None:
         while the stdio transport is still flushing. This is a known issue in
         the MCP SDK's stdio.py that should be fixed upstream.
 
-        Args:
-            loop: The event loop
-            context: Exception context dict
+        Parameters
+        ----------
+        loop : asyncio.AbstractEventLoop
+            The event loop
+        context : dict[str, Any]
+            Exception context dict
         """
         exception = context.get("exception")
 

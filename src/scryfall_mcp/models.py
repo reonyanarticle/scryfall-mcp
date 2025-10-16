@@ -119,7 +119,8 @@ class SearchCardsRequest(BaseModel):
 
     # Opt-in legalities information
     include_legalities: bool = Field(
-        default=False, description="Include format legalities (legal/banned/restricted only)"
+        default=False,
+        description="Include format legalities (legal/banned/restricted only)",
     )
 
 

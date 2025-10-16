@@ -134,7 +134,9 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="death_trigger_with_effect",
-            pattern=re.compile(rf"死亡時に(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
+            pattern=re.compile(
+                rf"死亡時に(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"
+            ),
             replacement=death_trigger_replacement,
             priority=100,
         )
@@ -152,7 +154,9 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="etb_trigger_with_effect",
-            pattern=re.compile(rf"戦場に出たときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
+            pattern=re.compile(
+                rf"戦場に出たときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"
+            ),
             replacement=etb_trigger_replacement,
             priority=100,
         )
@@ -170,7 +174,9 @@ def create_japanese_patterns(keyword_map: dict[str, str]) -> list[AbilityPattern
     patterns.append(
         AbilityPattern(
             name="attack_trigger_with_effect",
-            pattern=re.compile(rf"攻撃したときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"),
+            pattern=re.compile(
+                rf"攻撃したときに(.+?)(?:する)?(?= |{ABILITY_COLOR_TYPE_PATTERN}|$)"
+            ),
             replacement=attack_trigger_replacement,
             priority=100,
         )

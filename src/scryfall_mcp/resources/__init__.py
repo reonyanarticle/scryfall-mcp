@@ -14,8 +14,8 @@ def load_setup_guide(language: str = "ja") -> str:
 
     Parameters
     ----------
-    language : str, optional
-        Language code for the setup guide (default: "ja")
+    language : str, optional (default: "ja")
+        Language code for the setup guide
 
     Returns
     -------

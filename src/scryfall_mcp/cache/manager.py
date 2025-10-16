@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CacheManager:
     """Cache manager providing high-level caching operations."""
 
-    def __init__(self, cache: CacheProtocol):
+    def __init__(self, cache: CacheProtocol) -> None:
         """Initialize cache manager.
 
         Parameters
@@ -67,7 +67,7 @@ class CacheManager:
 
         Returns
         -------
-        Any, optional
+        Any | None, optional (default: None)
             Cached value if found
         """
         key = self.build_key(namespace, **params)
@@ -84,7 +84,7 @@ class CacheManager:
             Cache namespace
         value : Any
             Value to cache
-        ttl : int, optional
+        ttl : int | None, optional (default: None)
             Time to live in seconds
         **params : Any
             Parameters that identify the cached item
@@ -130,7 +130,7 @@ def get_cache() -> CacheManager | None:
 
     Returns
     -------
-    CacheManager, optional
+    CacheManager | None, optional (default: None)
         Cache manager if caching is enabled, None otherwise
     """
     global _cache_manager

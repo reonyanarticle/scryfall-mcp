@@ -1021,3 +1021,70 @@ class TestSearchPresenter:
 
         # legalities field should not be present if all entries are not_legal
         assert "legalities" not in resource_data
+
+    def test_all_features_combined_phase1_and_phase3(self, en_presenter, sample_card_data):
+        """Test Phase 1 + Phase 3: All features working together."""
+        data = sample_card_data.copy()
+        data["keywords"] = ["Flying", "Vigilance", "Lifelink"]
+        data["artist"] = "Seb McKinnon"
+        data["type_line"] = "Land"
+        data["produced_mana"] = ["W", "U", "B"]
+        data["legalities"] = {
+            "standard": "legal",
+            "modern": "legal",
+            "legacy": "legal",
+            "vintage": "restricted",
+            "commander": "legal",
+            "pauper": "not_legal",
+        }
+        card = Card(**data)
+
+        # Enable ALL Phase 1 + Phase 3 features
+        options = SearchOptions(
+            max_results=10,
+            format_filter="modern",
+            include_keywords=True,
+            include_artist=True,
+            include_mana_production=True,
+            include_legalities=True,  # Phase 3
+            use_annotations=True,
+        )
+
+        # Test TextContent (user-facing)
+        card_text = en_presenter._format_single_card(card, 1, options)
+        assert "Keywords" in card_text.text
+        assert "Flying, Vigilance, Lifelink" in card_text.text
+        assert "Produces" in card_text.text
+        assert "{W}" in card_text.text
+        assert "{U}" in card_text.text
+        assert "{B}" in card_text.text
+        assert "Modern" in card_text.text
+        assert "Legal" in card_text.text
+        assert "Illustrated by Seb McKinnon" in card_text.text
+        assert card_text.annotations is not None
+        assert card_text.annotations.audience == ["user"]
+
+        # Test EmbeddedResource (machine-readable)
+        import json
+        resource = en_presenter._create_card_resource(card, 1, options)
+        resource_data = json.loads(resource.resource.text)
+
+        # Phase 1 fields in resource
+        assert resource_data["keywords"] == ["Flying", "Vigilance", "Lifelink"]
+        assert resource_data["artist"] == "Seb McKinnon"
+        assert resource_data["produced_mana"] == ["W", "U", "B"]
+
+        # Phase 3: legalities in resource (not_legal excluded)
+        assert "legalities" in resource_data
+        assert "standard" in resource_data["legalities"]
+        assert resource_data["legalities"]["standard"] == "legal"
+        assert "modern" in resource_data["legalities"]
+        assert "legacy" in resource_data["legalities"]
+        assert "vintage" in resource_data["legalities"]
+        assert resource_data["legalities"]["vintage"] == "restricted"
+        assert "commander" in resource_data["legalities"]
+        assert "pauper" not in resource_data["legalities"]  # not_legal excluded
+
+        # Annotations in resource
+        assert resource.annotations is not None
+        assert resource.annotations.audience == ["assistant"]

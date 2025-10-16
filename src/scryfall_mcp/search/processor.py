@@ -23,7 +23,7 @@ class SearchProcessor:
 
         Parameters
         ----------
-        locale_mapping : LanguageMapping, optional
+        locale_mapping : LanguageMapping | None, optional (default: None)
             Language-specific mappings. If None, uses current locale mapping.
         """
         self._mapping = locale_mapping or get_current_mapping()
@@ -37,7 +37,7 @@ class SearchProcessor:
         ----------
         text : str
             Natural language search text
-        locale : str, optional
+        locale : str | None, optional (default: None)
             Locale code for language-specific processing
 
         Returns
