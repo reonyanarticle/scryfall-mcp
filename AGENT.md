@@ -89,27 +89,40 @@ MCPツール（`search_cards`）でカード検索結果を返す際、以下の
 
 すべてのコンテンツに**MCP Annotations**を付与し、クライアント側での適切な表示制御を可能にします。
 
+#### audience フィールドの重要な注意点
+
+**Issue**: `audience=["user"]`はMCP仕様では"UIに表示される"と記載されているが、Claude DesktopなどのMCPクライアントでは**表示されないことがある**。
+
+**解決策**: ユーザー向けコンテンツ（カード情報など）は`audience=["user", "assistant"]`を使用することで、**UIとLLMコンテキストの両方に確実に表示される**。
+
 ```python
-# ユーザー向けコンテンツ（TextContent）
+# ✅ 正しい実装: ユーザー向けコンテンツ（TextContent）
 TextContent(
     type="text",
     text="カード情報...",
     annotations=Annotations(
-        audience=["user"],    # UIに表示
-        priority=0.8          # 高優先度
+        audience=["user", "assistant"],  # UIとLLM両方に確実に表示
+        priority=0.8                     # 高優先度
     )
 )
 
-# アシスタント向けコンテンツ（EmbeddedResource）
+# ✅ 正しい実装: アシスタント向けコンテンツ（EmbeddedResource）
 EmbeddedResource(
     type="resource",
     resource=TextResourceContents(...),
     annotations=Annotations(
-        audience=["assistant"],  # LLMコンテキストのみ
+        audience=["assistant"],  # LLMコンテキストのみ（UI非表示）
         priority=0.6             # 中優先度
     )
 )
 ```
+
+**audience値の動作**:
+| 値 | 意味 | 実際の動作 | 使用推奨 |
+|----|------|-----------|---------|
+| `["user"]` | ユーザー向け | UIに表示される**可能性**があるが保証されない | ❌ 非推奨 |
+| `["assistant"]` | アシスタント向け | LLMコンテキストのみ、UI非表示 | ✅ 構造化データ用 |
+| `["user", "assistant"]` | 両方 | **UI+LLM両方に確実に表示** | ✅ カード情報、エラー用 |
 
 ### 優先度ガイドライン
 
@@ -191,6 +204,81 @@ search_result = await client.search_cards(
 - **完全カバレッジ**: 全27000+カードを自動サポート
 - **メンテナンスフリー**: 新セットの手動登録が不要
 - **ネイティブファジーマッチング**: Scryfallの高精度検索を活用
+
+## ブランチ別の主要な改善
+
+### feature/issue#7-add-missing-card-fields (2025-10-17)
+
+#### Phase 1-3: Issue #7対応 - 追加カードフィールドの実装
+**実装内容**:
+- **Phase 1**: キーワード能力、アーティスト、マナ生成フィールドの追加
+  - `keywords`, `artist`, `produced_mana` フィールドのサポート
+  - デフォルトでON、`SearchOptions`で制御可能
+  - 土地カード専用の`produced_mana`表示ロジック
+
+- **Phase 2**: MCP Annotations対応
+  - すべてのコンテンツに`Annotations`を付与
+  - `audience`と`priority`による表示制御
+  - TextContent（ユーザー向け）とEmbeddedResource（アシスタント向け）の適切な使い分け
+
+- **Phase 3**: フォーマット適格性情報の追加
+  - `include_legalities`パラメータによるオプトイン表示
+  - `format_filter`指定時の自動表示
+  - `not_legal`を除外したコンパクトな表示
+
+**テスト**:
+- 全510テスト成功、97%カバレッジ達成
+- Phase 1-3の全機能を網羅する統合テスト追加
+
+#### コード品質改善 (2025-10-17)
+**実施内容**:
+- **型アノテーション修正**: 5つの`__init__`メソッドに`-> None`を追加
+- **docstring形式統一**: Google Style → NumPy Style変換（1箇所）
+- **docstring型表記更新**: 30+箇所で`type, optional` → `type | None, optional (default: value)`
+- **リント・フォーマット**: ruff check/format で2エラー修正、6ファイル再フォーマット
+- **型チェック**: mypy --strict で全29ファイル合格
+
+**品質チェック結果**:
+- ✅ ruff check: 全ファイル合格
+- ✅ ruff format: 統一フォーマット適用済み
+- ✅ mypy --strict: 型エラー0件
+- ✅ pytest: 510テスト成功、97%カバレッジ
+
+#### MCP Annotations UI表示問題の修正 (2025-10-17)
+**問題**: アーティスト名がJSONメタデータには含まれるが、Claude Desktop ChatUIに表示されない
+
+**原因調査**:
+1. `docs/MCP-OUTPUT-DESIGN-REPORT.md`からMCP仕様を調査
+2. `audience=["user"]`の動作が仕様と実装で異なることを発見
+3. MCP仕様: "UIに表示される"
+4. 実際の動作: "UIに表示される**可能性がある**が保証されない"
+
+**実装済み解決策**:
+- `presenter.py:302-305`: `audience=["user"]` → `audience=["user", "assistant"]`
+- これにより**UIとLLMコンテキストの両方に確実に表示**
+- テストケース更新: 2箇所で期待値を`["user", "assistant"]`に修正
+
+**修正ファイル**:
+```python
+# src/scryfall_mcp/search/presenter.py (lines 302-305)
+annotations = Annotations(
+    audience=["user", "assistant"],  # UIとLLM両方に確実に表示
+    priority=PRIORITY_USER_CONTENT
+)
+
+# tests/search/test_presenter.py (lines 866, 1065)
+assert card_text.annotations.audience == ["user", "assistant"]
+```
+
+**テスト結果**:
+- presenter tests: 58/58 成功
+- 全テスト: 510/510 成功
+- カバレッジ: 97%維持
+
+**推奨事項**:
+- ユーザー向けコンテンツ（カード情報、エラーメッセージ等）は常に`audience=["user", "assistant"]`を使用
+- 構造化メタデータ（EmbeddedResource）のみ`audience=["assistant"]`を使用
+- `audience=["user"]`は使用しない（表示保証なし）
 
 ## v0.1.0での主要な改善
 
