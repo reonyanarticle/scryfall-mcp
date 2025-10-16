@@ -145,6 +145,8 @@ class CardSearchTool:
                     include_keywords=request.include_keywords,
                     include_artist=request.include_artist,
                     include_mana_production=request.include_mana_production,
+                    # Phase 3: Legalities information
+                    include_legalities=request.include_legalities,
                 )
 
                 return presenter.present_results(search_result, built, search_options)

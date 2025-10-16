@@ -507,6 +507,16 @@ class SearchPresenter:
         if card.edhrec_rank is not None:
             card_metadata["edhrec_rank"] = card.edhrec_rank
 
+        # Phase 3: Minimal legalities (legal/banned/restricted only, not_legal excluded)
+        if options.include_legalities:
+            legalities_compact = {
+                fmt: status
+                for fmt, status in card.legalities.model_dump().items()
+                if status != "not_legal"
+            }
+            if legalities_compact:
+                card_metadata["legalities"] = legalities_compact
+
         # Add MCP Annotations (Phase 1)
         annotations = None
         if options.use_annotations:

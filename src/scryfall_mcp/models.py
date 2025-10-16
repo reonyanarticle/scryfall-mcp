@@ -76,6 +76,9 @@ class SearchOptions(BaseModel):
     include_artist: bool = True
     include_mana_production: bool = True
 
+    # Phase 3: Opt-in legalities information
+    include_legalities: bool = False
+
 
 # ============================================================================
 # Tool Request Models (from tools/search.py)
@@ -112,6 +115,11 @@ class SearchCardsRequest(BaseModel):
     include_artist: bool = Field(default=True, description="Include artist information")
     include_mana_production: bool = Field(
         default=True, description="Include mana production for lands"
+    )
+
+    # Phase 3: Opt-in legalities information
+    include_legalities: bool = Field(
+        default=False, description="Include format legalities (legal/banned/restricted only)"
     )
 
 

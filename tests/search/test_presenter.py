@@ -947,3 +947,77 @@ class TestSearchPresenter:
         assert "Legal" in card_text.text
         assert "Illustrated by Seb McKinnon" in card_text.text
         assert card_text.annotations is not None
+
+    # Phase 3 Tests: include_legalities
+
+    def test_legalities_in_resource_when_enabled(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities are included in resource when include_legalities=True."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "not_legal",
+            "modern": "legal",
+            "legacy": "legal",
+            "vintage": "restricted",
+            "commander": "banned",
+            "pauper": "not_legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=True)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # Should include legalities, but exclude "not_legal" entries
+        assert "legalities" in resource_data
+        assert "modern" in resource_data["legalities"]
+        assert resource_data["legalities"]["modern"] == "legal"
+        assert "legacy" in resource_data["legalities"]
+        assert resource_data["legalities"]["legacy"] == "legal"
+        assert "vintage" in resource_data["legalities"]
+        assert resource_data["legalities"]["vintage"] == "restricted"
+        assert "commander" in resource_data["legalities"]
+        assert resource_data["legalities"]["commander"] == "banned"
+        # not_legal entries should be excluded
+        assert "standard" not in resource_data["legalities"]
+        assert "pauper" not in resource_data["legalities"]
+
+    def test_legalities_not_in_resource_when_disabled(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities are excluded when include_legalities=False (default)."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "legal",
+            "modern": "legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=False)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # legalities should not be included when disabled
+        assert "legalities" not in resource_data
+
+    def test_legalities_empty_when_all_not_legal(self, en_presenter, sample_card_data):
+        """Test Phase 3: legalities field is not added if all statuses are not_legal."""
+        data = sample_card_data.copy()
+        data["legalities"] = {
+            "standard": "not_legal",
+            "modern": "not_legal",
+            "legacy": "not_legal",
+            "vintage": "not_legal",
+            "commander": "not_legal",
+        }
+        card = Card(**data)
+
+        options = SearchOptions(max_results=10, include_legalities=True)
+        resource = en_presenter._create_card_resource(card, 1, options)
+
+        import json
+        resource_data = json.loads(resource.resource.text)
+
+        # legalities field should not be present if all entries are not_legal
+        assert "legalities" not in resource_data
