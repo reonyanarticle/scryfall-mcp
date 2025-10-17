@@ -13,6 +13,7 @@ from ..models import BuiltQuery, ParsedQuery
 
 if TYPE_CHECKING:
     from ..i18n import LanguageMapping
+    from .ability_patterns import AbilityPatternMatcher
 
 
 class QueryBuilder:
@@ -48,7 +49,7 @@ class QueryBuilder:
         self._mapping = locale_mapping
 
         # Initialize pattern matcher for Japanese (Phase 2)
-        self._pattern_matcher = None
+        self._pattern_matcher: AbilityPatternMatcher | None = None
         if locale_mapping.language_code == "ja":
             from .ability_patterns import (
                 AbilityPatternMatcher,

@@ -352,6 +352,81 @@ if __name__ == "__main__":
                 # Should have called CardSearchTool.execute
                 mock_execute.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_search_cards_option_forwarding(self) -> None:
+        """Test that search_cards forwards display options to the tool layer."""
+        with (
+            patch("scryfall_mcp.settings.is_user_agent_configured", return_value=True),
+            patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute,
+        ):
+            mock_result = [Mock(text="Search results")]
+            mock_execute.return_value = mock_result
+
+            captured_tools: list = []
+
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+
+                    return decorator
+
+                def prompt(self):
+                    def decorator(func):
+                        return func
+
+                    return decorator
+
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+
+                search_cards_func = None
+                for func in captured_tools:
+                    if func.__name__ == "search_cards":
+                        search_cards_func = func
+                        break
+
+                assert search_cards_func is not None
+
+                mock_ctx = AsyncMock()
+                mock_ctx.info = AsyncMock()
+                mock_ctx.report_progress = AsyncMock()
+
+                await search_cards_func(
+                    mock_ctx,
+                    "test query",
+                    language="ja",
+                    max_results=5,
+                    format_filter="modern",
+                    use_annotations=False,
+                    include_keywords=False,
+                    include_artist=False,
+                    include_mana_production=False,
+                    include_legalities=True,
+                )
+
+                mock_execute.assert_called_once()
+                forwarded_args = mock_execute.call_args[0][0]
+                assert forwarded_args["use_annotations"] is False
+                assert forwarded_args["include_keywords"] is False
+                assert forwarded_args["include_artist"] is False
+                assert forwarded_args["include_mana_production"] is False
+                assert forwarded_args["include_legalities"] is True
+                assert forwarded_args["language"] == "ja"
+                assert forwarded_args["max_results"] == 5
+                assert forwarded_args["format_filter"] == "modern"
+
     def test_scryfall_setup_prompt_registration(self) -> None:
         """Test that scryfall_setup prompt is registered."""
         server = ScryfallMCPServer()

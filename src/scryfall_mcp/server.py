@@ -167,6 +167,11 @@ class ScryfallMCPServer:
             language: str | None = None,
             max_results: int = 10,
             format_filter: str | None = None,
+            use_annotations: bool = True,
+            include_keywords: bool = True,
+            include_artist: bool = True,
+            include_mana_production: bool = True,
+            include_legalities: bool = False,
         ) -> str | list[TextContent | ImageContent | EmbeddedResource]:
             """Search for Magic: The Gathering cards.
 
@@ -182,6 +187,16 @@ class ScryfallMCPServer:
                 Maximum number of results (1-175, default: 10)
             format_filter : str | None, optional (default: None)
                 Format filter ("standard", "modern", etc.)
+            use_annotations : bool, optional (default: True)
+                Include MCP annotations for text and metadata output
+            include_keywords : bool, optional (default: True)
+                Include keyword abilities in card summaries
+            include_artist : bool, optional (default: True)
+                Include artist attribution in card summaries
+            include_mana_production : bool, optional (default: True)
+                Include mana production details for land cards
+            include_legalities : bool, optional (default: False)
+                Include compact format legalities in embedded resources
 
             Returns
             -------
@@ -224,6 +239,11 @@ class ScryfallMCPServer:
                 "language": language,
                 "max_results": max_results,
                 "format_filter": format_filter,
+                "use_annotations": use_annotations,
+                "include_keywords": include_keywords,
+                "include_artist": include_artist,
+                "include_mana_production": include_mana_production,
+                "include_legalities": include_legalities,
             }
 
             await ctx.report_progress(0, 100, "Searching for cards...")

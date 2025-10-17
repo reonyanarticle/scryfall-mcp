@@ -25,6 +25,313 @@ Magic: The GatheringのカードデータをMCP (Model Context Protocol)経由�
   - 実装: `Path(__file__).parent / f"setup_guide.{language}"`
   - 目的: 言語別リソースの管理を簡潔化し、ファイル命名の一貫性を保つ
 
+## コーディング規約
+
+このセクションでは、Readable CodeとClean Codeの原則に基づく具体的なコーディング規約を定義します。
+
+### 関数の長さ制限
+
+**原則**: 関数は最大50行を目安とし、それを超える場合は小さなヘルパーメソッドに分割すること。
+
+**理由**:
+- 可読性の向上: 短い関数は理解しやすく、レビューしやすい
+- テスト容易性: 小さな関数は単体テストが書きやすい
+- 保守性: バグの発見と修正が容易
+
+**実装例**:
+```python
+# ❌ 悪い例: 90行の長大な関数
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    request = SearchCardsRequest(**arguments)
+    mapping = get_current_mapping()
+    parser = SearchParser(mapping)
+    builder = QueryBuilder(mapping)
+    # ... 80行以上のロジックが続く ...
+
+# ✅ 良い例: ヘルパーメソッドに分割（26行）
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    request = _validate_request(arguments)
+    builder, presenter, built = _build_query_pipeline(request)
+    scryfall_query = _add_query_filters(built.scryfall_query, request)
+    result = await _execute_api_search(scryfall_query, request)
+    if isinstance(result, list):
+        return result
+    search_options = _create_search_options(request)
+    return presenter.present_results(result, built, search_options)
+```
+
+**参考**: `src/scryfall_mcp/tools/search.py` の `CardSearchTool.execute` メソッドは90行→26行にリファクタリング済み
+
+### 型アノテーション必須
+
+**原則**: すべての変数、関数パラメータ、戻り値に明示的な型ヒントを付けること。
+
+**詳細ルール**:
+1. **PEP 585準拠**: `list[str]`, `dict[str, int]` など組み込み型を使用（Python 3.9+）
+2. **Union型**: `str | None`, `int | str` のようにパイプ演算子を使用（Python 3.10+）
+3. **Optional禁止**: `Optional[str]` ではなく `str | None` を使用
+4. **循環インポート回避**: `TYPE_CHECKING` ブロックを使用
+
+**実装例**:
+```python
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..i18n import LanguageMapping
+    from .ability_patterns import AbilityPatternMatcher
+
+class QueryBuilder:
+    def __init__(self, mapping: LanguageMapping) -> None:
+        self._mapping: LanguageMapping = mapping
+        self._pattern_matcher: AbilityPatternMatcher | None = None
+
+    def build(self, parsed: ParsedQuery) -> BuiltQuery:
+        """Build Scryfall query from parsed input.
+
+        Parameters
+        ----------
+        parsed : ParsedQuery
+            Parsed user query
+
+        Returns
+        -------
+        BuiltQuery
+            Built query with metadata
+        """
+        # ... implementation ...
+```
+
+**禁止事項**:
+```python
+# ❌ 型ヒントなし
+def process_data(items):
+    result = []
+    for item in items:
+        result.append(item.upper())
+    return result
+
+# ❌ typing.Optional使用
+from typing import Optional
+def get_value() -> Optional[str]:
+    pass
+
+# ✅ 正しい実装
+def process_data(items: list[str]) -> list[str]:
+    result: list[str] = []
+    for item in items:
+        result.append(item.upper())
+    return result
+
+def get_value() -> str | None:
+    pass
+```
+
+### ハンガリアン記法の禁止
+
+**原則**: 変数名に型情報を含めないこと（Hungarian notation禁止）。
+
+**理由**:
+- 型ヒントがあれば型情報は不要
+- 型名を含む変数名は冗長で可読性を下げる
+- 型が変更された際に変数名との不整合が発生
+
+**禁止パターン**:
+```python
+# ❌ 悪い例: 型名を含む変数名
+str_name = "Alice"
+int_count = 42
+list_items = ["a", "b", "c"]
+dict_mapping = {"key": "value"}
+bool_is_valid = True
+
+# ✅ 良い例: 型ヒントで型を明示
+name: str = "Alice"
+count: int = 42
+items: list[str] = ["a", "b", "c"]
+mapping: dict[str, str] = {"key": "value"}
+is_valid: bool = True
+```
+
+**例外**:
+- ビジネスロジック上で型が意味を持つ場合は許容される
+  - 例: `json_data` (JSON形式であることが重要), `html_content` (HTML形式であることが重要)
+  - ただし、この場合も型ヒントは必須
+
+### 可読性原則
+
+#### 早期リターンの活用
+
+**原則**: ネストを減らすために早期リターンを使用すること。
+
+**実装例**:
+```python
+# ❌ 悪い例: 深いネスト
+def process_user(user: User | None) -> str:
+    if user is not None:
+        if user.is_active:
+            if user.has_permission("admin"):
+                return f"Admin: {user.name}"
+            else:
+                return f"User: {user.name}"
+        else:
+            return "Inactive user"
+    else:
+        return "No user"
+
+# ✅ 良い例: 早期リターン
+def process_user(user: User | None) -> str:
+    if user is None:
+        return "No user"
+
+    if not user.is_active:
+        return "Inactive user"
+
+    if user.has_permission("admin"):
+        return f"Admin: {user.name}"
+
+    return f"User: {user.name}"
+```
+
+#### ネストの深さ制限
+
+**原則**: ネストは最大3レベルまでとすること。
+
+**実装例**:
+```python
+# ❌ 悪い例: 4レベルのネスト
+for user in users:
+    if user.is_active:
+        for order in user.orders:
+            if order.is_paid:
+                for item in order.items:
+                    # ... 処理 ...
+
+# ✅ 良い例: ヘルパーメソッドで分割
+def process_users(users: list[User]) -> None:
+    for user in users:
+        if user.is_active:
+            _process_user_orders(user.orders)
+
+def _process_user_orders(orders: list[Order]) -> None:
+    for order in orders:
+        if order.is_paid:
+            _process_order_items(order.items)
+
+def _process_order_items(items: list[Item]) -> None:
+    for item in items:
+        # ... 処理 ...
+```
+
+#### 明確な変数名
+
+**原則**: 変数名は意図を明確に表現すること。
+
+**ルール**:
+- 省略形は避ける（一般的な慣習を除く）
+- 単一文字の変数名は避ける（ループカウンタ `i`, `j` は許容）
+- ブール値は `is_`, `has_`, `can_` などの接頭辞を使用
+
+**実装例**:
+```python
+# ❌ 悪い例
+def calc(n: int, m: int) -> int:
+    tmp = n + m
+    res = tmp * 2
+    return res
+
+# ✅ 良い例
+def calculate_doubled_sum(first_number: int, second_number: int) -> int:
+    sum_result = first_number + second_number
+    doubled_result = sum_result * 2
+    return doubled_result
+```
+
+### Single Responsibility Principle (単一責任の原則)
+
+**原則**: 1つの関数は1つの責任のみを持つこと。
+
+**実装例**:
+```python
+# ❌ 悪い例: 複数の責任を持つ関数
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    # バリデーション
+    request = SearchCardsRequest(**arguments)
+
+    # パイプライン構築
+    mapping = get_current_mapping()
+    parser = SearchParser(mapping)
+    builder = QueryBuilder(mapping)
+    presenter = SearchPresenter(mapping)
+
+    # クエリ解析
+    parsed = parser.parse(request.query)
+    built = builder.build(parsed)
+
+    # フィルタ追加
+    if request.format_filter:
+        built.scryfall_query += f" f:{request.format_filter}"
+
+    # API呼び出し
+    client = await get_client()
+    result = await client.search_cards(query=built.scryfall_query)
+
+    # プレゼンテーション
+    return presenter.present_results(result, built)
+
+# ✅ 良い例: 責任を分離
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    """Execute search - orchestration only."""
+    request = _validate_request(arguments)
+    builder, presenter, built = _build_query_pipeline(request)
+    scryfall_query = _add_query_filters(built.scryfall_query, request)
+    result = await _execute_api_search(scryfall_query, request)
+    search_options = _create_search_options(request)
+    return presenter.present_results(result, built, search_options)
+
+@staticmethod
+def _validate_request(arguments: dict[str, Any]) -> SearchCardsRequest:
+    """Validate and parse request arguments."""
+    return SearchCardsRequest(**arguments)
+
+@staticmethod
+def _build_query_pipeline(request: SearchCardsRequest) -> tuple[QueryBuilder, SearchPresenter, BuiltQuery]:
+    """Build the query processing pipeline."""
+    mapping = get_current_mapping()
+    parser = SearchParser(mapping)
+    builder = QueryBuilder(mapping)
+    presenter = SearchPresenter(mapping)
+    parsed = parser.parse(request.query)
+    built = builder.build(parsed)
+    return builder, presenter, built
+```
+
+### リファクタリングの実践例
+
+**参考実装**: `src/scryfall_mcp/tools/search.py` のリファクタリング
+
+**Before**: 90行の `CardSearchTool.execute` メソッド
+- 複数の責任が混在（バリデーション、パイプライン構築、API呼び出し、エラー処理）
+- ネストが深い
+- テストが困難
+
+**After**: 26行の `execute` メソッド + 8つのヘルパーメソッド
+1. `_validate_request` - リクエストバリデーション
+2. `_build_query_pipeline` - パイプライン構築
+3. `_add_query_filters` - フィルタ追加
+4. `_execute_api_search` - API呼び出し
+5. `_handle_api_error` - APIエラー処理
+6. `_handle_no_results` - 結果なし処理
+7. `_create_search_options` - オプション生成
+8. `_handle_unexpected_error` - 予期しないエラー処理
+
+**効果**:
+- 各ヘルパーメソッドは単一の責任を持つ
+- テスト可能性の向上
+- 可読性の大幅な改善
+- 保守性の向上
+
 ### ドキュメント方針
 - **動的情報は記載しない**: テスト数、カバレッジ率、コミットハッシュ、日付などの変動する情報は記載しない
 - **理由**: これらの情報はgitログ、テスト実行結果、CIで確認可能。ドキュメントに記載すると更新漏れで陳腐化する
