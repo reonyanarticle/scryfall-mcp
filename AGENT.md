@@ -25,6 +25,146 @@ Magic: The GatheringのカードデータをMCP (Model Context Protocol)経由�
   - 実装: `Path(__file__).parent / f"setup_guide.{language}"`
   - 目的: 言語別リソースの管理を簡潔化し、ファイル命名の一貫性を保つ
 
+## コーディング規約
+
+このセクションでは、Readable CodeとClean Codeの原則に基づく具体的なコーディング規約を定義する。
+
+### 関数の長さ制限
+
+関数は50行以内を目安に分割する。それを超える場合は単一責任の原則に従い、ヘルパーメソッドに分割すること。短い関数は理解しやすく、テストが書きやすく、バグ修正が容易になる。
+
+実装例（`src/scryfall_mcp/tools/search.py` より）:
+
+```python
+# 悪い例: 90行の長大な関数
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    request = SearchCardsRequest(**arguments)
+    # ... 80行以上のロジックが続く ...
+
+# 良い例: ヘルパーメソッドに分割（26行）
+async def execute(arguments: dict[str, Any]) -> list[TextContent]:
+    request = _validate_request(arguments)
+    builder, presenter, built = _build_query_pipeline(request)
+    scryfall_query = _add_query_filters(built.scryfall_query, request)
+    result = await _execute_api_search(scryfall_query, request)
+    if isinstance(result, list):
+        return result
+    search_options = _create_search_options(request)
+    return presenter.present_results(result, built, search_options)
+```
+
+### 型アノテーション必須
+
+すべての変数、関数パラメータ、戻り値に明示的な型ヒントを付けること。遵守する主なルールは次の4点である:
+
+1. PEP 585準拠: `list[str]`, `dict[str, int]` など組み込み型を使用（Python 3.9+）
+2. Union型: `str | None`, `int | str` のようにパイプ演算子を使用（Python 3.10+）
+3. Optional禁止: `Optional[str]` ではなく `str | None` を使用
+4. 循環インポート回避: `TYPE_CHECKING` ブロックでクラス間の相互参照を解決
+
+実装例:
+
+```python
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..i18n import LanguageMapping
+
+class QueryBuilder:
+    def __init__(self, mapping: LanguageMapping) -> None:
+        self._mapping: LanguageMapping = mapping
+
+    def build(self, parsed: ParsedQuery) -> BuiltQuery:
+        """Build Scryfall query from parsed input."""
+        # ... implementation ...
+
+# 悪い例
+def process_data(items):  # 型ヒントなし
+    return [item.upper() for item in items]
+
+# 良い例
+def process_data(items: list[str]) -> list[str]:
+    return [item.upper() for item in items]
+```
+
+### ハンガリアン記法の禁止
+
+変数名に型情報を含めない（Hungarian notation禁止）。型ヒントで型を明示するため、型名を含む変数名は冗長であり、型変更時に不整合が発生する。
+
+```python
+# 悪い例: 型名を含む変数名
+str_name = "Alice"
+list_items = ["a", "b", "c"]
+
+# 良い例: 型ヒントで型を明示
+name: str = "Alice"
+items: list[str] = ["a", "b", "c"]
+```
+
+例外: ビジネスロジック上で型が意味を持つ場合（例: `json_data`, `html_content`）は許容されるが、型ヒントは必須。
+
+### 可読性原則
+
+#### 早期リターンとネスト制限
+
+ネストを減らすために早期リターンを使用する。ネストは最大3レベル（`for`/`if`/`with`/`match`を合算）までとし、それを超える場合はヘルパーメソッドに分割する。
+
+```python
+# 悪い例: 深いネスト
+def process_user(user: User | None) -> str:
+    if user is not None:
+        if user.is_active:
+            if user.has_permission("admin"):
+                return f"Admin: {user.name}"
+            else:
+                return f"User: {user.name}"
+        else:
+            return "Inactive user"
+    else:
+        return "No user"
+
+# 良い例: 早期リターン
+def process_user(user: User | None) -> str:
+    if user is None:
+        return "No user"
+    if not user.is_active:
+        return "Inactive user"
+    if user.has_permission("admin"):
+        return f"Admin: {user.name}"
+    return f"User: {user.name}"
+```
+
+#### 明確な変数名
+
+変数名は意図を明確に表現する。省略形は一般的な慣習（`db`, `id`, `url`, `api`, `http`など）を除き避ける。単一文字の変数名はループカウンタ `i`, `j` のみ許容。ブール値は `is_`, `has_`, `can_` などの接頭辞を使用する。
+
+```python
+# 悪い例: 省略形と不明瞭な名前
+def calc(n: int, m: int) -> int:
+    tmp = n + m
+    res = tmp * 2
+    return res
+
+# 良い例: 明確な名前
+def calculate_doubled_sum(first: int, second: int) -> int:
+    total = first + second
+    return total * 2
+```
+
+### 単一責任の原則
+
+1つの関数は1つの責任のみを持つこと。複数の責任を持つ長大な関数は、各責任ごとにヘルパーメソッドに分割し、メイン関数はオーケストレーション（調整）のみを行う。
+
+実装例: `src/scryfall_mcp/tools/search.py` のリファクタリング（90行→26行 + 8ヘルパーメソッド）
+
+- `_validate_request`: リクエストバリデーション
+- `_build_query_pipeline`: パイプライン構築
+- `_add_query_filters`: フィルタ追加
+- `_execute_api_search`: API呼び出し
+- `_handle_api_error`, `_handle_no_results`, `_handle_unexpected_error`: エラー処理
+- `_create_search_options`: オプション生成
+
 ### ドキュメント方針
 - **動的情報は記載しない**: テスト数、カバレッジ率、コミットハッシュ、日付などの変動する情報は記載しない
 - **理由**: これらの情報はgitログ、テスト実行結果、CIで確認可能。ドキュメントに記載すると更新漏れで陳腐化する
