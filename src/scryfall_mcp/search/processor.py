@@ -30,7 +30,7 @@ class SearchProcessor:
         self._parser = SearchParser(self._mapping)
         self._query_builder = QueryBuilder(self._mapping)
 
-    def process_query(self, text: str, locale: str | None = None) -> dict[str, Any]:
+    async def process_query(self, text: str, locale: str | None = None) -> dict[str, Any]:
         """Process a natural language search query through the pipeline.
 
         Parameters
@@ -57,8 +57,8 @@ class SearchProcessor:
         # Parse the natural language query
         parsed = self._parser.parse(text)
 
-        # Build the Scryfall query
-        built = self._query_builder.build(parsed)
+        # Build the Scryfall query (async for dynamic latest set)
+        built = await self._query_builder.build(parsed)
 
         # Return structured result for backward compatibility
         return {
@@ -71,7 +71,7 @@ class SearchProcessor:
             "query_metadata": built.query_metadata,
         }
 
-    def process_with_pipeline(self, text: str) -> tuple[ParsedQuery, BuiltQuery]:
+    async def process_with_pipeline(self, text: str) -> tuple[ParsedQuery, BuiltQuery]:
         """Process query and return structured pipeline results.
 
         Parameters
@@ -85,7 +85,7 @@ class SearchProcessor:
             Parsed query and built query for use with presenter
         """
         parsed = self._parser.parse(text)
-        built = self._query_builder.build(parsed)
+        built = await self._query_builder.build(parsed)
         return parsed, built
 
     def _detect_intent(self, text: str) -> str:

@@ -127,6 +127,14 @@ SCRYFALL_KEYWORDS: set[str] = {
 # Colors in WUBRG order (standard Magic color ordering)
 MAGIC_COLORS: list[str] = ["W", "U", "B", "R", "G"]
 
+# Latest Standard-legal expansion set (Issue #3 - Dynamic retrieval)
+# NOTE: This is a FALLBACK value only. The actual latest set is fetched
+# dynamically from Scryfall API at runtime with 24-hour caching.
+# This fallback is used only if API fetch fails or in sync contexts.
+LATEST_SET_CODE_FALLBACK: str = "mkm"  # Fallback: Murders at Karlov Manor
+LATEST_SET_NAME_JA_FALLBACK: str = "カルロフ邸殺人事件"
+LATEST_SET_NAME_EN_FALLBACK: str = "Murders at Karlov Manor"
+
 # All Magic card types (comprehensive list)
 MAGIC_TYPES: set[str] = {
     # Basic types

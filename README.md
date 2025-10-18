@@ -12,6 +12,7 @@ Scryfall MCP Serverは、Magic: The Gatheringのカード検索と情報取得�
   - **Phase 1 能力フレーズ検索**: 「死亡時」「戦場に出たとき」などの基本的な能力フレーズに対応
   - **Phase 2 長文クエリ対応**: 「死亡時にカードを1枚引く黒いクリーチャー」などの複雑なクエリに対応
   - **キーワード能力検索**: 「飛行」「速攻」などのキーワード能力に対応
+  - **動的な最新セット検索**: 「最新のエクスパンション」などのクエリで自動的に最新セットを取得
 - **MCP準拠の構造化出力**: TextContent、EmbeddedResourceによる高品質なデータ提供
 - **リアルタイム進捗報告**: FastMCP Context注入による詳細なログとプログレス通知
 - **レート制限**: Scryfall API制限に準拠した安全なリクエスト管理（スレッドセーフ実装）
@@ -164,6 +165,11 @@ search_cards(query="攻撃したときにダメージを与える赤いクリー
 
 search_cards(query="死亡時にカードを引く飛行を持つ青いクリーチャー", language="ja")
 # -> 複数能力の組み合わせ: o:"when ~ dies" o:"draw" keyword:flying c:u t:creature
+
+# 動的な最新セット検索（Issue #3対応）
+search_cards(query="最新のエクスパンション", language="ja")
+# -> 自動的に最新のエクスパンションセットコードに変換: s:<latest_set_code>
+# -> 1週間キャッシュでAPI負荷を軽減
 ```
 
 ### 自動補完
@@ -181,7 +187,8 @@ scryfall-mcp/
 ├── src/scryfall_mcp/
 │   ├── api/              # Scryfall API クライアント
 │   │   ├── client.py     # HTTPクライアント実装
-│   │   └── rate_limiter.py # レート制限・サーキットブレーカー
+│   │   ├── rate_limiter.py # レート制限・サーキットブレーカー
+│   │   └── sets.py       # セット情報取得・キャッシング (NEW)
 │   ├── cache/            # 2層キャッシュシステム
 │   │   ├── backends.py   # Memory/Redis/Composite
 │   │   └── manager.py    # キャッシュマネージャー
