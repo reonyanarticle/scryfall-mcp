@@ -455,7 +455,7 @@ class Card(BaseModel):
     story_spotlight: bool = False
     prices: Prices
     related_uris: RelatedUris
-    purchase_uris: PurchaseUris
+    purchase_uris: PurchaseUris | None = None  # Some cards don't have purchase URIs
 
     # Gameplay Fields (continued)
     power: str | None = None
