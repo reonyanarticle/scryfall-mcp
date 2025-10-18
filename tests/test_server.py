@@ -352,6 +352,81 @@ if __name__ == "__main__":
                 # Should have called CardSearchTool.execute
                 mock_execute.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_search_cards_option_forwarding(self) -> None:
+        """Test that search_cards forwards display options to the tool layer."""
+        with (
+            patch("scryfall_mcp.settings.is_user_agent_configured", return_value=True),
+            patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute,
+        ):
+            mock_result = [Mock(text="Search results")]
+            mock_execute.return_value = mock_result
+
+            captured_tools: list = []
+
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+
+                    return decorator
+
+                def prompt(self):
+                    def decorator(func):
+                        return func
+
+                    return decorator
+
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+
+                search_cards_func = None
+                for func in captured_tools:
+                    if func.__name__ == "search_cards":
+                        search_cards_func = func
+                        break
+
+                assert search_cards_func is not None
+
+                mock_ctx = AsyncMock()
+                mock_ctx.info = AsyncMock()
+                mock_ctx.report_progress = AsyncMock()
+
+                await search_cards_func(
+                    mock_ctx,
+                    "test query",
+                    language="ja",
+                    max_results=5,
+                    format_filter="modern",
+                    use_annotations=False,
+                    include_keywords=False,
+                    include_artist=False,
+                    include_mana_production=False,
+                    include_legalities=True,
+                )
+
+                mock_execute.assert_called_once()
+                forwarded_args = mock_execute.call_args[0][0]
+                assert forwarded_args["use_annotations"] is False
+                assert forwarded_args["include_keywords"] is False
+                assert forwarded_args["include_artist"] is False
+                assert forwarded_args["include_mana_production"] is False
+                assert forwarded_args["include_legalities"] is True
+                assert forwarded_args["language"] == "ja"
+                assert forwarded_args["max_results"] == 5
+                assert forwarded_args["format_filter"] == "modern"
+
     def test_scryfall_setup_prompt_registration(self) -> None:
         """Test that scryfall_setup prompt is registered."""
         server = ScryfallMCPServer()
@@ -478,3 +553,338 @@ class TestMainFunctions:
             mock_logger.exception.assert_called_once_with("Fatal error")
             mock_exit.assert_called_once_with(1)
             mock_loop.close.assert_called_once()
+
+    def test_sync_main_exception_handler_brokenpipe(self) -> None:
+        """Test exception handler suppressing BrokenPipeError."""
+        from scryfall_mcp.server import sync_main
+
+        with (
+            patch("asyncio.new_event_loop") as mock_new_loop,
+            patch("asyncio.set_event_loop") as mock_set_loop,
+            patch("scryfall_mcp.server.logger") as mock_logger,
+        ):
+            mock_loop = MagicMock()
+            mock_new_loop.return_value = mock_loop
+            mock_loop.run_until_complete.return_value = None
+
+            # Capture the exception handler that was set
+            exception_handler = None
+
+            def capture_handler(handler):
+                nonlocal exception_handler
+                exception_handler = handler
+
+            mock_loop.set_exception_handler = capture_handler
+
+            sync_main()
+
+            # Now test the exception handler with BrokenPipeError
+            assert exception_handler is not None
+
+            context = {"exception": BrokenPipeError("Broken pipe")}
+            exception_handler(mock_loop, context)
+
+            # Should log debug message about suppression
+            mock_logger.debug.assert_called_once()
+            assert "BrokenPipeError" in str(mock_logger.debug.call_args)
+
+    def test_sync_main_exception_handler_other_exception(self) -> None:
+        """Test exception handler allowing other exceptions through."""
+        from scryfall_mcp.server import sync_main
+
+        with (
+            patch("asyncio.new_event_loop") as mock_new_loop,
+            patch("asyncio.set_event_loop") as mock_set_loop,
+        ):
+            mock_loop = MagicMock()
+            mock_new_loop.return_value = mock_loop
+            mock_loop.run_until_complete.return_value = None
+
+            # Capture the exception handler
+            exception_handler = None
+
+            def capture_handler(handler):
+                nonlocal exception_handler
+                exception_handler = handler
+
+            mock_loop.set_exception_handler = capture_handler
+
+            sync_main()
+
+            # Test the exception handler with a different exception
+            assert exception_handler is not None
+
+            context = {"exception": ValueError("Test error")}
+            exception_handler(mock_loop, context)
+
+            # Should call default exception handler
+            mock_loop.default_exception_handler.assert_called_once_with(context)
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_error_english(self) -> None:
+        """Test _handle_tool_error function with English language."""
+        from scryfall_mcp.server import _handle_tool_error
+
+        mock_ctx = AsyncMock()
+        test_error = Exception("Test error message")
+
+        result = await _handle_tool_error(mock_ctx, test_error, "search_cards", "en")
+
+        # Should call ctx.error
+        mock_ctx.error.assert_called_once()
+        assert "search_cards" in str(mock_ctx.error.call_args)
+
+        # Should return TextContent with English error message
+        assert len(result) == 1
+        from mcp.types import TextContent
+        assert isinstance(result[0], TextContent)
+        assert "Search error" in result[0].text
+        assert "Test error message" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_error_japanese(self) -> None:
+        """Test _handle_tool_error function with Japanese language."""
+        from scryfall_mcp.server import _handle_tool_error
+
+        mock_ctx = AsyncMock()
+        test_error = Exception("テストエラー")
+
+        result = await _handle_tool_error(mock_ctx, test_error, "search_cards", "ja")
+
+        # Should call ctx.error
+        mock_ctx.error.assert_called_once()
+
+        # Should return TextContent with Japanese error message
+        assert len(result) == 1
+        from mcp.types import TextContent
+        assert isinstance(result[0], TextContent)
+        assert "検索エラー" in result[0].text
+        assert "テストエラー" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_error_autocomplete(self) -> None:
+        """Test _handle_tool_error function with autocomplete tool."""
+        from scryfall_mcp.server import _handle_tool_error
+
+        mock_ctx = AsyncMock()
+        test_error = Exception("Autocomplete failed")
+
+        result = await _handle_tool_error(mock_ctx, test_error, "autocomplete", "en")
+
+        # Should return autocomplete-specific error message
+        assert len(result) == 1
+        from mcp.types import TextContent
+        assert isinstance(result[0], TextContent)
+        assert "Autocomplete error" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_error_unknown_tool(self) -> None:
+        """Test _handle_tool_error function with unknown tool name."""
+        from scryfall_mcp.server import _handle_tool_error
+
+        mock_ctx = AsyncMock()
+        test_error = Exception("Unknown error")
+
+        result = await _handle_tool_error(mock_ctx, test_error, "unknown_tool", "en")
+
+        # Should return generic error message
+        assert len(result) == 1
+        from mcp.types import TextContent
+        assert isinstance(result[0], TextContent)
+        assert "Error in unknown_tool" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_search_cards_with_error(self) -> None:
+        """Test search_cards tool when CardSearchTool.execute raises an error."""
+        with (
+            patch("scryfall_mcp.settings.is_user_agent_configured", return_value=True),
+            patch("scryfall_mcp.tools.search.CardSearchTool.execute") as mock_execute,
+            patch("scryfall_mcp.server._handle_tool_error") as mock_error_handler,
+        ):
+            # Make execute raise an exception
+            test_error = Exception("Search failed")
+            mock_execute.side_effect = test_error
+
+            # Mock error handler response
+            mock_error_handler.return_value = [Mock(text="Error message")]
+
+            server = ScryfallMCPServer()
+
+            mock_ctx = AsyncMock()
+
+            # Find search_cards in the captured tools
+            captured_tools = []
+
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+                    return decorator
+
+                def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+
+                # Find and call search_cards
+                search_cards_func = None
+                for func in captured_tools:
+                    if func.__name__ == "search_cards":
+                        search_cards_func = func
+                        break
+
+                assert search_cards_func is not None
+
+                # Call the function - should handle the error
+                result = await search_cards_func(mock_ctx, "test query", language="en")
+
+                # Should call error handler
+                mock_error_handler.assert_called_once()
+                assert mock_error_handler.call_args[0][1] == test_error
+                assert mock_error_handler.call_args[0][2] == "search_cards"
+                assert mock_error_handler.call_args[0][3] == "en"
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_with_error(self) -> None:
+        """Test autocomplete_card_names tool when AutocompleteTool.execute raises an error."""
+        with (
+            patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute,
+            patch("scryfall_mcp.server._handle_tool_error") as mock_error_handler,
+        ):
+            # Make execute raise an exception
+            test_error = Exception("Autocomplete failed")
+            mock_execute.side_effect = test_error
+
+            # Mock error handler response
+            mock_error_handler.return_value = [Mock(text="Error message")]
+
+            server = ScryfallMCPServer()
+
+            mock_ctx = AsyncMock()
+
+            # Find autocomplete_card_names in the captured tools
+            captured_tools = []
+
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+                    return decorator
+
+                def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+
+                # Find and call autocomplete_card_names
+                autocomplete_func = None
+                for func in captured_tools:
+                    if func.__name__ == "autocomplete_card_names":
+                        autocomplete_func = func
+                        break
+
+                assert autocomplete_func is not None
+
+                # Call the function - should handle the error
+                result = await autocomplete_func(mock_ctx, "test", language="ja")
+
+                # Should call error handler
+                mock_error_handler.assert_called_once()
+                assert mock_error_handler.call_args[0][1] == test_error
+                assert mock_error_handler.call_args[0][2] == "autocomplete"
+                assert mock_error_handler.call_args[0][3] == "ja"
+
+    @pytest.mark.asyncio
+    async def test_autocomplete_with_success(self) -> None:
+        """Test autocomplete_card_names tool success path."""
+        with patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute:
+            # Mock successful execution
+            mock_result = [Mock(text="Lightning Bolt\nLightning Strike")]
+            mock_execute.return_value = mock_result
+
+            server = ScryfallMCPServer()
+
+            mock_ctx = AsyncMock()
+
+            # Find autocomplete_card_names in the captured tools
+            captured_tools = []
+
+            class MockApp:
+                def __init__(self, name, lifespan=None):
+                    self.name = name
+                    self.lifespan = lifespan
+
+                def tool(self):
+                    def decorator(func):
+                        captured_tools.append(func)
+                        return func
+                    return decorator
+
+                def prompt(self):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+                def resource(self, uri):
+                    def decorator(func):
+                        return func
+                    return decorator
+
+            with patch("scryfall_mcp.server.FastMCP", MockApp):
+                server = ScryfallMCPServer()
+
+                # Find and call autocomplete_card_names
+                autocomplete_func = None
+                for func in captured_tools:
+                    if func.__name__ == "autocomplete_card_names":
+                        autocomplete_func = func
+                        break
+
+                assert autocomplete_func is not None
+
+                # Call the function - should succeed
+                result = await autocomplete_func(mock_ctx, "Light", language="en")
+
+                # Should return actual results
+                assert result == mock_result
+
+                # Should have called AutocompleteTool.execute
+                mock_execute.assert_called_once()
+                call_args = mock_execute.call_args[0][0]
+                assert call_args["query"] == "Light"
+                assert call_args["language"] == "en"
+
+                # Should have called ctx.report_progress twice (0% and 100%)
+                assert mock_ctx.report_progress.call_count == 2
+                # First call: 0, 100, "Getting autocomplete suggestions..."
+                first_call = mock_ctx.report_progress.call_args_list[0]
+                assert first_call[0] == (0, 100, "Getting autocomplete suggestions...")
+                # Second call: 100, 100, "Autocomplete complete"
+                second_call = mock_ctx.report_progress.call_args_list[1]
+                assert second_call[0] == (100, 100, "Autocomplete complete")

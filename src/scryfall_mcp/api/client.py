@@ -49,10 +49,10 @@ class ScryfallAPIError(Exception):
         ----------
         message : str
             Error message
-        status_code : int, optional
-            HTTP status code
-        context : dict, optional
-            Additional context information for error handling
+        status_code : int | None, optional
+            HTTP status code (default: None)
+        context : dict[str, Any] | None, optional
+            Additional context information for error handling (default: None)
         """
         super().__init__(message)
         self.status_code = status_code
@@ -67,8 +67,8 @@ class ScryfallAPIClient:
 
         Parameters
         ----------
-        base_url : str, optional
-            Base URL for Scryfall API. If None, uses settings value.
+        base_url : str | None, optional
+            Base URL for Scryfall API (default: uses settings value)
         """
         settings = get_settings()
         self._base_url = base_url or settings.scryfall_base_url
@@ -117,8 +117,8 @@ class ScryfallAPIClient:
         ----------
         endpoint : str
             API endpoint path
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
         **kwargs : Any
             Additional context fields
 
@@ -145,8 +145,8 @@ class ScryfallAPIClient:
             HTTP method (GET, POST, etc.)
         url : str
             Full request URL
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
 
         Returns
         -------
@@ -232,8 +232,8 @@ class ScryfallAPIClient:
             HTTP status code
         endpoint : str
             API endpoint path
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
         response : httpx.Response
             HTTP response
 
@@ -270,8 +270,8 @@ class ScryfallAPIClient:
             HTTP method
         endpoint : str
             API endpoint path
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
         retry_count : int
             Current retry attempt count
 
@@ -334,8 +334,8 @@ class ScryfallAPIClient:
             HTTP method
         endpoint : str
             API endpoint path
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
         retry_count : int
             Current retry attempt count
 
@@ -376,8 +376,8 @@ class ScryfallAPIClient:
             HTTP method (GET, POST, etc.)
         endpoint : str
             API endpoint path
-        params : dict, optional
-            Query parameters
+        params : dict[str, Any] | None, optional
+            Query parameters (default: None)
         retry_count : int
             Current retry attempt count
 
@@ -560,8 +560,8 @@ class ScryfallAPIClient:
             Card name
         exact : bool
             Use exact name matching
-        set_code : str, optional
-            Specific set code to search in
+        set_code : str | None, optional
+            Specific set code to search in (default: None)
         fuzzy : bool
             Use fuzzy name matching
 
@@ -588,8 +588,8 @@ class ScryfallAPIClient:
 
         Parameters
         ----------
-        query : str, optional
-            Scryfall search query to filter random selection
+        query : str | None, optional
+            Scryfall search query to filter random selection (default: None)
 
         Returns
         -------

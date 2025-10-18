@@ -471,6 +471,13 @@ class TestEndToEndQueryPipeline:
     async def test_latest_expansion_basic_e2e(self):
         """Test Issue #3: Basic 'latest expansion' E2E."""
         query = "最新のエクスパンション"
+    def test_ultra_complex_multi_ability_e2e(self):
+        """Test ultra-complex query with 3+ abilities in E2E pipeline.
+
+        Edge case: Full pipeline test for queries with multiple keyword abilities,
+        ability phrases, colors, types, and numeric constraints.
+        """
+        query = "飛行と速攻と死亡時にカードを引く赤いクリーチャーでパワー3以上"
 
         with use_locale("ja"):
             mapping = get_current_mapping()
@@ -631,6 +638,31 @@ class TestEndToEndQueryPipeline:
     async def test_latest_expansion_with_trigger_ability_e2e(self):
         """Test Issue #3: Latest expansion combined with Phase 2 trigger abilities."""
         query = "最新セットで死亡時にカードを引くクリーチャー"
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should contain all components
+            assert "keyword:flying" in scryfall_query
+            assert "keyword:haste" in scryfall_query
+            assert 'o:"when ~ dies"' in scryfall_query
+            assert 'o:"draw"' in scryfall_query
+            assert "c:r" in scryfall_query
+            assert "t:creature" in scryfall_query
+            assert "p>=3" in scryfall_query
+
+            # Should be marked as complex
+            assert result.query_metadata["query_complexity"] in ["moderate", "complex"]
+
+    def test_very_long_query_e2e(self):
+        """Test very long natural language query through full pipeline.
+
+        Edge case: Tests pipeline handling of 100+ character queries.
+        """
+        query = (
+            "モダンフォーマットで使える飛行と先制攻撃を持つ"
+            "戦場に出たときにトークンを生成する"
+            "白いクリーチャーでパワー2以上タフネス3以下でマナ総量4以下"
+        )
 
         with use_locale("ja"):
             mapping = get_current_mapping()
@@ -648,4 +680,171 @@ class TestEndToEndQueryPipeline:
             # Should have draw effect
             assert 'o:"draw"' in scryfall_query
             # Should have creature type
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should extract major components
+            assert "keyword:flying" in scryfall_query
+            assert 'keyword:"first strike"' in scryfall_query
+            assert 'o:"enters the battlefield"' in scryfall_query
+            assert "c:w" in scryfall_query
+            assert "t:creature" in scryfall_query
+            assert "p>=2" in scryfall_query
+
+            # Should be marked as complex
+            assert result.query_metadata["query_complexity"] == "complex"
+
+    def test_multicolor_complex_query_e2e(self):
+        """Test multicolor query with multiple abilities.
+
+        Edge case: Tests handling of multicolor cards with complex abilities.
+        """
+        query = "青白の飛行と絆魂を持つクリーチャーでマナ総量3以下"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should handle multicolor
+            assert ("c:w" in scryfall_query or "c:u" in scryfall_query or
+                    "c:wu" in scryfall_query or "id:wu" in scryfall_query)
+            # Should contain keywords
+            assert "keyword:flying" in scryfall_query
+            assert "keyword:lifelink" in scryfall_query
+            assert "t:creature" in scryfall_query
+            assert "mv<=3" in scryfall_query
+
+    def test_ambiguous_query_graceful_handling_e2e(self):
+        """Test that ambiguous queries are handled gracefully.
+
+        Edge case: Tests that vague terms don't break the pipeline.
+        """
+        query = "強力な赤いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should at least extract color and type
+            assert "c:r" in scryfall_query
+            assert "t:creature" in scryfall_query
+            # Should not crash or produce empty query
+            assert len(scryfall_query) > 0
+
+    def test_deeply_nested_trigger_chain_e2e(self):
+        """Test deeply nested trigger-effect chain.
+
+        Edge case: Tests pipeline resilience with extremely complex queries.
+        """
+        query = "死亡時に戦場に出て攻撃したときダメージを与えるトークンを生成する黒いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should extract at least the death trigger and basic attributes
+            assert 'o:"when ~ dies"' in scryfall_query
+            assert "c:b" in scryfall_query
+            assert "t:creature" in scryfall_query
+            # Should not crash
+            assert len(scryfall_query) > 0
+
+    def test_numeric_edge_cases_e2e(self):
+        """Test numeric edge cases through pipeline.
+
+        Edge case: Tests handling of extreme numeric values.
+        """
+        # Very large power
+        query1 = "パワー100以上の赤いクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query1)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            assert "p>=100" in scryfall_query
+            assert "c:r" in scryfall_query
+            assert "t:creature" in scryfall_query
+
+        # Zero power
+        query2 = "パワー0のクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query2)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            assert "p=0" in scryfall_query or "p:0" in scryfall_query
+            assert "t:creature" in scryfall_query
+
+    def test_special_characters_handling_e2e(self):
+        """Test handling of special characters in queries.
+
+        Edge case: Tests that special characters don't break parsing.
+        """
+        query = '飛行を持つ"天使"というクリーチャー'
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should extract keyword and type
+            assert "keyword:flying" in scryfall_query
+            assert "t:creature" in scryfall_query
+            # Should not crash with quotes
+            assert len(scryfall_query) > 0
+
+    def test_mixed_phase_features_e2e(self):
+        """Test mixing Phase 1 and Phase 2 features.
+
+        Edge case: Tests that format filters work with complex ability phrases.
+        """
+        query = "モダンで使える飛行を持つ死亡時にカードを引く青黒のクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should contain keyword
+            assert "keyword:flying" in scryfall_query
+            # Should contain death trigger
+            assert 'o:"when ~ dies"' in scryfall_query
+            # Should contain draw effect
+            assert 'o:"draw"' in scryfall_query
+            # Should contain colors (blue and/or black)
+            assert ("c:u" in scryfall_query or "c:b" in scryfall_query or
+                    "c:ub" in scryfall_query or "c:bu" in scryfall_query)
             assert "t:creature" in scryfall_query

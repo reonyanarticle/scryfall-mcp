@@ -55,9 +55,8 @@ scryfall-mcp/
 ## Scryfall API制約
 
 ### レート制限
-- 最大10 requests/second
-- リクエスト間隔75-100ms以上を維持
-- 429エラー時はexponential backoff
+- 最大10 requests/second（リクエスト間隔75-100ms以上）
+- 429エラー時はexponential backoff実装必須
 
 ### 必須HTTPヘッダー
 ```
@@ -65,7 +64,7 @@ User-Agent: アプリ名とバージョン、連絡先
 Accept: application/json;q=0.9,*/*;q=0.8
 ```
 
-これらのヘッダーがないと403でブロックされます。
+これらのヘッダーがないと403でブロックされる。
 
 ### データ取得
 - 1ページ最大175カード
@@ -77,10 +76,9 @@ Accept: application/json;q=0.9,*/*;q=0.8
 - L1 (メモリ): LRU, 最大1000エントリ
 - L2 (Redis): TTL付き永続化
 
-### TTL設定
-- 検索結果: 30分
-- カード詳細: 24時間
-- 価格情報: 6時間
+### TTL設定（Scryfall推奨: 最低24時間）
+- 検索結果・カード詳細: 24時間
+- 価格情報: 24時間（価格更新は1日1回）
 - セット情報: 1週間
 
 ## エラー処理
@@ -94,6 +92,165 @@ Accept: application/json;q=0.9,*/*;q=0.8
 - 429/503エラー: exponential backoff
 - 最大リトライ: 5回
 - タイムアウト: 30秒
+
+## カード表示仕様（MCP出力フォーマット）
+
+### 表示フィールド一覧
+
+MCPツール（`search_cards`）でカード検索結果を返す際、以下のフィールドを表示します。
+
+#### 必須フィールド（常に表示）
+
+| # | フィールド | データモデル | 表示条件 | 説明 |
+|---|-----------|------------|---------|------|
+| 1 | **カード名** | `name` / `printed_name` | 常に表示 | 日本語検索時は`printed_name`優先 |
+| 2 | **マナコスト** | `mana_cost` | 値が存在する場合 | `{R}`, `{2}{U}{U}`等のシンボル形式 |
+| 3 | **タイプライン** | `type_line` / `printed_type_line` | 常に表示 | 日本語検索時は`printed_type_line`優先 |
+| 4 | **パワー/タフネス** | `power` / `toughness` | クリーチャーのみ | 形式: `3/3`, `*/1+*`等 |
+| 5 | **オラクルテキスト** | `oracle_text` / `printed_text` | 値が存在する場合 | 日本語検索時は`printed_text`優先 |
+| 6 | **セット情報** | `set_name`, `rarity` | 常に表示 | セット名とレアリティを括弧内に表示 |
+
+#### Phase 1追加フィールド（Issue #7対応）
+
+| # | フィールド | データモデル | デフォルト | 表示制御パラメータ | 説明 |
+|---|-----------|------------|----------|-------------------|------|
+| 7 | **キーワード能力** | `keywords` | ON | `include_keywords` | 飛行、速攻等のキーワード一覧（カンマ区切り） |
+| 8 | **イラストレーター** | `artist` | ON | `include_artist` | カードイラストの作成者名 |
+| 9 | **マナ生成** | `produced_mana` | ON | `include_mana_production` | **土地専用**: 生成可能なマナ色 |
+| 10 | **フォーマット適格性** | `legalities` | 条件付き | `format_filter` | format_filter指定時のみ表示 |
+
+### 表示制御オプション
+
+```python
+class SearchOptions(BaseModel):
+    """Search presentation options."""
+
+    max_results: int = 10
+    format_filter: str | None = None
+    language: str | None = None
+
+    # Phase 1: MCP Annotations制御
+    use_annotations: bool = True
+
+    # Phase 1: 表示フィールド制御
+    include_keywords: bool = True        # デフォルトON
+    include_artist: bool = True          # デフォルトON
+    include_mana_production: bool = True # デフォルトON（土地専用）
+```
+
+### MCP Annotations仕様（Phase 1実装）
+
+すべてのコンテンツにMCP Annotationsを付与し、クライアント側での適切な表示制御を実現します。
+
+#### Annotationsフィールド
+
+```python
+from mcp.types import Annotations
+
+Annotations(
+    audience: list[Literal['user', 'assistant']] | None = None,
+    priority: float (0.0-1.0) | None = None,
+)
+```
+
+#### audience（対象者）
+
+| 値 | 意味 | 実際の動作 | 使用例 |
+|----|------|-----------|--------|
+| `["user"]` | ユーザー向け | UIに表示される**可能性がある**が、保証されない | ❌ 非推奨（表示されない場合あり） |
+| `["assistant"]` | アシスタント向け | LLMコンテキストに含まれるが、UIに表示されない | 構造化データ（EmbeddedResource） |
+| `["user", "assistant"]` | 両方 | **UIとLLMコンテキストの両方に確実に表示** | ✅ 推奨: カード情報、エラーメッセージ |
+
+**重要**: `audience=["user"]`は仕様上UIに表示されると書かれているが、Claude DesktopなどのMCPクライアントでは表示されないことがある。**確実にUIに表示するには`["user", "assistant"]`を使用すること。**
+
+#### priority（優先度）
+
+| 範囲 | 意味 | 使用例 |
+|------|------|--------|
+| `1.0` | 最重要 | カード名、マナコスト、タイプライン |
+| `0.7-0.9` | 高優先度 | オラクルテキスト、P/T、keywords |
+| `0.4-0.6` | 中優先度 | セット、レアリティ、価格 |
+| `0.1-0.3` | 低優先度 | artist、EDHREC順位 |
+
+### 実装例
+
+```python
+# ユーザー向けコンテンツ（TextContent）
+def _format_single_card(
+    self, card: Card, index: int, options: SearchOptions
+) -> TextContent:
+    """Format a single card with MCP Annotations."""
+
+    card_text = f"## {index}. {card.name}"
+
+    if card.mana_cost:
+        card_text += f" {card.mana_cost}"
+
+    # ... カード情報をマークダウンで整形 ...
+
+    # キーワード能力（Phase 1新規）
+    if options.include_keywords and card.keywords:
+        keywords_label = "キーワード能力" if is_japanese else "Keywords"
+        card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
+
+    # イラストレーター（Phase 1新規）
+    if options.include_artist and card.artist:
+        illustrated_by = "イラスト" if is_japanese else "Illustrated by"
+        card_text += f"*{illustrated_by} {card.artist}*\n"
+
+    # MCP Annotations付与
+    annotations = None
+    if options.use_annotations:
+        # 重要: audience=["user", "assistant"] でUIとLLM両方に確実に表示
+        annotations = Annotations(
+            audience=["user", "assistant"],
+            priority=0.8
+        )
+
+    return TextContent(type="text", text=card_text, annotations=annotations)
+
+# アシスタント向けコンテンツ（EmbeddedResource）
+def _create_card_resource(
+    self, card: Card, index: int, options: SearchOptions
+) -> EmbeddedResource:
+    """Create EmbeddedResource with full metadata and Annotations."""
+
+    card_metadata = {
+        "id": str(card.id),
+        "name": card.name,
+        # ... 既存フィールド ...
+
+        # Phase 1新規フィールド
+        "keywords": card.keywords if card.keywords else [],
+        "artist": card.artist,
+        "produced_mana": card.produced_mana,
+    }
+
+    # MCP Annotations付与
+    annotations = None
+    if options.use_annotations:
+        annotations = Annotations(
+            audience=["assistant"],
+            priority=0.6
+        )
+
+    return EmbeddedResource(
+        type="resource",
+        resource=TextResourceContents(
+            uri=AnyUrl(f"card://scryfall/{card.id}"),
+            mimeType="application/json",
+            text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
+        ),
+        annotations=annotations
+    )
+```
+
+### 実装参照
+
+- **詳細設計**: `docs/MCP-OUTPUT-DESIGN-REPORT.md`
+- **現在の実装**: `src/scryfall_mcp/search/presenter.py` (lines 175-258)
+- **データモデル**: `src/scryfall_mcp/models.py` (Card: lines 388-476)
+- **MCP仕様**: https://modelcontextprotocol.io/specification/2025-06-18
 
 ## コーディング規約
 
@@ -165,15 +322,37 @@ Accept: application/json;q=0.9,*/*;q=0.8
   ```
 
 ### コード品質
-- **1関数1責任**: 各関数は単一の明確な責任を持つようにしてください
-- **早期リターン推奨**: ネストを減らし可読性を向上させてください
-- **定数は大文字**: モジュールレベル定数は`UPPER_SNAKE_CASE`を使用してください
-- **言語依存ファイル命名規則**: 言語コードを拡張子として使用
-  - 形式: `{base_name}.{language_code}`
-  - 例: `setup_guide.ja` (日本語), `setup_guide.en` (英語)
+
+#### 関数の長さ制限
+
+関数は50行以内を目安に分割する。短い関数は理解しやすく、テストが書きやすく、保守が容易になる。
+
+参考: `src/scryfall_mcp/tools/search.py` の `CardSearchTool.execute` メソッドは90行→26行にリファクタリング済み。
+
+#### ハンガリアン記法の禁止
+
+変数名に型情報を含めない（Hungarian notation禁止）。型ヒントで型を明示する。
+
+- 禁止例: `str_name`, `int_count`, `list_items`
+- 推奨例: `name: str`, `count: int`, `items: list[str]`
+- 例外: ビジネスロジック上で型が意味を持つ場合（`json_data`, `html_content`）は許容されるが、型ヒントは必須。
+
+#### 単一責任の原則
+
+1つの関数は1つの責任のみを持つこと。複数の責任を持つ長大な関数は、各責任ごとにヘルパーメソッドに分割し、メイン関数はオーケストレーション（調整）のみを行う。
+
+#### 可読性原則
+
+- 1関数1責任: 各関数は単一の明確な責任を持つ
+- 早期リターン推奨: ネストを減らし可読性を向上させる
+- ネストの深さ制限: ネストは最大3レベル（`for`/`if`/`with`/`match`を合算）まで
+- 明確な変数名: 省略形は一般的な慣習（`db`, `id`, `url`, `api`, `http`など）を除き避ける
+  - 単一文字の変数名はループカウンタ `i`, `j` のみ許容
+  - ブール値は `is_`, `has_`, `can_` などの接頭辞を使用
+- 定数は大文字: モジュールレベル定数は`UPPER_SNAKE_CASE`を使用
+- 言語依存ファイル命名規則: 言語コードを拡張子として使用
+  - 形式: `{base_name}.{language_code}`（例: `setup_guide.ja`, `setup_guide.en`）
   - フォールバック: デフォルト言語ファイル（拡張子なし）または`.ja`
-  - 実装: `Path(__file__).parent / f"setup_guide.{language}"`
-  - 目的: 言語別リソースの管理を簡潔化し、ファイル命名の一貫性を保つ
 
 ### 非同期処理
 - **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化してください

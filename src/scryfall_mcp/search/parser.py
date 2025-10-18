@@ -11,7 +11,7 @@ from ..models import ParsedQuery
 class SearchParser:
     """Parses natural language queries and extracts structured information."""
 
-    def __init__(self, locale_mapping: LanguageMapping):
+    def __init__(self, locale_mapping: LanguageMapping) -> None:
         """Initialize the parser with locale-specific mappings.
 
         Parameters
