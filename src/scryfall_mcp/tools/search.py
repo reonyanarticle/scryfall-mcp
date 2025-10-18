@@ -161,7 +161,7 @@ class CardSearchTool:
     @staticmethod
     async def _execute_api_search(
         scryfall_query: str, request: SearchCardsRequest
-    ) -> SearchResult | list[TextContent]:
+    ) -> SearchResult | list[TextContent | ImageContent | EmbeddedResource]:
         """Execute API search and handle errors.
 
         Parameters
@@ -173,7 +173,7 @@ class CardSearchTool:
 
         Returns
         -------
-        SearchResult | list[TextContent]
+        SearchResult | list[TextContent | ImageContent | EmbeddedResource]
             Search results or error content
         """
         client = await get_client()
@@ -195,7 +195,7 @@ class CardSearchTool:
     @staticmethod
     def _handle_api_error(
         error: ScryfallAPIError, request: SearchCardsRequest
-    ) -> list[TextContent]:
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Handle Scryfall API errors.
 
         Parameters
@@ -207,7 +207,7 @@ class CardSearchTool:
 
         Returns
         -------
-        list[TextContent]
+        list[TextContent | ImageContent | EmbeddedResource]
             Formatted error message
         """
         error_handler = get_error_handler()
@@ -238,7 +238,7 @@ class CardSearchTool:
         return [TextContent(type="text", text=formatted_error)]
 
     @staticmethod
-    def _handle_no_results(request: SearchCardsRequest) -> list[TextContent]:
+    def _handle_no_results(request: SearchCardsRequest) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Handle no results case.
 
         Parameters
@@ -248,7 +248,7 @@ class CardSearchTool:
 
         Returns
         -------
-        list[TextContent]
+        list[TextContent | ImageContent | EmbeddedResource]
             No results guidance message
         """
         error_handler = get_error_handler()
@@ -291,7 +291,7 @@ class CardSearchTool:
     @staticmethod
     def _handle_unexpected_error(
         error: Exception, arguments: dict[str, Any]
-    ) -> list[TextContent]:
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Handle unexpected errors.
 
         Parameters
@@ -303,7 +303,7 @@ class CardSearchTool:
 
         Returns
         -------
-        list[TextContent]
+        list[TextContent | ImageContent | EmbeddedResource]
             Formatted error message
         """
         logger.error(f"Error in card search: {error}", exc_info=True)
