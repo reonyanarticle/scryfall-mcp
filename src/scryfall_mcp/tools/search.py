@@ -31,7 +31,11 @@ class CardSearchTool:
         """Get the MCP tool definition."""
         return Tool(
             name="search_cards",
-            description="Search for Magic: The Gathering cards using natural language. Supports Japanese queries like '白いクリーチャー', '稲妻', 'パワー3以上のクリーチャー'.",
+            description=(
+                "Search for Magic: The Gathering cards using natural language. "
+                "Supports Japanese queries like '白いクリーチャー', '稲妻', 'パワー3以上のクリーチャー', '最新のエクスパンション'. "
+                "Automatically fetches the latest expansion set when querying for '最新のエクスパンション' or '最新のセット'."
+            ),
             inputSchema=SearchCardsRequest.model_json_schema(),
         )
 
@@ -75,7 +79,17 @@ class CardSearchTool:
                     scryfall_query += f" f:{request.format_filter}"
 
                 # Add language filter if specified (for multilingual card search)
-                if request.language and request.language != "en":
+                # Note: Don't add lang filter for set-only searches, as not all sets
+                # have cards in all languages (e.g., Marvel sets are English-only)
+                is_set_only_search = (
+                    scryfall_query.strip().startswith("s:")
+                    and " " not in scryfall_query.strip()
+                )
+                if (
+                    request.language
+                    and request.language != "en"
+                    and not is_set_only_search
+                ):
                     scryfall_query += f" lang:{request.language}"
 
                 # Update the built query with the modified query
