@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from scryfall_mcp.i18n import get_current_mapping, set_current_locale
@@ -637,7 +639,7 @@ class TestQueryBuilder:
         assert 'o:"you control"' in result
         assert "t:creature" in result
 
-    def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
+    async def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
         """Test Phase 2: death trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -652,7 +654,7 @@ class TestQueryBuilder:
         # "死亡時にカードを1枚引く黒いクリーチャー"
         query = "死亡時にカードを1枚引く黒いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain death trigger
         assert 'o:"when ~ dies"' in result.scryfall_query
@@ -665,7 +667,7 @@ class TestQueryBuilder:
         assert "する" not in result.scryfall_query
         assert "に" not in result.scryfall_query or "に" in query  # Allow if it was in original
 
-    def test_japanese_phase2_etb_with_effect(self, query_builder):
+    async def test_japanese_phase2_etb_with_effect(self, query_builder):
         """Test Phase 2: ETB trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -680,7 +682,7 @@ class TestQueryBuilder:
         # "戦場に出たときにトークンを生成する白いクリーチャー"
         query = "戦場に出たときにトークンを生成する白いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain ETB trigger
         assert 'o:"enters the battlefield"' in result.scryfall_query
@@ -692,7 +694,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
+    async def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
         """Test Phase 2: attack trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -707,7 +709,7 @@ class TestQueryBuilder:
         # "攻撃したときにダメージを与える赤いクリーチャー"
         query = "攻撃したときにダメージを与える赤いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain attack trigger
         assert 'o:"whenever ~ attacks"' in result.scryfall_query
@@ -719,7 +721,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_complex_multi_ability(self, query_builder):
+    async def test_japanese_phase2_complex_multi_ability(self, query_builder):
         """Test Phase 2: complex query with multiple abilities.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -734,7 +736,7 @@ class TestQueryBuilder:
         # "死亡時にカードを引く飛行を持つ青いクリーチャー"
         query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain death trigger
         assert 'o:"when ~ dies"' in result.scryfall_query
@@ -748,7 +750,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_control_with_effect(self, query_builder):
+    async def test_japanese_phase2_control_with_effect(self, query_builder):
         """Test Phase 2: control phrase combined with other search terms.
 
         Note: Complex patterns like "あなたがコントロールする〜を〜する" are Phase 3 material.
@@ -765,7 +767,7 @@ class TestQueryBuilder:
         # Simple control phrase (Phase 1 behavior preserved)
         query = "あなたがコントロールする緑のクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain control phrase
         assert 'o:"you control"' in result.scryfall_query
@@ -773,7 +775,7 @@ class TestQueryBuilder:
         assert "c:g" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
 
-    def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
+    async def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
         """Test that Phase 2 preserves Phase 1 exact phrase matches."""
         from scryfall_mcp.search.parser import SearchParser
 
@@ -785,14 +787,14 @@ class TestQueryBuilder:
         # Phase 1 exact match should still work
         query = "死亡時黒いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should use Phase 1 dictionary lookup
         assert 'o:"when ~ dies"' in result.scryfall_query
         assert "c:b" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
 
-    def test_english_queries_unaffected_by_phase2(self, query_builder):
+    async def test_english_queries_unaffected_by_phase2(self, query_builder):
         """Test that English queries are not affected by Phase 2 patterns."""
         from scryfall_mcp.search.parser import SearchParser
 
@@ -804,14 +806,14 @@ class TestQueryBuilder:
         # English queries use Scryfall syntax directly
         query = "c:r t:creature keyword:flying"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should remain unchanged
         assert "c:r" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
         assert "keyword:flying" in result.scryfall_query
 
-    def test_build_with_parsed_query(self, query_builder):
+    async def test_build_with_parsed_query(self, query_builder):
         """Test build() method with ParsedQuery object."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -833,7 +835,7 @@ class TestQueryBuilder:
         )
 
         # Build query from parsed object
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Check result structure
         assert hasattr(result, "scryfall_query")
@@ -850,7 +852,7 @@ class TestQueryBuilder:
         assert result.query_metadata["language"] == "ja"
         assert result.query_metadata["intent"] == "search_cards"
 
-    def test_generate_suggestions_no_specifics(self, query_builder):
+    async def test_generate_suggestions_no_specifics(self, query_builder):
         """Test suggestion generation for queries without colors or types."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -863,11 +865,11 @@ class TestQueryBuilder:
             entities={"colors": [], "types": []}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert len(result.suggestions) > 0
         assert any("colors or card types" in s for s in result.suggestions)
 
-    def test_generate_suggestions_competitive_query(self, query_builder):
+    async def test_generate_suggestions_competitive_query(self, query_builder):
         """Test suggestion generation for competitive queries."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -880,10 +882,10 @@ class TestQueryBuilder:
             entities={"colors": [], "types": ["creature"]}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("format" in s.lower() for s in result.suggestions)
 
-    def test_generate_suggestions_japanese_misspelling(self, query_builder):
+    async def test_generate_suggestions_japanese_misspelling(self, query_builder):
         """Test suggestion generation for Japanese misspellings."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -900,7 +902,7 @@ class TestQueryBuilder:
             entities={"colors": [], "types": []}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("クリーチャー" in s for s in result.suggestions)
 
     def test_assess_complexity_simple(self, query_builder):
@@ -999,7 +1001,7 @@ class TestQueryBuilder:
         result = query_builder.build_query(query, locale="ja")
         assert "m>=3" in result
 
-    def test_generate_suggestions_competitive_japanese(self, query_builder):
+    async def test_generate_suggestions_competitive_japanese(self, query_builder):
         """Test competitive query suggestions in Japanese mode."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -1015,5 +1017,140 @@ class TestQueryBuilder:
             language="ja",
             entities={"colors": [], "types": ["creature"], "keywords": []}
         )
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("f:standard" in s or "f:modern" in s for s in result.suggestions)
+
+
+class TestExpansionSearch:
+    """Test expansion/set search functionality (Issue #3)."""
+
+    @pytest.fixture
+    def query_builder(self):
+        """Create a query builder for testing."""
+        mapping = get_current_mapping()
+        return QueryBuilder(mapping)
+
+    @pytest.fixture(autouse=True)
+    def reset_locale(self):
+        """Reset locale to English before each test."""
+        set_current_locale("en")
+        yield
+        set_current_locale("en")
+
+    def test_latest_expansion_basic(self, query_builder):
+        """Test basic 'latest expansion' query."""
+        query = "最新のエクスパンション"
+        result = query_builder.build_query(query, locale="ja")
+        # Should convert to s:<set_code> (actual latest set from cache or fallback)
+        assert re.search(r"s:[a-z]{3,4}(?:\s|$|の|で)", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        # Should not have leftover Japanese
+        assert "最新" not in result
+        assert "エクスパンション" not in result
+
+    def test_latest_set_basic(self, query_builder):
+        """Test basic 'latest set' query."""
+        query = "最新のセット"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+
+    def test_latest_expansion_with_keyword(self, query_builder):
+        """Test 'latest expansion' with keyword ability."""
+        query = "最新のエクスパンションで多相を持つクリーチャー"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "keyword:changeling" in result
+        assert "t:creature" in result
+
+    def test_latest_set_with_colors(self, query_builder):
+        """Test 'latest set' with color filters."""
+        query = "最新セットの赤いクリーチャー"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "c:r" in result
+        assert "t:creature" in result
+
+    def test_new_expansion_synonym(self, query_builder):
+        """Test 'new expansion' as synonym for latest."""
+        query = "新しいエクスパンションの白いカード"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "c:w" in result
+
+    def test_expansion_symbol_expression(self, query_builder):
+        """Test 'expansion symbol' expression."""
+        query = "MKMのエクスパンションシンボル"
+        result = query_builder.build_query(query, locale="ja")
+        # Should have s: prefix for set search
+        assert "s:" in result
+        # MKM should remain as-is (set code)
+        assert "mkm" in result.lower()
+
+    def test_set_symbol_expression(self, query_builder):
+        """Test 'set symbol' expression."""
+        query = "カルロフ邸のセットシンボル"
+        result = query_builder.build_query(query, locale="ja")
+        assert "s:" in result
+
+    def test_correct_expansion_spelling(self, query_builder):
+        """Test correct spelling 'エクスパンション' (not 'エキスパンション')."""
+        query = "エクスパンション"
+        result = query_builder.build_query(query, locale="ja")
+        # Should be converted to s prefix
+        assert "s" in result
+
+    def test_misspelled_expansion_backward_compat(self, query_builder):
+        """Test backward compatibility with misspelled 'エキスパンション'."""
+        query = "エキスパンション"
+        result = query_builder.build_query(query, locale="ja")
+        # Should still work for backward compatibility
+        assert "s" in result
+
+    def test_latest_expansion_with_power_filter(self, query_builder):
+        """Test 'latest expansion' with power/toughness filters."""
+        query = "最新のエクスパンションでパワー3以上のクリーチャー"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "p>=3" in result
+        assert "t:creature" in result
+
+    def test_latest_set_with_rarity(self, query_builder):
+        """Test 'latest set' with rarity filter."""
+        query = "最新セットの神話レア"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "r:mythic" in result
+
+    def test_latest_expansion_with_format(self, query_builder):
+        """Test 'latest expansion' with format filter."""
+        query = "最新のエクスパンションでスタンダードで使用可能"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "f:standard" in result
+
+    def test_longest_phrase_match_priority(self, query_builder):
+        """Test that longest phrases are matched first (避免部分匹配)."""
+        # "最新のエクスパンション" should match as a whole, not "エクスパンション" separately
+        query = "最新のエクスパンション"
+        result = query_builder.build_query(query, locale="ja")
+        # Should have s:mkm, not just "s"
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        # Should not have leftover "最新の"
+        assert "最新" not in result
+
+    def test_newest_set_variant(self, query_builder):
+        """Test '一番新しいセット' variant."""
+        query = "一番新しいセットの飛行持ち"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        assert "keyword:flying" in result
+
+    def test_multiple_conditions_with_latest_set(self, query_builder):
+        """Test complex query with latest set and multiple conditions."""
+        query = "最新セットの白と青のクリーチャーでマナ総量3以下"
+        result = query_builder.build_query(query, locale="ja")
+        assert re.search(r"s:[a-z]{3,4}", result), f"Expected 's:<set_code>' pattern but got: {result}"
+        # Colors (white and blue)
+        assert "c:w" in result or "c:u" in result
+        assert "t:creature" in result
+        # Mana value
+        assert "mv<=3" in result or "cmc<=3" in result

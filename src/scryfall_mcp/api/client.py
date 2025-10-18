@@ -627,6 +627,56 @@ class ScryfallAPIClient:
         data = await self._make_request("GET", "/sets")
         return [Set(**set_data) for set_data in data["data"]]
 
+    async def get_latest_expansion_set(self) -> Set | None:
+        """Get the latest released standard-legal expansion set.
+
+        This method fetches all sets from Scryfall and returns the most recent
+        expansion set that has been released (not future sets).
+
+        Returns
+        -------
+        Set | None
+            The latest expansion set, or None if no expansion sets found
+
+        Notes
+        -----
+        - Filters for set_type="expansion" only
+        - Excludes future/unreleased sets (released_at > today)
+        - Sorts by released_at descending to get the most recent
+        - Results should be cached with 24-hour TTL (handled by cache layer)
+        """
+        from datetime import date
+
+        sets = await self.get_sets()
+        today = date.today()
+
+        # Filter for released expansion sets only
+        # released_at is in YYYY-MM-DD format
+        expansion_sets = []
+        for s in sets:
+            if s.set_type != "expansion" or s.released_at is None:
+                continue
+
+            # Parse release date (format: YYYY-MM-DD)
+            try:
+                release_date = date.fromisoformat(str(s.released_at))
+                if release_date <= today:
+                    expansion_sets.append(s)
+            except (ValueError, TypeError):
+                # Skip sets with invalid release dates
+                continue
+
+        if not expansion_sets:
+            return None
+
+        # Sort by release date descending and return the latest
+        expansion_sets.sort(
+            key=lambda s: date.fromisoformat(str(s.released_at)),
+            reverse=True
+        )
+
+        return expansion_sets[0]
+
     async def get_set_by_code(self, set_code: str) -> Set:
         """Get a set by its code.
 

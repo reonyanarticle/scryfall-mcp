@@ -9,15 +9,18 @@ and ensure all components work together correctly.
 
 from __future__ import annotations
 
+import pytest
+
 from scryfall_mcp.i18n import get_current_mapping, use_locale
 from scryfall_mcp.search.builder import QueryBuilder
 from scryfall_mcp.search.parser import SearchParser
 
 
+@pytest.mark.asyncio
 class TestEndToEndQueryPipeline:
     """Test complete query processing pipeline."""
 
-    def test_japanese_keyword_ability_e2e(self):
+    async def test_japanese_keyword_ability_e2e(self):
         """Test Japanese keyword ability search end-to-end.
 
         Tests Issue #2 implementation through the entire stack:
@@ -39,7 +42,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.original_text == query
 
             # Builder: Scryfallクエリに変換
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             # 期待されるクエリ要素を検証
             scryfall_query = result.scryfall_query
@@ -60,7 +63,7 @@ class TestEndToEndQueryPipeline:
             assert "query_complexity" in result.query_metadata
             assert result.query_metadata["query_complexity"] in ["simple", "moderate", "complex"]
 
-    def test_complex_japanese_query_e2e(self):
+    async def test_complex_japanese_query_e2e(self):
         """Test complex Japanese query end-to-end."""
         query = "白と青のクリーチャーでマナ総量3以下の伝説の"
 
@@ -75,7 +78,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.language == "ja"
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -90,7 +93,7 @@ class TestEndToEndQueryPipeline:
             assert ("mv<=3" in scryfall_query or "cmc<=3" in scryfall_query
                     or "manavalue<=3" in scryfall_query)
 
-    def test_english_query_e2e(self):
+    async def test_english_query_e2e(self):
         """Test English query end-to-end."""
         query = "red creatures with haste and power greater than 3"
 
@@ -106,7 +109,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.original_text == query
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query.lower()
 
@@ -122,7 +125,7 @@ class TestEndToEndQueryPipeline:
             # パワー条件 - "3"が含まれればOK（フォーマットは多様）
             assert "3" in scryfall_query
 
-    def test_japanese_multiple_keywords_e2e(self):
+    async def test_japanese_multiple_keywords_e2e(self):
         """Test Japanese query with multiple keyword abilities."""
         query = "飛行と接死を持つクリーチャー"
 
@@ -136,7 +139,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -147,7 +150,7 @@ class TestEndToEndQueryPipeline:
             # タイプ（クリーチャー）
             assert "t:creature" in scryfall_query
 
-    def test_english_format_query_e2e(self):
+    async def test_english_format_query_e2e(self):
         """Test English query with format specification."""
         query = "creatures legal in standard"
 
@@ -161,7 +164,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -171,7 +174,7 @@ class TestEndToEndQueryPipeline:
             # タイプ（クリーチャー）
             assert "creature" in scryfall_query.lower()
 
-    def test_japanese_rarity_query_e2e(self):
+    async def test_japanese_rarity_query_e2e(self):
         """Test Japanese query with rarity specification."""
         query = "神話レアのプレインズウォーカー"
 
@@ -185,7 +188,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -195,7 +198,7 @@ class TestEndToEndQueryPipeline:
             # タイプ（プレインズウォーカー）
             assert "t:planeswalker" in scryfall_query or "planeswalker" in scryfall_query
 
-    def test_japanese_color_identity_query_e2e(self):
+    async def test_japanese_color_identity_query_e2e(self):
         """Test Japanese query with color identity."""
         query = "白のカードで青のマナシンボルを持つ"
 
@@ -209,7 +212,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -221,7 +224,7 @@ class TestEndToEndQueryPipeline:
             # Just verify it doesn't error and produces some query
             assert len(scryfall_query) > 0
 
-    def test_query_suggestions_e2e(self):
+    async def test_query_suggestions_e2e(self):
         """Test that query result is valid."""
         query = "creatures"
 
@@ -235,7 +238,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             # クエリが生成されることを確認
             assert result.scryfall_query is not None
@@ -245,7 +248,7 @@ class TestEndToEndQueryPipeline:
             # サジェスションリストが存在することを確認（空でも可）
             assert isinstance(result.suggestions, list)
 
-    def test_empty_query_e2e(self):
+    async def test_empty_query_e2e(self):
         """Test handling of empty query."""
         query = ""
 
@@ -259,12 +262,12 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder should handle empty query gracefully
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             # Should produce some fallback query or empty string
             assert isinstance(result.scryfall_query, str)
 
-    def test_complexity_assessment_e2e(self):
+    async def test_complexity_assessment_e2e(self):
         """Test complexity assessment across pipeline."""
         # Simple query
         simple_query = "creatures"
@@ -275,7 +278,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(simple_query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             assert "query_complexity" in result.query_metadata
             assert result.query_metadata["query_complexity"] == "simple"
@@ -289,13 +292,13 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(complex_query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
 
             # Should be moderate or complex
             assert "query_complexity" in result.query_metadata
             assert result.query_metadata["query_complexity"] in ["moderate", "complex"]
 
-    def test_locale_switching_e2e(self):
+    async def test_locale_switching_e2e(self):
         """Test that locale switching works across pipeline."""
         query_en = "red creatures"
         query_ja = "赤いクリーチャー"
@@ -307,7 +310,7 @@ class TestEndToEndQueryPipeline:
             builder_en = QueryBuilder(mapping_en)
 
             parsed_en = parser_en.parse(query_en)
-            result_en = builder_en.build(parsed_en)
+            result_en = await builder_en.build(parsed_en)
 
             # クエリにred/c:rとcreature/t:creatureが含まれることを確認
             query_lower = result_en.scryfall_query.lower()
@@ -321,14 +324,14 @@ class TestEndToEndQueryPipeline:
             builder_ja = QueryBuilder(mapping_ja)
 
             parsed_ja = parser_ja.parse(query_ja)
-            result_ja = builder_ja.build(parsed_ja)
+            result_ja = await builder_ja.build(parsed_ja)
 
             # クエリに色とタイプが含まれることを確認
             query_lower_ja = result_ja.scryfall_query.lower()
             assert "c:r" in query_lower_ja or "red" in query_lower_ja
             assert "t:creature" in query_lower_ja or "creature" in query_lower_ja
 
-    def test_phase2_death_trigger_with_effect_e2e(self):
+    async def test_phase2_death_trigger_with_effect_e2e(self):
         """Test Phase 2: Death trigger with effect - Issue #4 integration."""
         query = "死亡時にカードを1枚引く黒いクリーチャー"
 
@@ -342,7 +345,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.language == "ja"
 
             # Build
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify trigger pattern extraction
@@ -356,7 +359,7 @@ class TestEndToEndQueryPipeline:
             assert "する" not in scryfall_query
             assert "に" not in scryfall_query or "に" in query
 
-    def test_phase2_etb_with_token_e2e(self):
+    async def test_phase2_etb_with_token_e2e(self):
         """Test Phase 2: ETB trigger with token generation - Issue #4 integration."""
         query = "戦場に出たときにトークンを生成する白いクリーチャー"
 
@@ -366,7 +369,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify ETB trigger
@@ -379,7 +382,7 @@ class TestEndToEndQueryPipeline:
             # Verify no particles
             assert "する" not in scryfall_query
 
-    def test_phase2_attack_trigger_with_damage_e2e(self):
+    async def test_phase2_attack_trigger_with_damage_e2e(self):
         """Test Phase 2: Attack trigger with damage - Issue #4 integration."""
         query = "攻撃したときにダメージを与える赤いクリーチャー"
 
@@ -389,7 +392,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify attack trigger
@@ -400,7 +403,7 @@ class TestEndToEndQueryPipeline:
             assert "c:r" in scryfall_query
             assert "t:creature" in scryfall_query
 
-    def test_phase2_multi_ability_combination_e2e(self):
+    async def test_phase2_multi_ability_combination_e2e(self):
         """Test Phase 2: Multiple abilities combination - Issue #4 integration."""
         query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
 
@@ -410,7 +413,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify Phase 2 trigger pattern
@@ -422,7 +425,7 @@ class TestEndToEndQueryPipeline:
             assert "c:u" in scryfall_query
             assert "t:creature" in scryfall_query
 
-    def test_phase2_preserves_phase1_compatibility_e2e(self):
+    async def test_phase2_preserves_phase1_compatibility_e2e(self):
         """Test that Phase 2 preserves Phase 1 exact phrase matching."""
         # Phase 1 exact match should still work
         query = "死亡時黒いクリーチャー"
@@ -433,7 +436,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should still use Phase 1 dictionary lookup
@@ -441,7 +444,7 @@ class TestEndToEndQueryPipeline:
             assert "c:b" in scryfall_query
             assert "t:creature" in scryfall_query
 
-    def test_phase2_complex_query_with_multiple_triggers_e2e(self):
+    async def test_phase2_complex_query_with_multiple_triggers_e2e(self):
         """Test Phase 2: Complex query with multiple triggers (if supported)."""
         # Note: This tests current behavior; multiple triggers in one query
         # may not be fully supported yet but should not error
@@ -453,7 +456,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = builder.build(parsed)
+            result = await builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should extract at least one trigger
@@ -462,5 +465,187 @@ class TestEndToEndQueryPipeline:
 
             # At least one trigger should be present
             assert has_death_trigger or has_etb_trigger
+            # Should have creature type
+            assert "t:creature" in scryfall_query
+
+    async def test_latest_expansion_basic_e2e(self):
+        """Test Issue #3: Basic 'latest expansion' E2E."""
+        query = "最新のエクスパンション"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            assert parsed.language == "ja"
+
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should convert to s:<set_code> (actual latest set from API or fallback)
+            assert "s:" in scryfall_query
+            # Should have a valid set code (3-4 letters)
+            import re
+            assert re.search(r"s:[a-z]{3,4}\b", scryfall_query)
+            # Should not have leftover Japanese
+            assert "最新" not in scryfall_query
+            assert "エクスパンション" not in scryfall_query
+
+    async def test_latest_expansion_with_changeling_e2e(self):
+        """Test Issue #3: 'Latest expansion' with changeling (from issue example)."""
+        query = "最新のエクスパンションシンボルで多相を持つクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have set filter
+            assert "s:" in scryfall_query
+            # Should have changeling keyword
+            assert "keyword:changeling" in scryfall_query
+            # Should have creature type
+            assert "t:creature" in scryfall_query
+
+    async def test_latest_set_with_flying_e2e(self):
+        """Test Issue #3: 'Latest set' with flying ability."""
+        query = "最新セットに収録された飛行を持つカード"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should convert to s:mkm
+            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0 or "s:" in scryfall_query
+            # Should have flying keyword
+            assert "keyword:flying" in scryfall_query
+
+    async def test_new_expansion_red_cards_e2e(self):
+        """Test Issue #3: 'New expansion' with red color filter."""
+        query = "新しいエクスパンションの赤いカード"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have set filter
+            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            # Should have red color
+            assert "c:r" in scryfall_query
+
+    async def test_expansion_symbol_mkm_e2e(self):
+        """Test Issue #3: Expansion symbol search for MKM."""
+        query = "MKMのエクスパンションシンボル"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have s: prefix
+            assert "s:" in scryfall_query
+            # Should have mkm (case-insensitive)
+            assert "mkm" in scryfall_query.lower()
+
+    async def test_latest_expansion_complex_query_e2e(self):
+        """Test Issue #3: Complex query with latest expansion and multiple filters."""
+        query = "最新のエクスパンションで白と青のクリーチャーでマナ総量3以下の伝説の"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have set filter
+            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            # Should have colors
+            assert "c:w" in scryfall_query or "c:u" in scryfall_query
+            # Should have creature type
+            assert "t:creature" in scryfall_query
+            # Should have legendary
+            assert "t:legendary" in scryfall_query or "legendary" in scryfall_query
+            # Should have mana value filter
+            assert "mv<=3" in scryfall_query or "cmc<=3" in scryfall_query
+
+    async def test_correct_expansion_spelling_e2e(self):
+        """Test Issue #3: Correct spelling 'エクスパンション' works."""
+        query = "エクスパンション"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should be converted to set search
+            assert "s" in scryfall_query
+
+    async def test_longest_phrase_matching_e2e(self):
+        """Test Issue #3: Longest phrase matching (avoid partial matches)."""
+        # "最新のエクスパンション" should match as whole phrase, not split
+        query = "最新のエクスパンションでパワー3以上"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have full s:mkm, not just "s"
+            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            # Should not have leftover "最新" or "エクスパンション"
+            assert "最新" not in scryfall_query
+            assert "エクスパンション" not in scryfall_query
+            # Should have power filter
+            assert "p>=3" in scryfall_query
+
+    async def test_latest_expansion_with_trigger_ability_e2e(self):
+        """Test Issue #3: Latest expansion combined with Phase 2 trigger abilities."""
+        query = "最新セットで死亡時にカードを引くクリーチャー"
+
+        with use_locale("ja"):
+            mapping = get_current_mapping()
+            parser = SearchParser(mapping)
+            builder = QueryBuilder(mapping)
+
+            parsed = parser.parse(query)
+            result = await builder.build(parsed)
+            scryfall_query = result.scryfall_query
+
+            # Should have latest set
+            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            # Should have death trigger
+            assert 'o:"when ~ dies"' in scryfall_query
+            # Should have draw effect
+            assert 'o:"draw"' in scryfall_query
             # Should have creature type
             assert "t:creature" in scryfall_query

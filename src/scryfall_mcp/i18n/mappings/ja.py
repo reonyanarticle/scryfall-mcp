@@ -127,8 +127,26 @@ class JapaneseMapping(LanguageMapping):
                 "レアリティ": "r",
                 "希少度": "r",
                 "セット": "s",
-                "エキスパンション": "s",
+                "エキスパンション": "s",  # Misspelling (kept for backward compatibility)
+                "エクスパンション": "s",  # Correct spelling
                 "ブロック": "b",
+                # Issue #3: Latest expansion temporal phrases
+                # NOTE: These use placeholder __LATEST_SET__ which is replaced
+                # dynamically at query time by QueryBuilder with actual latest set code
+                # fetched from Scryfall API (24-hour cache).
+                "最新のエクスパンション": "s:__LATEST_SET__",
+                "最新のセット": "s:__LATEST_SET__",
+                "最新セット": "s:__LATEST_SET__",
+                "最新エクスパンション": "s:__LATEST_SET__",
+                "新しいエクスパンション": "s:__LATEST_SET__",
+                "新しいセット": "s:__LATEST_SET__",
+                "最新の": "s:__LATEST_SET__",
+                "一番新しいセット": "s:__LATEST_SET__",
+                "一番新しいエクスパンション": "s:__LATEST_SET__",
+                # Issue #3: Expansion symbol expressions
+                "エクスパンションシンボル": "s:",
+                "セットシンボル": "s:",
+                "シンボル": "s:",
                 "フォーマット": "f",
                 "アーティスト": "a",
                 "イラストレーター": "a",

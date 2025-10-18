@@ -6,10 +6,13 @@ from natural language (especially Japanese) to Scryfall search syntax.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING, Any
 
 from ..models import BuiltQuery, ParsedQuery
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..i18n import LanguageMapping
@@ -58,7 +61,7 @@ class QueryBuilder:
             patterns = create_japanese_patterns(locale_mapping.search_keywords)
             self._pattern_matcher = AbilityPatternMatcher(patterns)
 
-    def build(self, parsed: ParsedQuery) -> BuiltQuery:
+    async def build(self, parsed: ParsedQuery) -> BuiltQuery:
         """Build Scryfall query from parsed data.
 
         Parameters
@@ -93,6 +96,9 @@ class QueryBuilder:
             query = f"{query} {' '.join(ability_tokens)}"
 
         query = self._clean_query(query)
+
+        # Issue #3: Replace __LATEST_SET__ placeholder with actual latest set
+        query = await self._replace_latest_set_placeholder(query)
 
         # Generate suggestions based on parsed data
         suggestions = self._generate_suggestions(parsed)
@@ -168,6 +174,9 @@ class QueryBuilder:
             query = f"{query} {' '.join(ability_tokens)}"
 
         query = self._clean_query(query)
+
+        # Issue #3: Replace __LATEST_SET__ placeholder with actual latest set (sync)
+        query = self._replace_latest_set_placeholder_sync(query)
 
         return query
 
@@ -448,6 +457,85 @@ class QueryBuilder:
         query = re.sub(r"\s*([<>=!]+)\s*", r"\1", query)
 
         return query
+
+    async def _replace_latest_set_placeholder(self, query: str) -> str:
+        """Replace __LATEST_SET__ placeholder with actual latest set code.
+
+        This method fetches the latest expansion set code from Scryfall API
+        (with 24-hour caching) and replaces the __LATEST_SET__ placeholder.
+
+        Parameters
+        ----------
+        query : str
+            Query string potentially containing __LATEST_SET__ placeholder
+
+        Returns
+        -------
+        str
+            Query with placeholder replaced by actual set code
+
+        Notes
+        -----
+        - Uses get_latest_expansion_code() with 24h cache
+        - Fallback to "mkm" if API call fails
+        - Only performs API call if placeholder is present
+        """
+        if "__LATEST_SET__" not in query:
+            return query
+
+        try:
+            from ..api.client import get_client
+            from ..api.sets import get_latest_expansion_code
+
+            client = await get_client()
+            latest_code = await get_latest_expansion_code(client)
+            return query.replace("__LATEST_SET__", latest_code)
+        except Exception as e:
+            logger.warning(
+                f"Failed to fetch latest set, using fallback: {e}",
+                exc_info=True
+            )
+            # Fallback to hardcoded value
+            from ..i18n.constants import LATEST_SET_CODE_FALLBACK
+            return query.replace("__LATEST_SET__", LATEST_SET_CODE_FALLBACK)
+
+    def _replace_latest_set_placeholder_sync(self, query: str) -> str:
+        """Synchronous version of _replace_latest_set_placeholder.
+
+        This method replaces __LATEST_SET__ placeholder using the synchronous
+        cache accessor. It's used by the legacy build_query() method.
+
+        Parameters
+        ----------
+        query : str
+            Query string potentially containing __LATEST_SET__ placeholder
+
+        Returns
+        -------
+        str
+            Query with placeholder replaced by set code (from cache or fallback)
+
+        Notes
+        -----
+        - Uses cached value if available
+        - Falls back to LATEST_SET_CODE_FALLBACK if no cache
+        - Does not perform API calls (sync-safe)
+        """
+        if "__LATEST_SET__" not in query:
+            return query
+
+        try:
+            from ..api.sets import get_latest_expansion_code_sync
+
+            latest_code = get_latest_expansion_code_sync()
+            return query.replace("__LATEST_SET__", latest_code)
+        except Exception as e:
+            logger.warning(
+                f"Failed to get latest set from cache, using fallback: {e}",
+                exc_info=True
+            )
+            from ..i18n.constants import LATEST_SET_CODE_FALLBACK
+            return query.replace("__LATEST_SET__", LATEST_SET_CODE_FALLBACK)
 
     def _generate_suggestions(self, parsed: ParsedQuery) -> list[str]:
         """Generate suggestions based on parsed query data.

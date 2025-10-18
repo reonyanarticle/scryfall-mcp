@@ -29,9 +29,9 @@ class TestSearchProcessor:
         assert processor._query_builder is not None
         assert processor._mapping.language_code == "en"
 
-    def test_process_query_english(self, processor):
+    async def test_process_query_english(self, processor):
         """Test processing English query."""
-        result = processor.process_query("Lightning Bolt")
+        result = await processor.process_query("Lightning Bolt")
 
         assert result["original_query"] == "Lightning Bolt"
         assert result["scryfall_query"] == "Lightning Bolt"
@@ -40,12 +40,12 @@ class TestSearchProcessor:
         assert "extracted_entities" in result
         assert "suggestions" in result
 
-    def test_process_query_japanese(self, processor):
+    async def test_process_query_japanese(self, processor):
         """Test processing Japanese query."""
         set_current_locale("ja")
         processor = SearchProcessor()
 
-        result = processor.process_query("白いクリーチャー")
+        result = await processor.process_query("白いクリーチャー")
 
         assert result["original_query"] == "白いクリーチャー"
         assert "c:w" in result["scryfall_query"]
@@ -269,14 +269,14 @@ class TestSearchProcessor:
 
         assert explanation == "一般的な検索"
 
-    def test_process_query_with_locale_switch(self, processor):
+    async def test_process_query_with_locale_switch(self, processor):
         """Test processing query with locale switching."""
         # Process English query
-        result_en = processor.process_query("white creatures", "en")
+        result_en = await processor.process_query("white creatures", "en")
         assert result_en["language"] == "en"
 
         # Process Japanese query with explicit locale
-        result_ja = processor.process_query("白いクリーチャー", "ja")
+        result_ja = await processor.process_query("白いクリーチャー", "ja")
         assert result_ja["language"] == "ja"
         assert "c:w" in result_ja["scryfall_query"]
 
@@ -335,10 +335,10 @@ class TestSearchProcessor:
         intent = processor._detect_intent("FIND Lightning Bolt")
         assert intent == "card_search"
 
-    def test_query_processing_integration(self, processor):
+    async def test_query_processing_integration(self, processor):
         """Test complete query processing integration."""
         query = "find red creatures with power 3 or higher"
-        result = processor.process_query(query)
+        result = await processor.process_query(query)
 
         # Check all expected fields are present
         required_fields = [
@@ -362,13 +362,13 @@ class TestSearchProcessor:
         assert "types" in entities
         assert "numbers" in entities
 
-    def test_japanese_integration(self, processor):
+    async def test_japanese_integration(self, processor):
         """Test complete Japanese processing integration."""
         set_current_locale("ja")
         processor = SearchProcessor()
 
         query = "パワー3以上の赤いクリーチャーを探して"
-        result = processor.process_query(query)
+        result = await processor.process_query(query)
 
         assert result["original_query"] == query
         assert "c:r" in result["scryfall_query"]

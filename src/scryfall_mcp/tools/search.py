@@ -66,8 +66,8 @@ class CardSearchTool:
                 # Step 1: Parse the natural language query
                 parsed = parser.parse(request.query)
 
-                # Step 2: Build the Scryfall query
-                built = builder.build(parsed)
+                # Step 2: Build the Scryfall query (async for dynamic latest set)
+                built = await builder.build(parsed)
 
                 # Add format filter if specified
                 scryfall_query = built.scryfall_query
