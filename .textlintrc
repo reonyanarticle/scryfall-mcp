@@ -1,6 +1,11 @@
 {
     "rules": {
         "preset-ja-technical-writing": true,
-        "@textlint-ja/preset-ai-writing": true
+        "@textlint-ja/preset-ai-writing": true,
+        "no-mix-dearu-desumasu": {
+            "preferInBody": "ですます",
+            "preferInList": "である"
+        },
+        "ja-no-redundant-expression": true
     }
 }
