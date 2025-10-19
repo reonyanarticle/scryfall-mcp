@@ -43,7 +43,11 @@ class CardSearchTool:
         """
         return Tool(
             name="search_cards",
-            description="Search for Magic: The Gathering cards using natural language. Supports Japanese queries like '白いクリーチャー', '稲妻', 'パワー3以上のクリーチャー'.",
+            description=(
+                "Search for Magic: The Gathering cards using natural language. "
+                "Supports Japanese queries like '白いクリーチャー', '稲妻', 'パワー3以上のクリーチャー', '最新のエクスパンション'. "
+                "Automatically fetches the latest expansion set when querying for '最新のエクスパンション' or '最新のセット'."
+            ),
             inputSchema=SearchCardsRequest.model_json_schema(),
         )
 
@@ -67,7 +71,7 @@ class CardSearchTool:
             request = CardSearchTool._validate_request(arguments)
 
             with use_locale(request.language or "en"):
-                builder, presenter, built = CardSearchTool._build_query_pipeline(
+                builder, presenter, built = await CardSearchTool._build_query_pipeline(
                     request
                 )
 
@@ -107,7 +111,7 @@ class CardSearchTool:
         return SearchCardsRequest(**arguments)
 
     @staticmethod
-    def _build_query_pipeline(
+    async def _build_query_pipeline(
         request: SearchCardsRequest,
     ) -> tuple[QueryBuilder, SearchPresenter, BuiltQuery]:
         """Build the query processing pipeline.
@@ -128,7 +132,7 @@ class CardSearchTool:
         presenter = SearchPresenter(mapping)
 
         parsed = parser.parse(request.query)
-        built = builder.build(parsed)
+        built = await builder.build(parsed)
 
         return builder, presenter, built
 
@@ -153,7 +157,18 @@ class CardSearchTool:
         if request.format_filter:
             scryfall_query += f" f:{request.format_filter}"
 
-        if request.language and request.language != "en":
+        # Add language filter if specified (for multilingual card search)
+        # Note: Don't add lang filter for set-only searches, as not all sets
+        # have cards in all languages (e.g., Marvel sets are English-only)
+        is_set_only_search = (
+            scryfall_query.strip().startswith("s:")
+            and " " not in scryfall_query.strip()
+        )
+        if (
+            request.language
+            and request.language != "en"
+            and not is_set_only_search
+        ):
             scryfall_query += f" lang:{request.language}"
 
         return scryfall_query

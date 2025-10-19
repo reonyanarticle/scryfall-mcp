@@ -23,6 +23,7 @@ from .i18n import detect_and_set_locale, get_locale_manager
 from .resources import load_setup_guide
 from .settings import get_settings
 from .tools.search import AutocompleteTool, CardSearchTool
+from .tools.sets import GetLatestExpansionSetTool
 
 # Configure logging
 logging.basicConfig(
@@ -295,6 +296,43 @@ class ScryfallMCPServer:
                 )
             except Exception as e:
                 return await _handle_tool_error(ctx, e, "autocomplete", language)
+
+        # Latest expansion set info tool
+        @self.app.tool()
+        async def get_latest_expansion_set(
+            ctx: Context,
+        ) -> list[TextContent]:
+            """Get information about the latest Magic: The Gathering expansion set.
+
+            Parameters
+            ----------
+            ctx : Context
+                FastMCP context for progress reporting and logging
+
+            Returns
+            -------
+            list[TextContent]
+                Latest expansion set information
+            """
+            await ctx.info("Getting latest expansion set information")
+
+            await ctx.report_progress(0, 100, "Fetching latest expansion set...")
+            try:
+                result = await GetLatestExpansionSetTool.execute({})
+                await ctx.report_progress(100, 100, "Latest expansion set retrieved")
+                return result
+            except Exception as e:
+                await ctx.error(f"Error getting latest expansion set: {e}")
+                return [
+                    TextContent(
+                        type="text",
+                        text=(
+                            f"❌ **エラーが発生しました**\n\n"
+                            f"最新のエクスパンションセット情報の取得中にエラーが発生しました。\n\n"
+                            f"**エラー**: {e}"
+                        ),
+                    )
+                ]
 
     async def run(self) -> None:
         """Run the MCP server.

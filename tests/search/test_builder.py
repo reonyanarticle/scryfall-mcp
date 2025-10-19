@@ -637,7 +637,7 @@ class TestQueryBuilder:
         assert 'o:"you control"' in result
         assert "t:creature" in result
 
-    def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
+    async def test_japanese_phase2_death_trigger_with_effect(self, query_builder):
         """Test Phase 2: death trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -652,7 +652,7 @@ class TestQueryBuilder:
         # "死亡時にカードを1枚引く黒いクリーチャー"
         query = "死亡時にカードを1枚引く黒いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain death trigger
         assert 'o:"when ~ dies"' in result.scryfall_query
@@ -665,7 +665,7 @@ class TestQueryBuilder:
         assert "する" not in result.scryfall_query
         assert "に" not in result.scryfall_query or "に" in query  # Allow if it was in original
 
-    def test_japanese_phase2_etb_with_effect(self, query_builder):
+    async def test_japanese_phase2_etb_with_effect(self, query_builder):
         """Test Phase 2: ETB trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -680,7 +680,7 @@ class TestQueryBuilder:
         # "戦場に出たときにトークンを生成する白いクリーチャー"
         query = "戦場に出たときにトークンを生成する白いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain ETB trigger
         assert 'o:"enters the battlefield"' in result.scryfall_query
@@ -692,7 +692,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
+    async def test_japanese_phase2_attack_trigger_with_effect(self, query_builder):
         """Test Phase 2: attack trigger with effect - Issue #4 Phase 2.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -707,7 +707,7 @@ class TestQueryBuilder:
         # "攻撃したときにダメージを与える赤いクリーチャー"
         query = "攻撃したときにダメージを与える赤いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain attack trigger
         assert 'o:"whenever ~ attacks"' in result.scryfall_query
@@ -719,7 +719,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_complex_multi_ability(self, query_builder):
+    async def test_japanese_phase2_complex_multi_ability(self, query_builder):
         """Test Phase 2: complex query with multiple abilities.
 
         Tests the production path (Parser -> QueryBuilder.build()).
@@ -734,7 +734,7 @@ class TestQueryBuilder:
         # "死亡時にカードを引く飛行を持つ青いクリーチャー"
         query = "死亡時にカードを引く飛行を持つ青いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain death trigger
         assert 'o:"when ~ dies"' in result.scryfall_query
@@ -748,7 +748,7 @@ class TestQueryBuilder:
         # Should NOT contain Japanese particles
         assert "する" not in result.scryfall_query
 
-    def test_japanese_phase2_control_with_effect(self, query_builder):
+    async def test_japanese_phase2_control_with_effect(self, query_builder):
         """Test Phase 2: control phrase combined with other search terms.
 
         Note: Complex patterns like "あなたがコントロールする〜を〜する" are Phase 3 material.
@@ -765,7 +765,7 @@ class TestQueryBuilder:
         # Simple control phrase (Phase 1 behavior preserved)
         query = "あなたがコントロールする緑のクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain control phrase
         assert 'o:"you control"' in result.scryfall_query
@@ -773,7 +773,7 @@ class TestQueryBuilder:
         assert "c:g" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
 
-    def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
+    async def test_japanese_phase2_preserves_phase1_behavior(self, query_builder):
         """Test that Phase 2 preserves Phase 1 exact phrase matches."""
         from scryfall_mcp.search.parser import SearchParser
 
@@ -785,14 +785,14 @@ class TestQueryBuilder:
         # Phase 1 exact match should still work
         query = "死亡時黒いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should use Phase 1 dictionary lookup
         assert 'o:"when ~ dies"' in result.scryfall_query
         assert "c:b" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
 
-    def test_english_queries_unaffected_by_phase2(self, query_builder):
+    async def test_english_queries_unaffected_by_phase2(self, query_builder):
         """Test that English queries are not affected by Phase 2 patterns."""
         from scryfall_mcp.search.parser import SearchParser
 
@@ -804,14 +804,14 @@ class TestQueryBuilder:
         # English queries use Scryfall syntax directly
         query = "c:r t:creature keyword:flying"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should remain unchanged
         assert "c:r" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
         assert "keyword:flying" in result.scryfall_query
 
-    def test_build_with_parsed_query(self, query_builder):
+    async def test_build_with_parsed_query(self, query_builder):
         """Test build() method with ParsedQuery object."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -833,7 +833,7 @@ class TestQueryBuilder:
         )
 
         # Build query from parsed object
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Check result structure
         assert hasattr(result, "scryfall_query")
@@ -850,7 +850,7 @@ class TestQueryBuilder:
         assert result.query_metadata["language"] == "ja"
         assert result.query_metadata["intent"] == "search_cards"
 
-    def test_generate_suggestions_no_specifics(self, query_builder):
+    async def test_generate_suggestions_no_specifics(self, query_builder):
         """Test suggestion generation for queries without colors or types."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -863,11 +863,11 @@ class TestQueryBuilder:
             entities={"colors": [], "types": []}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert len(result.suggestions) > 0
         assert any("colors or card types" in s for s in result.suggestions)
 
-    def test_generate_suggestions_competitive_query(self, query_builder):
+    async def test_generate_suggestions_competitive_query(self, query_builder):
         """Test suggestion generation for competitive queries."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -880,10 +880,10 @@ class TestQueryBuilder:
             entities={"colors": [], "types": ["creature"]}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("format" in s.lower() for s in result.suggestions)
 
-    def test_generate_suggestions_japanese_misspelling(self, query_builder):
+    async def test_generate_suggestions_japanese_misspelling(self, query_builder):
         """Test suggestion generation for Japanese misspellings."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -900,7 +900,7 @@ class TestQueryBuilder:
             entities={"colors": [], "types": []}
         )
 
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("クリーチャー" in s for s in result.suggestions)
 
     def test_assess_complexity_simple(self, query_builder):
@@ -999,7 +999,7 @@ class TestQueryBuilder:
         result = query_builder.build_query(query, locale="ja")
         assert "m>=3" in result
 
-    def test_generate_suggestions_competitive_japanese(self, query_builder):
+    async def test_generate_suggestions_competitive_japanese(self, query_builder):
         """Test competitive query suggestions in Japanese mode."""
         from scryfall_mcp.models import ParsedQuery
 
@@ -1015,10 +1015,11 @@ class TestQueryBuilder:
             language="ja",
             entities={"colors": [], "types": ["creature"], "keywords": []}
         )
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert any("f:standard" in s or "f:modern" in s for s in result.suggestions)
 
-    def test_ultra_complex_query_multiple_abilities(self, query_builder):
+
+    async def test_ultra_complex_query_multiple_abilities(self, query_builder):
         """Test ultra-complex query with 3+ abilities combined.
 
         Edge case: Tests queries with multiple keyword abilities, ability phrases,
@@ -1034,7 +1035,7 @@ class TestQueryBuilder:
         # Ultra-complex query: "飛行と速攻と死亡時にカードを引く赤いクリーチャーでパワー3以上"
         query = "飛行と速攻と死亡時にカードを引く赤いクリーチャーでパワー3以上"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain all components
         assert "keyword:flying" in result.scryfall_query
@@ -1045,7 +1046,7 @@ class TestQueryBuilder:
         assert "t:creature" in result.scryfall_query
         assert "p>=3" in result.scryfall_query
 
-    def test_very_long_natural_language_query(self, query_builder):
+    async def test_very_long_natural_language_query(self, query_builder):
         """Test very long natural language query (100+ characters).
 
         Edge case: Tests handling of extremely long queries that might
@@ -1065,7 +1066,7 @@ class TestQueryBuilder:
             "白いクリーチャーでパワー2以上タフネス3以下でマナ総量4以下"
         )
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should handle all components without crashing
         assert "keyword:flying" in result.scryfall_query
@@ -1078,7 +1079,7 @@ class TestQueryBuilder:
         assert "tou<=3" in result.scryfall_query
         assert "mv<=4" in result.scryfall_query
 
-    def test_ambiguous_natural_language_query(self, query_builder):
+    async def test_ambiguous_natural_language_query(self, query_builder):
         """Test ambiguous natural language query.
 
         Edge case: Tests queries with vague terms like "強力な" (powerful)
@@ -1094,7 +1095,7 @@ class TestQueryBuilder:
         # Ambiguous query with vague term
         query = "強力な赤いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should at least extract color and type
         assert "c:r" in result.scryfall_query
@@ -1102,7 +1103,7 @@ class TestQueryBuilder:
         # "強力な" (powerful) should be passed through or ignored
         # The query should still be valid
 
-    def test_mixed_phase1_phase2_complex_query(self, query_builder):
+    async def test_mixed_phase1_phase2_complex_query(self, query_builder):
         """Test complex query mixing Phase 1 and Phase 2 features.
 
         Edge case: Tests a query that combines format filters (Phase 1)
@@ -1118,7 +1119,7 @@ class TestQueryBuilder:
         # Mixed query: format + multiple abilities + colors
         query = "モダンで使える飛行を持つ死亡時にカードを引く青黒のクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain keyword ability
         assert "keyword:flying" in result.scryfall_query
@@ -1130,7 +1131,7 @@ class TestQueryBuilder:
         assert "c:u" in result.scryfall_query or "c:b" in result.scryfall_query or "c:ub" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
 
-    def test_deeply_nested_trigger_effect_chain(self, query_builder):
+    async def test_deeply_nested_trigger_effect_chain(self, query_builder):
         """Test deeply nested trigger-effect chain query.
 
         Edge case: Tests a query describing a complex trigger chain like
@@ -1148,7 +1149,7 @@ class TestQueryBuilder:
         # Deeply nested query (may not be fully parseable, but shouldn't crash)
         query = "死亡時に戦場に出て攻撃したときダメージを与えるトークンを生成する黒いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should at least extract death trigger and color/type
         assert 'o:"when ~ dies"' in result.scryfall_query
@@ -1157,7 +1158,7 @@ class TestQueryBuilder:
         # May also catch some effect phrases
         # This is a "best effort" test - the main goal is no crash
 
-    def test_multiple_color_identities_complex(self, query_builder):
+    async def test_multiple_color_identities_complex(self, query_builder):
         """Test complex query with multiple color identities.
 
         Edge case: Tests queries involving multicolor cards with multiple
@@ -1173,7 +1174,7 @@ class TestQueryBuilder:
         # Multicolor query with abilities
         query = "青白の飛行と絆魂を持つクリーチャーでマナ総量3以下"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should contain both colors
         # Note: Parser may handle this as two separate color terms or as identity
@@ -1185,7 +1186,7 @@ class TestQueryBuilder:
         assert "t:creature" in result.scryfall_query
         assert "mv<=3" in result.scryfall_query
 
-    def test_empty_and_whitespace_edge_cases(self, query_builder):
+    async def test_empty_and_whitespace_edge_cases(self, query_builder):
         """Test empty and whitespace-only queries.
 
         Edge case: Ensures system handles degenerate inputs gracefully.
@@ -1199,15 +1200,15 @@ class TestQueryBuilder:
 
         # Empty query
         parsed = parser.parse("")
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert result.scryfall_query == "" or result.scryfall_query is None
 
         # Whitespace-only query
         parsed = parser.parse("   \t\n   ")
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert result.scryfall_query.strip() == "" or result.scryfall_query is None
 
-    def test_special_characters_in_query(self, query_builder):
+    async def test_special_characters_in_query(self, query_builder):
         """Test queries with special characters.
 
         Edge case: Tests handling of special characters that might
@@ -1223,14 +1224,14 @@ class TestQueryBuilder:
         # Query with parentheses and quotes
         query = '飛行を持つ"天使"というクリーチャー'
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
 
         # Should at least extract keyword and type
         assert "keyword:flying" in result.scryfall_query
         assert "t:creature" in result.scryfall_query
         # Quotes should be preserved or handled appropriately
 
-    def test_numeric_edge_cases(self, query_builder):
+    async def test_numeric_edge_cases(self, query_builder):
         """Test queries with extreme numeric values.
 
         Edge case: Tests handling of very large numbers and zero.
@@ -1245,12 +1246,12 @@ class TestQueryBuilder:
         # Test with very large power
         query = "パワー100以上の赤いクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert "p>=100" in result.scryfall_query
         assert "c:r" in result.scryfall_query
 
         # Test with zero
         query = "パワー0のクリーチャー"
         parsed = parser.parse(query)
-        result = query_builder.build(parsed)
+        result = await query_builder.build(parsed)
         assert "p=0" in result.scryfall_query or "p:0" in result.scryfall_query
