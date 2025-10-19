@@ -354,6 +354,25 @@ def _create_card_resource(
   - 形式: `{base_name}.{language_code}`（例: `setup_guide.ja`, `setup_guide.en`）
   - フォールバック: デフォルト言語ファイル（拡張子なし）または`.ja`
 
+### CLI実装
+- **Typerを使用**: コマンドラインインターフェースは`typer`ライブラリを使用してください
+- **型安全**: typerの型アノテーションを活用し、引数のバリデーションを自動化してください
+- **ヘルプメッセージ**: すべてのコマンドと引数にわかりやすいヘルプメッセージを記載してください
+- **サブコマンド**: 機能ごとにサブコマンドを分割し、階層的なCLI構造を構築してください
+  ```python
+  import typer
+
+  app = typer.Typer(help="Scryfall MCP Server CLI")
+
+  @app.command()
+  def serve(
+      transport: str = typer.Option("stdio", help="Transport mode"),
+      port: int = typer.Option(8000, help="HTTP port")
+  ) -> None:
+      """Start the MCP server."""
+      pass
+  ```
+
 ### 非同期処理
 - **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化してください
 - **CPU boundは別プロセス**: 重い計算処理は`ProcessPoolExecutor`を使用してください

@@ -88,7 +88,7 @@ def test_content_validation() -> None:
 
     # Start server
     proc = subprocess.Popen(
-        ["uv", "run", "scryfall-mcp"],
+        ["uv", "run", "scryfall-mcp", "serve"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

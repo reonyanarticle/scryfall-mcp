@@ -221,6 +221,54 @@ class Settings(BaseSettings):
         description="Maximum number of autocomplete suggestions to return",
     )
 
+    # Remote MCP Configuration
+    transport_mode: str = Field(
+        default="stdio",
+        pattern="^(stdio|http|streamable_http)$",
+        description="Transport mode for MCP server",
+    )
+    http_host: str = Field(
+        default="127.0.0.1",
+        description="HTTP server host for remote transport",
+    )
+    http_port: int = Field(
+        default=8000,
+        ge=1024,
+        le=65535,
+        description="HTTP server port for remote transport",
+    )
+    http_path: str = Field(
+        default="/mcp",
+        description="HTTP endpoint path for MCP protocol",
+    )
+
+    # Authentication Configuration
+    oauth_enabled: bool = Field(
+        default=False,
+        description="Enable OAuth 2.1 authentication for remote MCP",
+    )
+    jwt_secret_key: str = Field(
+        default="",
+        description="JWT signing secret (REQUIRED in production)",
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        pattern="^(HS256|HS384|HS512|RS256|RS384|RS512)$",
+        description="JWT algorithm for token verification",
+    )
+    allowed_origins: list[str] = Field(
+        default=["*"],
+        description="CORS allowed origins (use specific domains in production)",
+    )
+
+    # Multi-tenant Rate Limiting
+    rate_limit_per_user: int = Field(
+        default=100,
+        ge=1,
+        le=10000,
+        description="Rate limit per user (requests per minute)",
+    )
+
     @field_validator("supported_locales")
     @classmethod
     def validate_supported_locales(cls, v: list[str]) -> list[str]:

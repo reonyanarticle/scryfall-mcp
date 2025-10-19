@@ -334,14 +334,36 @@ class ScryfallMCPServer:
                     )
                 ]
 
-    async def run(self) -> None:
-        """Run the MCP server.
+    async def run(self, transport_mode: str | None = None) -> None:
+        """Run the MCP server with specified transport.
 
-        The lifespan context manager handles startup and shutdown operations.
+        Parameters
+        ----------
+        transport_mode : str | None, optional
+            Transport mode override. If None, uses settings value.
+            Valid values: "stdio", "http", "streamable_http"
+
+        Raises
+        ------
+        ValueError
+            If unsupported transport mode is specified
         """
+        mode = transport_mode or self.settings.transport_mode
+
         try:
-            # Run the fastmcp server in stdio mode for MCP compatibility
-            await self.app.run_stdio_async()
+            if mode == "stdio":
+                # Run in stdio mode for local MCP compatibility
+                await self.app.run_stdio_async()
+            elif mode in ("http", "streamable_http"):
+                # Run in HTTP mode for Remote MCP
+                await self.app.run(
+                    transport="http",
+                    host=self.settings.http_host,
+                    port=self.settings.http_port,
+                    path=self.settings.http_path,
+                )
+            else:
+                raise ValueError(f"Unsupported transport mode: {mode}")
         except Exception:
             logger.exception("Server error")
             raise
