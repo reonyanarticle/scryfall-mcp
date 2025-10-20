@@ -322,6 +322,57 @@ class Settings(BaseSettings):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_jwt_production_requirements(self) -> Settings:
+        """Ensure JWT secret is configured when OAuth is enabled.
+
+        Raises
+        ------
+        ValueError
+            If OAuth is enabled but JWT secret is not properly configured.
+        """
+        if self.oauth_enabled:
+            if not self.jwt_secret_key:
+                raise ValueError(
+                    "jwt_secret_key is required when oauth_enabled=True. "
+                    "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+            if len(self.jwt_secret_key) < 32:
+                raise ValueError(
+                    "jwt_secret_key must be at least 32 characters for security"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_cors_production_requirements(self) -> Settings:
+        """Ensure CORS is properly configured for HTTP transport.
+
+        Raises
+        ------
+        ValueError
+            If HTTP transport is enabled but CORS origins are not configured.
+
+        Warnings
+        --------
+        Issues a warning if wildcard '*' is used in production mode.
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        if self.transport_mode in ("http", "streamable_http"):
+            if not self.allowed_origins:
+                raise ValueError(
+                    "allowed_origins is required for HTTP transport. "
+                    "Example: ['https://claude.ai', 'https://app.example.com']"
+                )
+            if "*" in self.allowed_origins and not self.debug:
+                logger.warning(
+                    "SECURITY WARNING: CORS wildcard '*' is insecure in production. "
+                    "Specify exact origins instead."
+                )
+        return self
+
     model_config = SettingsConfigDict(
         env_prefix="SCRYFALL_MCP_",
         case_sensitive=False,
