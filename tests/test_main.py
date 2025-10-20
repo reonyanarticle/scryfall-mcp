@@ -143,26 +143,38 @@ class TestMainFunction:
 
     def test_serve_with_custom_port(self) -> None:
         """Test the 'serve' command with custom HTTP port."""
+        from scryfall_mcp.settings import Settings
+
+        # Create mock settings with allowed_origins
+        mock_settings = Settings(allowed_origins=["https://claude.ai"])
+
         with patch("scryfall_mcp.__main__.ScryfallMCPServer") as mock_server:
             with patch("scryfall_mcp.__main__.asyncio.run"):
-                result = runner.invoke(
-                    app, ["serve", "--transport", "http", "--http-port", "3000"]
-                )
-                # The command should execute without errors
-                assert "Starting Scryfall MCP Server in http mode" in result.output
-                assert ":3000" in result.output
+                with patch("scryfall_mcp.__main__.get_settings", return_value=mock_settings):
+                    result = runner.invoke(
+                        app, ["serve", "--transport", "http", "--http-port", "3000"]
+                    )
+                    # The command should execute without errors
+                    assert "Starting Scryfall MCP Server in http mode" in result.output
+                    assert ":3000" in result.output
 
     def test_serve_streamable_http_mode(self) -> None:
         """Test the 'serve' command with streamable_http transport."""
+        from scryfall_mcp.settings import Settings
+
+        # Create mock settings with allowed_origins
+        mock_settings = Settings(allowed_origins=["https://claude.ai"])
+
         with patch("scryfall_mcp.__main__.ScryfallMCPServer") as mock_server:
             with patch("scryfall_mcp.__main__.asyncio.run"):
-                result = runner.invoke(
-                    app, ["serve", "--transport", "streamable_http"]
-                )
-                assert (
-                    "Starting Scryfall MCP Server in streamable_http mode"
-                    in result.output
-                )
+                with patch("scryfall_mcp.__main__.get_settings", return_value=mock_settings):
+                    result = runner.invoke(
+                        app, ["serve", "--transport", "streamable_http"]
+                    )
+                    assert (
+                        "Starting Scryfall MCP Server in streamable_http mode"
+                        in result.output
+                    )
 
     def test_serve_stdio_mode(self) -> None:
         """Test the 'serve' command with default stdio transport."""

@@ -22,6 +22,9 @@ class TestJWTValidationMiddleware:
             oauth_enabled=True,
             jwt_secret_key="test-secret-key-minimum-32-characters-required",
             jwt_algorithm="HS256",
+            oauth_client_id="test_client",
+            oauth_authorization_url="https://auth.test.com/authorize",
+            oauth_token_url="https://auth.test.com/token",
         )
 
     @pytest.fixture
@@ -141,6 +144,9 @@ class TestJWTValidationMiddleware:
             oauth_enabled=True,
             jwt_secret_key="wrong-secret-key-different-32chars",
             jwt_algorithm="HS256",
+            oauth_client_id="test_client",
+            oauth_authorization_url="https://auth.test.com/authorize",
+            oauth_token_url="https://auth.test.com/token",
         )
         token = self.create_test_token(wrong_settings)
 

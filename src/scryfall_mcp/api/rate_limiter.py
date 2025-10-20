@@ -10,7 +10,10 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .rate_limit_backend import RateLimitBackend
 
 from ..settings import MAX_BACKOFF_SECONDS, get_settings
 
@@ -267,118 +270,84 @@ def reset_rate_limiting() -> None:
 
 
 class RateLimiterManager:
-    """Manage per-user rate limiters with Redis backing and memory fallback.
+    """Manage per-user rate limiting with pluggable backends.
 
-    This class provides distributed rate limiting across multiple worker
-    instances using Redis as a shared state store, with automatic fallback
-    to in-memory limiting when Redis is unavailable.
+    This class coordinates user rate limiting using a configurable backend
+    (Redis for distributed, memory for local) and maintains compatibility
+    with the existing Scryfall API rate limiter.
 
     Parameters
     ----------
-    redis_client : redis.Redis | None, optional
-        Redis client instance for distributed state.
-        If None, uses in-memory fallback.
+    backend : RateLimitBackend
+        Rate limiting storage backend
+    scryfall_limiter : RateLimiter | None, optional
+        Global Scryfall API rate limiter. If None, uses default instance.
 
     Examples
     --------
-    >>> import redis
-    >>> redis_client = redis.Redis(host='localhost', port=6379)
-    >>> manager = RateLimiterManager(redis_client)
+    >>> from .rate_limit_backend import MemoryRateLimitBackend
+    >>> backend = MemoryRateLimitBackend()
+    >>> manager = RateLimiterManager(backend)
     >>> await manager.acquire_user_limit("user123", limit=100)
     """
 
-    def __init__(self, redis_client: Any | None = None) -> None:
+    def __init__(
+        self,
+        backend: RateLimitBackend,
+        scryfall_limiter: RateLimiter | None = None,
+    ) -> None:
         """Initialize rate limiter manager.
 
         Parameters
         ----------
-        redis_client : redis.Redis | None, optional
-            Redis client instance for distributed state.
-            If None, uses in-memory fallback.
+        backend : RateLimitBackend
+            Rate limiting backend implementation
+        scryfall_limiter : RateLimiter | None, optional
+            Scryfall API rate limiter. Uses global instance if None.
         """
-        self.redis = redis_client
-        self._memory_limiters: dict[str, RateLimiter] = {}
-        self._scryfall_limiter = get_rate_limiter()  # Existing Scryfall API limiter
-        self._use_redis = redis_client is not None
+        from .rate_limit_backend import RateLimitBackend
 
-    async def acquire_user_limit(self, user_id: str, limit: int = 100) -> None:
+        self._backend = backend
+        self._scryfall_limiter = scryfall_limiter or get_rate_limiter()
+
+    async def acquire_user_limit(
+        self,
+        user_id: str,
+        limit: int = 100,
+        window_seconds: int = 60,
+    ) -> None:
         """Acquire rate limit permission for user.
 
         Parameters
         ----------
         user_id : str
             Unique user identifier from JWT payload
-        limit : int, optional (default: 100)
-            Maximum requests per minute for this user
+        limit : int, optional
+            Maximum requests per window (default: 100)
+        window_seconds : int, optional
+            Time window in seconds (default: 60)
 
         Raises
         ------
-        HTTPException
-            If user has exceeded rate limit
+        RateLimitExceededError
+            If user has exceeded their rate limit
+        ConnectionError
+            If backend is unavailable
         """
-        if self._use_redis:
-            try:
-                await self._acquire_redis(user_id, limit)
-            except Exception:
-                logger.warning(
-                    "Redis unavailable, falling back to memory-based rate limiting"
-                )
-                self._use_redis = False
-                await self._acquire_memory(user_id, limit)
-        else:
-            await self._acquire_memory(user_id, limit)
-
-    async def _acquire_redis(self, user_id: str, limit: int) -> None:
-        """Redis-based rate limiting implementation.
-
-        Parameters
-        ----------
-        user_id : str
-            Unique user identifier
-        limit : int
-            Maximum requests per minute
-
-        Raises
-        ------
-        HTTPException
-            If rate limit exceeded
-        """
-        from fastapi import HTTPException
+        from .exceptions import RateLimitExceededError
 
         key = f"rate_limit:{user_id}"
-        current = await asyncio.to_thread(self.redis.incr, key)
+        current, is_exceeded = await self._backend.increment_and_check(
+            key, limit, window_seconds
+        )
 
-        if current == 1:
-            await asyncio.to_thread(self.redis.expire, key, 60)  # 1-minute window
-
-        if current > limit:
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded",
-                headers={"Retry-After": "60"},
-            )
-
-    async def _acquire_memory(self, user_id: str, limit: int) -> None:
-        """Memory-based rate limiting fallback.
-
-        Parameters
-        ----------
-        user_id : str
-            Unique user identifier
-        limit : int
-            Maximum requests per minute
-        """
-        if user_id not in self._memory_limiters:
-            # Convert per-minute limit to per-second interval
-            interval_ms = int((60.0 / limit) * 1000)
-            self._memory_limiters[user_id] = RateLimiter(rate_limit_ms=interval_ms)
-
-        await self._memory_limiters[user_id].acquire()
+        if is_exceeded:
+            raise RateLimitExceededError(user_id, limit, window_seconds, current)
 
     async def acquire_scryfall_limit(self) -> None:
         """Acquire global Scryfall API rate limit.
 
         This maintains compatibility with the existing Scryfall API
-        rate limiting system.
+        rate limiting system (10 req/sec).
         """
         await self._scryfall_limiter.acquire()

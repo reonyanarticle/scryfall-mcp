@@ -256,9 +256,23 @@ class Settings(BaseSettings):
         pattern="^(HS256|HS384|HS512|RS256|RS384|RS512)$",
         description="JWT algorithm for token verification",
     )
+
+    # OAuth Provider Endpoints
+    oauth_client_id: str = Field(
+        default="",
+        description="OAuth 2.1 client ID from authorization server",
+    )
+    oauth_authorization_url: str = Field(
+        default="",
+        description="OAuth authorization endpoint URL (e.g., https://auth.provider.com/oauth/authorize)",
+    )
+    oauth_token_url: str = Field(
+        default="",
+        description="OAuth token endpoint URL (e.g., https://auth.provider.com/oauth/token)",
+    )
     allowed_origins: list[str] = Field(
-        default=["*"],
-        description="CORS allowed origins (use specific domains in production)",
+        default=[],
+        description="CORS allowed origins (required for HTTP transport)",
     )
 
     # Multi-tenant Rate Limiting
@@ -326,10 +340,29 @@ class Settings(BaseSettings):
     def validate_jwt_production_requirements(self) -> Settings:
         """Ensure JWT secret is configured when OAuth is enabled.
 
+        This validator enforces security requirements for JWT configuration
+        in production environments to prevent deployment without proper secrets.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
         Raises
         ------
         ValueError
-            If OAuth is enabled but JWT secret is not properly configured.
+            If oauth_enabled is True but jwt_secret_key is empty
+        ValueError
+            If jwt_secret_key is shorter than 32 characters
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     oauth_enabled=True,
+        ...     jwt_secret_key="x" * 32
+        ... )
+        >>> settings.oauth_enabled
+        True
         """
         if self.oauth_enabled:
             if not self.jwt_secret_key:
@@ -344,17 +377,79 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def validate_cors_production_requirements(self) -> Settings:
-        """Ensure CORS is properly configured for HTTP transport.
+    def validate_oauth_configuration(self) -> Settings:
+        """Ensure OAuth endpoints are configured when OAuth is enabled.
+
+        This validator enforces that all required OAuth 2.1 configuration
+        parameters are properly set when OAuth authentication is enabled.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
 
         Raises
         ------
         ValueError
-            If HTTP transport is enabled but CORS origins are not configured.
+            If OAuth is enabled but required endpoints are not configured
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     oauth_enabled=True,
+        ...     oauth_client_id="client_123",
+        ...     oauth_authorization_url="https://auth.example.com/authorize",
+        ...     oauth_token_url="https://auth.example.com/token"
+        ... )
+        >>> settings.oauth_enabled
+        True
+        """
+        if self.oauth_enabled:
+            if not self.oauth_client_id:
+                raise ValueError(
+                    "oauth_client_id is required when oauth_enabled=True"
+                )
+            if not self.oauth_authorization_url:
+                raise ValueError(
+                    "oauth_authorization_url is required when oauth_enabled=True. "
+                    "Example: https://auth.provider.com/oauth/authorize"
+                )
+            if not self.oauth_token_url:
+                raise ValueError(
+                    "oauth_token_url is required when oauth_enabled=True. "
+                    "Example: https://auth.provider.com/oauth/token"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_cors_production_requirements(self) -> Settings:
+        """Ensure CORS is properly configured for HTTP transport.
+
+        This validator enforces CORS configuration requirements for HTTP-based
+        transports and warns about insecure wildcard usage in production.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If HTTP transport is enabled but allowed_origins is empty
 
         Warnings
         --------
-        Issues a warning if wildcard '*' is used in production mode.
+        Issues a security warning if wildcard '*' is used in production mode
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     transport_mode="http",
+        ...     allowed_origins=["https://app.example.com"]
+        ... )
+        >>> settings.transport_mode
+        'http'
         """
         import logging
 

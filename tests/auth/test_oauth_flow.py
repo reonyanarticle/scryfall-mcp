@@ -14,7 +14,13 @@ class TestOAuthClient:
     @pytest.fixture
     def settings(self) -> Settings:
         """Create test settings."""
-        return Settings()
+        return Settings(
+            oauth_enabled=True,
+            jwt_secret_key="test-secret-key-minimum-32-characters-required",
+            oauth_client_id="test_client_id",
+            oauth_authorization_url="https://auth.test.com/oauth/authorize",
+            oauth_token_url="https://auth.test.com/oauth/token",
+        )
 
     @pytest.fixture
     def oauth_client(self, settings: Settings) -> OAuthClient:
@@ -90,6 +96,117 @@ class TestOAuthClient:
         # Verify custom state is used
         assert state == custom_state
         assert custom_state in url
+
+    @pytest.mark.asyncio
+    async def test_exchange_code_for_token_success(
+        self, oauth_client: OAuthClient
+    ) -> None:
+        """Test successful authorization code exchange."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Mock successful token response
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "access_token": "eyJhbGciOiJIUzI1NiIs...",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "refresh_token": "refresh_token_123",
+            "scope": "openid profile email",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        # Mock httpx.AsyncClient.post to return awaitable
+        mock_post = AsyncMock(return_value=mock_response)
+
+        with patch.object(oauth_client.client, "post", mock_post):
+            token = await oauth_client.exchange_code_for_token(
+                code="auth_code_123",
+                redirect_uri="https://app.example.com/callback",
+                code_verifier="test_verifier_" + "x" * 32,
+            )
+
+        # Verify token fields
+        assert token.access_token == "eyJhbGciOiJIUzI1NiIs..."
+        assert token.token_type == "Bearer"
+        assert token.expires_in == 3600
+        assert token.refresh_token == "refresh_token_123"
+        assert token.scope == "openid profile email"
+
+        # Verify post was called
+        mock_post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_exchange_code_for_token_http_error(
+        self, oauth_client: OAuthClient
+    ) -> None:
+        """Test token exchange with HTTP error."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import httpx
+
+        # Mock error response
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(), response=MagicMock()
+        )
+
+        mock_post = AsyncMock(return_value=mock_response)
+
+        with patch.object(oauth_client.client, "post", mock_post):
+            with pytest.raises(httpx.HTTPStatusError):
+                await oauth_client.exchange_code_for_token(
+                    code="invalid_code",
+                    redirect_uri="https://app.example.com/callback",
+                    code_verifier="test_verifier",
+                )
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_success(self, oauth_client: OAuthClient) -> None:
+        """Test successful token refresh."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Mock successful refresh response
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "access_token": "new_access_token_xyz",
+            "token_type": "Bearer",
+            "expires_in": 3600,
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_post = AsyncMock(return_value=mock_response)
+
+        with patch.object(oauth_client.client, "post", mock_post):
+            token = await oauth_client.refresh_token("refresh_token_123")
+
+        # Verify new token
+        assert token.access_token == "new_access_token_xyz"
+        assert token.token_type == "Bearer"
+        assert token.expires_in == 3600
+
+        # Verify post was called
+        mock_post.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_refresh_token_invalid_refresh_token(
+        self, oauth_client: OAuthClient
+    ) -> None:
+        """Test refresh token with invalid refresh token."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import httpx
+
+        # Mock error response
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Invalid refresh token", request=MagicMock(), response=MagicMock()
+        )
+
+        mock_post = AsyncMock(return_value=mock_response)
+
+        with patch.object(oauth_client.client, "post", mock_post):
+            with pytest.raises(httpx.HTTPStatusError):
+                await oauth_client.refresh_token("invalid_refresh_token")
 
     @pytest.mark.asyncio
     async def test_close(self, oauth_client: OAuthClient) -> None:

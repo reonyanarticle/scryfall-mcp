@@ -157,13 +157,10 @@ class OAuthClient:
         if state is None:
             state = secrets.token_urlsafe(32)
 
-        # Build authorization URL (placeholder - configure per provider)
-        # This should be configured based on the OAuth provider
-        # (e.g., Auth0, Cloudflare Access, Keycloak)
-        auth_url = "https://auth.example.com/authorize"
+        # Build authorization URL from settings
         params = {
             "response_type": "code",
-            "client_id": "YOUR_CLIENT_ID",  # Configure in settings
+            "client_id": self.settings.oauth_client_id,
             "redirect_uri": redirect_uri,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
@@ -172,7 +169,7 @@ class OAuthClient:
         }
 
         # Construct URL
-        url = httpx.URL(auth_url, params=params)
+        url = httpx.URL(self.settings.oauth_authorization_url, params=params)
 
         return str(url), code_verifier, state
 
@@ -221,15 +218,13 @@ class OAuthClient:
         >>> token.token_type
         'Bearer'
         """
-        token_url = "https://auth.example.com/oauth/token"  # Configure per provider
-
         response = await self.client.post(
-            token_url,
+            self.settings.oauth_token_url,
             data={
                 "grant_type": "authorization_code",
                 "code": code,
                 "redirect_uri": redirect_uri,
-                "client_id": "YOUR_CLIENT_ID",  # Configure in settings
+                "client_id": self.settings.oauth_client_id,
                 "code_verifier": code_verifier,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -263,14 +258,12 @@ class OAuthClient:
         >>> new_token.access_token != "refresh_token_123"
         True
         """
-        token_url = "https://auth.example.com/oauth/token"  # Configure per provider
-
         response = await self.client.post(
-            token_url,
+            self.settings.oauth_token_url,
             data={
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
-                "client_id": "YOUR_CLIENT_ID",  # Configure in settings
+                "client_id": self.settings.oauth_client_id,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
