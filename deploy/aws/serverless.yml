@@ -1,0 +1,156 @@
+# Serverless Framework Configuration for Scryfall MCP Server
+# AWS Lambda deployment - Cost-optimized configuration (Free Tier friendly)
+
+service: scryfall-mcp
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  architecture: arm64  # 20% cost reduction with Graviton2
+  memorySize: 512  # Minimum for production workloads (avoid OOM)
+  timeout: 30
+
+  # Environment variables for all functions
+  environment:
+    SCRYFALL_MCP_TRANSPORT_MODE: streamable_http
+    SCRYFALL_MCP_CACHE_BACKEND: memory  # Memory-only cache (no Redis)
+    SCRYFALL_MCP_LOG_LEVEL: INFO
+    # Authentication Configuration
+    SCRYFALL_MCP_OAUTH_ENABLED: ${param:oauth_enabled, 'false'}
+    SCRYFALL_MCP_EMAIL_AUTH_ENABLED: ${param:email_auth_enabled, 'false'}
+
+    # Secrets managed via AWS Systems Manager Parameter Store
+    SCRYFALL_MCP_JWT_SECRET_KEY: ${ssm:/scryfall-mcp/${self:provider.stage}/JWT_SECRET_KEY~true, ''}
+    SCRYFALL_MCP_JWT_ALGORITHM: HS256
+    SCRYFALL_MCP_EMAIL_AUTH_CREDENTIALS: ${ssm:/scryfall-mcp/${self:provider.stage}/EMAIL_AUTH_CREDENTIALS~true, '{}'}
+    SCRYFALL_MCP_USER_AGENT: ${ssm:/scryfall-mcp/${self:provider.stage}/USER_AGENT~true}
+
+  # CloudWatch Logs - Auto-delete after 7 days for cost saving
+  logs:
+    httpApi: true
+  logRetentionInDays: 7
+
+  # IAM Permissions - Minimal permissions required
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+          Resource:
+            - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/scryfall-mcp/${self:provider.stage}/*'
+
+  # HTTP API Configuration
+  httpApi:
+    cors:
+      allowedOrigins:
+        - https://claude.ai
+        - https://api.anthropic.com
+        - http://localhost:*  # For local testing
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+      allowCredentials: true
+      maxAge: 86400
+
+    # JWT Authorizer (optional - disabled by default for simplicity)
+    # Uncomment and configure when OAuth is enabled
+    # authorizers:
+    #   jwtAuthorizer:
+    #     type: jwt
+    #     identitySource: $request.header.Authorization
+    #     issuerUrl: ${ssm:/scryfall-mcp/${self:provider.stage}/OAUTH_ISSUER_URL~true}
+    #     audience:
+    #       - scryfall-mcp-api
+
+# Functions
+functions:
+  mcp:
+    handler: lambda_handler.handler
+    description: Scryfall MCP Server - Remote MCP endpoint (Cost-optimized)
+    events:
+      - httpApi:
+          path: /mcp
+          method: ANY
+          # Uncomment to enable JWT authentication
+          # authorizer:
+          #   name: jwtAuthorizer
+
+    # Function-specific environment overrides
+    environment:
+      SCRYFALL_MCP_HTTP_PATH: /mcp
+      SCRYFALL_MCP_HTTP_HOST: 0.0.0.0
+      SCRYFALL_MCP_HTTP_PORT: 8000
+
+# CloudFormation Resources
+resources:
+  Resources:
+    # AWS Budgets Alert - Notify when cost exceeds $1/month
+    CostBudget:
+      Type: AWS::Budgets::Budget
+      Properties:
+        Budget:
+          BudgetName: !Sub '${AWS::StackName}-monthly-budget'
+          BudgetLimit:
+            Amount: 1
+            Unit: USD
+          TimeUnit: MONTHLY
+          BudgetType: COST
+        NotificationsWithSubscribers:
+          - Notification:
+              NotificationType: ACTUAL
+              ComparisonOperator: GREATER_THAN
+              Threshold: 80
+            Subscribers:
+              - SubscriptionType: EMAIL
+                Address: ${param:budget_alert_email, 'your-email@example.com'}
+
+  # Outputs
+  Outputs:
+    McpEndpointUrl:
+      Description: MCP API endpoint URL
+      Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/mcp'
+      Export:
+        Name: !Sub '${AWS::StackName}-mcp-endpoint-url'
+
+    FunctionArn:
+      Description: Lambda function ARN
+      Value: !GetAtt McpLambdaFunction.Arn
+      Export:
+        Name: !Sub '${AWS::StackName}-function-arn'
+
+# Plugins
+plugins:
+  - serverless-python-requirements
+
+# Python Requirements Configuration
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    dockerImage: public.ecr.aws/lambda/python:3.11-arm64
+    layer: true
+    slim: true
+    strip: false
+    zip: true
+    useStaticCache: false
+    useDownloadCache: false
+    pipCmdExtraArgs:
+      - --platform manylinux2014_aarch64
+      - --only-binary=:all:
+
+# Package Configuration
+package:
+  individually: true
+  patterns:
+    - '!**'
+    - lambda_handler.py
+    - src/scryfall_mcp/**

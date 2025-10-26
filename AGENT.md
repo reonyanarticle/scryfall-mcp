@@ -1018,35 +1018,13 @@ httpApi:
       - Content-Type
 ```
 
-#### 3. VPCセキュリティ
+#### 3. セキュリティ考慮事項（Cost-optimized版）
 
-Lambda関数はprivate subnetに配置し、ElastiCache Redisへのアクセスをセキュリティグループで制限。
+コスト最適化版ではVPCとElastiCache Redisを削除しています。以下の点に注意してください：
 
-```yaml
-vpc:
-  securityGroupIds:
-    - !Ref LambdaSecurityGroup
-  subnetIds:
-    - !Ref PrivateSubnetA
-    - !Ref PrivateSubnetB
-
-# Security Group設定
-LambdaSecurityGroup:
-  Type: AWS::EC2::SecurityGroup
-  Properties:
-    GroupDescription: Lambda security group
-    VpcId: !Ref VPC
-
-RedisSecurityGroup:
-  Type: AWS::EC2::SecurityGroup
-  Properties:
-    GroupDescription: Redis security group
-    SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 6379
-        ToPort: 6379
-        SourceSecurityGroupId: !Ref LambdaSecurityGroup
-```
+- Lambda関数は**パブリックインターネット接続**を持ちます（VPCなし）
+- キャッシュは**メモリのみ**使用（Redisなし）
+- 本番環境でネットワーク分離が必要な場合は、VPC設定を追加してください（月額$30+のコスト増）
 
 #### 4. Secrets管理
 

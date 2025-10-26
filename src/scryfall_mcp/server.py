@@ -125,6 +125,19 @@ class ScryfallMCPServer:
         """Initialize the MCP server."""
         self.settings = get_settings()
         self.app = FastMCP("scryfall-mcp", lifespan=_create_lifespan)
+        
+        # Add authentication middleware if enabled
+        # Note: FastMCP internally uses Starlette, access via fastmcp.app._starlette_app
+        if self.settings.email_auth_enabled:
+            from scryfall_mcp.auth import EmailAuthMiddleware
+            # FastMCP uses Starlette internally, middleware needs to be added there
+            if hasattr(self.app, '_starlette_app'):
+                self.app._starlette_app.add_middleware(EmailAuthMiddleware, settings=self.settings)
+        elif self.settings.oauth_enabled:
+            from scryfall_mcp.auth import JWTValidationMiddleware
+            if hasattr(self.app, '_starlette_app'):
+                self.app._starlette_app.add_middleware(JWTValidationMiddleware, settings=self.settings)
+        
         self._setup_tools()
         self._setup_prompts()
         self._setup_resources()

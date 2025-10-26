@@ -141,7 +141,7 @@ def run_setup_wizard() -> dict[str, str]:
         Configuration dictionary with user settings
     """
     print("\n" + "=" * 70)
-    print("🎴 Scryfall MCP Server - First Time Setup")
+    print("Scryfall MCP Server - First Time Setup")
     print("=" * 70)
     print(
         "\nWelcome! Before using this server, we need to configure your User-Agent.\n"
@@ -160,17 +160,17 @@ def run_setup_wizard() -> dict[str, str]:
         contact = input("Contact info: ").strip()
 
         if not contact:
-            print("❌ Contact information is required.\n")
+            print("Contact information is required.\n")
             continue
 
         if not validate_contact_info(contact):
-            print("❌ Invalid format. Please provide a valid email or URL.\n")
+            print("Invalid format. Please provide a valid email or URL.\n")
             continue
 
     # Build User-Agent string
     user_agent = f"Scryfall-MCP-Server/0.1.0 ({contact})"
 
-    print(f"\n✅ User-Agent configured: {user_agent}")
+    print(f"\n User-Agent configured: {user_agent}")
     print("\nSaving configuration...")
 
     config = {"user_agent": user_agent, "contact": contact}

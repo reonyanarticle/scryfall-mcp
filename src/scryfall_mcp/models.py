@@ -14,10 +14,6 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from typing_extensions import TypedDict
 
-# ============================================================================
-# Search Models (from search/models.py)
-# ============================================================================
-
 
 class ParsedQuery(BaseModel):
     """Parsed natural language query with extracted entities."""
@@ -80,11 +76,6 @@ class SearchOptions(BaseModel):
     include_legalities: bool = False
 
 
-# ============================================================================
-# Tool Request Models (from tools/search.py)
-# ============================================================================
-
-
 class SearchCardsRequest(BaseModel):
     """Request model for card search.
 
@@ -131,11 +122,6 @@ class AutocompleteRequest(BaseModel):
     language: str | None = Field(default=None, description="Language code (ja, en)")
 
 
-# ============================================================================
-# Cache Models (from cache/backends.py)
-# ============================================================================
-
-
 class CacheEntry(BaseModel):
     """Cache entry with metadata."""
 
@@ -150,11 +136,6 @@ class CacheEntry(BaseModel):
         if self.expires_at is None:
             return False
         return time.time() > self.expires_at
-
-
-# ============================================================================
-# Internationalization Models (from i18n/locales.py and i18n/mappings/common.py)
-# ============================================================================
 
 
 class ColorMapping(TypedDict):
@@ -314,11 +295,6 @@ class LocaleInfo(BaseModel):
         if not v or len(v) < 2:
             raise ValueError("Invalid locale code")
         return v.lower()
-
-
-# ============================================================================
-# Scryfall API Models (from api/models.py)
-# ============================================================================
 
 
 class ImageUris(BaseModel):

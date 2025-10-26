@@ -257,6 +257,28 @@ class Settings(BaseSettings):
         description="JWT algorithm for token verification",
     )
 
+    # Email-based Authentication (Alternative to OAuth/JWT)
+    email_auth_enabled: bool = Field(
+        default=False,
+        description="Enable email-based authentication (simpler alternative to OAuth)",
+    )
+    email_auth_credentials: dict[str, str] = Field(
+        default_factory=dict,
+        description="Email to hashed secret mapping (email: bcrypt_hash)",
+    )
+    email_blocklist_patterns: list[str] = Field(
+        default=[
+            "*@example.com",
+            "*@example.org",
+            "test@*",
+            "admin@*",
+            "user@*",
+            "noreply@*",
+            "no-reply@*",
+        ],
+        description="Email patterns to block (supports wildcards)",
+    )
+
     # OAuth Provider Endpoints
     oauth_client_id: str = Field(
         default="",
@@ -374,6 +396,53 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "jwt_secret_key must be at least 32 characters for security"
                 )
+        return self
+
+
+    @model_validator(mode="after")
+    def validate_email_auth_requirements(self) -> Settings:
+        """Validate email authentication configuration.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If email_auth_enabled but no credentials provided
+        ValueError
+            If email matches blocklist patterns
+        ValueError
+            If both oauth and email auth are enabled
+        """
+        import fnmatch
+
+        # Mutual exclusivity check
+        if self.email_auth_enabled and self.oauth_enabled:
+            raise ValueError(
+                "Cannot enable both email_auth and oauth authentication. "
+                "Choose one authentication method."
+            )
+
+        # Require credentials when enabled
+        if self.email_auth_enabled and not self.email_auth_credentials:
+            raise ValueError(
+                "email_auth_enabled is True but email_auth_credentials is empty. "
+                "Provide at least one email:hashed_secret pair."
+            )
+
+        # Validate email addresses against blocklist
+        if self.email_auth_enabled:
+            for email in self.email_auth_credentials.keys():
+                for pattern in self.email_blocklist_patterns:
+                    if fnmatch.fnmatch(email, pattern):
+                        raise ValueError(
+                            f"Email '{email}' matches blocklist pattern '{pattern}'. "
+                            f"Template/test emails are not allowed."
+                        )
+
         return self
 
     @model_validator(mode="after")

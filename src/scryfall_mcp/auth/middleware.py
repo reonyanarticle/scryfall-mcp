@@ -172,3 +172,114 @@ class JWTValidationMiddleware:
                 status_code=401,
                 detail=f"Invalid token: {e}",
             ) from e
+
+
+
+class EmailAuthMiddleware:
+    """Middleware for email-based authentication (alternative to JWT).
+
+    This middleware validates HTTP Basic authentication credentials
+    (email:secret) as a simpler alternative to OAuth/JWT for personal deployments.
+
+    Parameters
+    ----------
+    app : Callable
+        The ASGI application to wrap
+    settings : Settings
+        Application settings containing email credentials
+
+    Examples
+    --------
+    >>> from starlette.applications import Starlette
+    >>> app = Starlette()
+    >>> app.add_middleware(EmailAuthMiddleware, settings=settings)
+    """
+
+    def __init__(
+        self,
+        app: Callable[[ASGIScope, ASGIReceiveCallable, ASGISendCallable], Awaitable[None]],
+        settings: Settings,
+    ) -> None:
+        """Initialize email authentication middleware.
+
+        Parameters
+        ----------
+        app : Callable
+            ASGI application callable
+        settings : Settings
+            Application settings
+        """
+        self.app = app
+        self.settings = settings
+
+    async def __call__(
+        self,
+        scope: ASGIScope,
+        receive: ASGIReceiveCallable,
+        send: ASGISendCallable,
+    ) -> None:
+        """Process ASGI request with email authentication.
+
+        Parameters
+        ----------
+        scope : ASGIScope
+            ASGI connection scope
+        receive : ASGIReceiveCallable
+            ASGI receive callable
+        send : ASGISendCallable
+            ASGI send callable
+
+        Raises
+        ------
+        HTTPException
+            401 if authentication fails
+        """
+        # Only authenticate HTTP requests
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Extract Authorization header
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"").decode("utf-8")
+
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing Authorization header",
+                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+            )
+
+        # Parse Basic auth credentials
+        from .email import parse_basic_auth_header, validate_email_credentials
+
+        credentials = parse_basic_auth_header(auth_header)
+        if credentials is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Authorization header format. Expected: Basic base64(email:secret)",
+                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+            )
+
+        email, secret = credentials
+
+        # Validate credentials
+        is_valid = validate_email_credentials(
+            email=email,
+            secret=secret,
+            credentials=self.settings.email_auth_credentials,
+            blocklist=self.settings.email_blocklist_patterns,
+        )
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or secret",
+                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+            )
+
+        # Add user info to scope (same format as JWT middleware)
+        scope["user"] = {"email": email}
+
+        # Continue to application
+        await self.app(scope, receive, send)
