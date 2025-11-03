@@ -89,7 +89,7 @@ def handler(event: LambdaEvent, context: LambdaContext) -> dict[str, Any]:
     - Cold starts: First invocation may take 1-3 seconds
     - Warm invocations: Typically <100ms due to server reuse
     - Memory: Configured for 768MB in serverless.yml (optimal balance)
-    - Timeout: 60 seconds max (sufficient for multi-page queries)
+    - Timeout: 30 seconds max (API Gateway maximum)
 
     The handler automatically:
     - Validates JWT tokens via API Gateway authorizer (when enabled)

@@ -12,7 +12,7 @@ provider:
   stage: ${opt:stage, 'dev'}
   architecture: arm64  # 20% cost reduction with Graviton2
   memorySize: 768  # Optimal balance: performance + cost (~$2/month)
-  timeout: 60  # Extended timeout for multi-page queries
+  timeout: 30  # API Gateway maximum timeout
 
   # Environment variables for all functions
   environment:
@@ -86,10 +86,10 @@ functions:
           # Uncomment to enable JWT authentication
           # authorizer:
           #   name: jwtAuthorizer
-          # Rate limiting (brute-force attack mitigation)
+          # Rate limiting (Scryfall API compliance + brute-force mitigation)
           throttle:
-            burstLimit: 100  # Max burst requests
-            rateLimit: 10    # Max requests per second
+            burstLimit: 20   # Conservative burst limit for Scryfall API
+            rateLimit: 5     # Max 5 req/sec (50% safety margin below Scryfall's 10 req/sec)
 
     # Function-specific environment overrides
     environment:

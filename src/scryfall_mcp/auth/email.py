@@ -16,6 +16,9 @@ import bcrypt
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+# bcrypt configuration
+BCRYPT_COST_FACTOR = 12  # ~300ms per hash, OWASP recommended minimum
+
 
 def parse_basic_auth_header(authorization: str) -> tuple[str, str] | None:
     """Parse HTTP Basic authentication header.
@@ -57,17 +60,19 @@ def parse_basic_auth_header(authorization: str) -> tuple[str, str] | None:
         return None
 
 
-def hash_secret(secret: str) -> str:
+def hash_secret(secret: str, cost_factor: int = BCRYPT_COST_FACTOR) -> str:
     """Hash a secret using bcrypt with automatic salt generation.
 
-    Uses bcrypt algorithm with cost factor 12 (2^12 iterations) for
-    resistance against brute-force attacks. Each hash includes a unique
-    random salt, preventing rainbow table attacks.
+    Uses bcrypt algorithm with configurable cost factor (default: 12).
+    Each hash includes a unique random salt, preventing rainbow table attacks.
 
     Parameters
     ----------
     secret : str
         Plain-text secret to hash
+    cost_factor : int, optional
+        Bcrypt cost factor (default: 12, range: 4-31)
+        Higher values increase security but slow down hashing
 
     Returns
     -------
@@ -86,8 +91,9 @@ def hash_secret(secret: str) -> str:
     -----
     bcrypt hashes are 60 characters in format: $2b$12$<22-char-salt><31-char-hash>
     Cost factor 12 provides good security/performance balance (~300ms/hash).
+    OWASP recommends cost factor 10-12 for general-purpose authentication.
     """
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(rounds=cost_factor)
     hashed = bcrypt.hashpw(secret.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
@@ -125,8 +131,8 @@ def verify_secret(provided: str, expected_hash: str) -> bool:
     """
     try:
         return bcrypt.checkpw(provided.encode("utf-8"), expected_hash.encode("utf-8"))
-    except (ValueError, TypeError):
-        # Invalid hash format or encoding error
+    except (ValueError, TypeError, AttributeError):
+        # Invalid hash format, encoding error, or None hash
         return False
 
 

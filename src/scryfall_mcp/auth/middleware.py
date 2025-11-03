@@ -6,6 +6,7 @@ Remote MCP access with OAuth 2.1 authentication.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
@@ -134,7 +135,8 @@ class JWTValidationMiddleware:
                 detail="Missing or invalid Authorization header",
             )
 
-        return auth_header[7:]  # Remove "Bearer " prefix
+        token: str = auth_header[7:]  # Remove "Bearer " prefix
+        return token
 
     def _decode_and_verify_token(self, token: str) -> dict[str, Any]:
         """Decode and verify JWT token signature.
@@ -155,7 +157,7 @@ class JWTValidationMiddleware:
             If token signature is invalid, expired, or malformed
         """
         try:
-            return jwt.decode(
+            decoded: dict[str, Any] = jwt.decode(
                 token,
                 self.settings.jwt_secret_key,
                 algorithms=[self.settings.jwt_algorithm],
@@ -167,6 +169,7 @@ class JWTValidationMiddleware:
                     "require_iat": True,  # Require iat claim
                 },
             )
+            return decoded
         except JWTError as e:
             raise HTTPException(
                 status_code=401,
@@ -235,8 +238,6 @@ class EmailAuthMiddleware:
         >>> EmailAuthMiddleware._mask_email("user@example.com")
         'us:a3f2c8b1...'
         """
-        import hashlib
-
         prefix = email if len(email) < 2 else email[:2]
         email_hash = hashlib.sha256(email.encode()).hexdigest()[:8]
         return f"{prefix}:{email_hash}"
