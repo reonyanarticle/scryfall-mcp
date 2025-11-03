@@ -2,14 +2,16 @@
 
 This module provides utilities for email-based authentication as a simpler
 alternative to OAuth 2.1 + JWT for personal/development deployments.
+
+Security: Uses bcrypt for password hashing with automatic salt generation.
 """
 
 from __future__ import annotations
 
 import base64
-import hashlib
-import hmac
 from typing import TYPE_CHECKING
+
+import bcrypt
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -56,7 +58,11 @@ def parse_basic_auth_header(authorization: str) -> tuple[str, str] | None:
 
 
 def hash_secret(secret: str) -> str:
-    """Hash a secret using SHA-256.
+    """Hash a secret using bcrypt with automatic salt generation.
+
+    Uses bcrypt algorithm with cost factor 12 (2^12 iterations) for
+    resistance against brute-force attacks. Each hash includes a unique
+    random salt, preventing rainbow table attacks.
 
     Parameters
     ----------
@@ -66,25 +72,38 @@ def hash_secret(secret: str) -> str:
     Returns
     -------
     str
-        Hex-encoded SHA-256 hash
+        bcrypt hash string (includes algorithm, cost, salt, and hash)
 
     Examples
     --------
-    >>> hash_secret("my-secret-key")
-    '...'  # 64-character hex string
+    >>> hashed = hash_secret("my-secret-key")
+    >>> hashed.startswith("$2b$")  # bcrypt format
+    True
+    >>> len(hashed)
+    60
+
+    Notes
+    -----
+    bcrypt hashes are 60 characters in format: $2b$12$<22-char-salt><31-char-hash>
+    Cost factor 12 provides good security/performance balance (~300ms/hash).
     """
-    return hashlib.sha256(secret.encode("utf-8")).hexdigest()
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(secret.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def verify_secret(provided: str, expected_hash: str) -> bool:
-    """Verify a secret against its hash using constant-time comparison.
+    """Verify a secret against its bcrypt hash using constant-time comparison.
+
+    bcrypt.checkpw() internally uses constant-time comparison to prevent
+    timing attacks. The salt is extracted from the hash automatically.
 
     Parameters
     ----------
     provided : str
         Plain-text secret provided by user
     expected_hash : str
-        Hex-encoded SHA-256 hash to compare against
+        bcrypt hash string (60 characters)
 
     Returns
     -------
@@ -98,9 +117,17 @@ def verify_secret(provided: str, expected_hash: str) -> bool:
     True
     >>> verify_secret("wrong-secret", hashed)
     False
+
+    Notes
+    -----
+    This function is resistant to timing attacks due to bcrypt's
+    constant-time comparison and slow hashing (cost factor 12).
     """
-    provided_hash = hash_secret(provided)
-    return hmac.compare_digest(provided_hash, expected_hash)
+    try:
+        return bcrypt.checkpw(provided.encode("utf-8"), expected_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        # Invalid hash format or encoding error
+        return False
 
 
 def is_email_blocked(email: str, blocklist_patterns: list[str]) -> bool:

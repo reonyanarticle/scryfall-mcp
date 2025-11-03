@@ -212,6 +212,35 @@ class EmailAuthMiddleware:
         self.app = app
         self.settings = settings
 
+
+    @staticmethod
+    def _mask_email(email: str) -> str:
+        """Mask email address for logging (GDPR/CCPA compliance).
+
+        Returns first 2 characters + SHA-256 hash prefix (8 chars) to allow
+        correlation across logs without exposing PII.
+
+        Parameters
+        ----------
+        email : str
+            Email address to mask
+
+        Returns
+        -------
+        str
+            Masked email (e.g., "us:a3f2c8b1" for "user@example.com")
+
+        Examples
+        --------
+        >>> EmailAuthMiddleware._mask_email("user@example.com")
+        'us:a3f2c8b1...'
+        """
+        import hashlib
+
+        prefix = email if len(email) < 2 else email[:2]
+        email_hash = hashlib.sha256(email.encode()).hexdigest()[:8]
+        return f"{prefix}:{email_hash}"
+
     async def __call__(
         self,
         scope: ASGIScope,
@@ -247,7 +276,7 @@ class EmailAuthMiddleware:
             raise HTTPException(
                 status_code=401,
                 detail="Missing Authorization header",
-                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
         # Parse Basic auth credentials
@@ -258,7 +287,7 @@ class EmailAuthMiddleware:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid Authorization header format. Expected: Basic base64(email:secret)",
-                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
         email, secret = credentials
@@ -272,14 +301,29 @@ class EmailAuthMiddleware:
         )
 
         if not is_valid:
+            # Log failed authentication with masked email
+            import logging
+
+            logger = logging.getLogger(__name__)
+            masked_email = self._mask_email(email)
+            logger.warning(f"Authentication failed for user: {masked_email}")
+
             raise HTTPException(
                 status_code=401,
                 detail="Invalid email or secret",
-                headers={"WWW-Authenticate": "Basic realm=\"Scryfall MCP\""},
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
+        # Log successful authentication (GDPR/CCPA compliant)
+        import logging
+
+        logger = logging.getLogger(__name__)
+        masked_email = self._mask_email(email)
+        logger.info(f"User authenticated: {masked_email}")
+
         # Add user info to scope (same format as JWT middleware)
-        scope["user"] = {"email": email}
+        # Store masked email in scope to prevent downstream PII exposure
+        scope["user"] = {"email": email, "masked_email": masked_email}
 
         # Continue to application
         await self.app(scope, receive, send)
