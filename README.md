@@ -331,6 +331,7 @@ export SCRYFALL_MCP_USER_AGENT="GitHub-Actions-CI/1.0 (github-actions@github.com
 
 - [コントリビューションガイド](docs/CONTRIBUTING.md) - PR受け付けルール・コーディング規約
 - [API仕様書](docs/API-REFERENCE.md) - MCPツール詳細仕様
+- [テストガイド](docs/TESTING-GUIDE.md) - ローカル/AWS Lambda/MCP Inspector テスト方法
 - [認証ガイド](docs/AUTHENTICATION.md) - OAuth 2.1/JWT、Email認証の設定方法
 - [多言語対応ガイド](docs/INTERNATIONALIZATION.md) - i18n実装詳細
 - [開発者ガイド](docs/DEVELOPMENT.md) - 開発環境・コーディング規約

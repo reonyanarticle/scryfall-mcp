@@ -215,6 +215,90 @@ class EmailAuthMiddleware:
         self.app = app
         self.settings = settings
 
+    def _extract_credentials(self, scope: ASGIScope) -> tuple[str, str]:
+        """Extract and parse credentials from ASGI scope.
+
+        Parameters
+        ----------
+        scope : ASGIScope
+            ASGI connection scope
+
+        Returns
+        -------
+        tuple[str, str]
+            Email and secret from Basic auth header
+
+        Raises
+        ------
+        HTTPException
+            401 if header is missing or invalid
+        """
+        from .email import parse_basic_auth_header
+
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"").decode("utf-8")
+
+        if not auth_header:
+            raise HTTPException(
+                status_code=401,
+                detail="Missing Authorization header",
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
+            )
+
+        credentials = parse_basic_auth_header(auth_header)
+        if credentials is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid Authorization header format. Expected: Basic base64(email:secret)",
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
+            )
+
+        return credentials
+
+    def _validate_and_log_auth(self, email: str, secret: str) -> str:
+        """Validate credentials and log authentication result.
+
+        Parameters
+        ----------
+        email : str
+            User email address
+        secret : str
+            User secret/password
+
+        Returns
+        -------
+        str
+            Masked email for logging
+
+        Raises
+        ------
+        HTTPException
+            401 if validation fails
+        """
+        import logging
+
+        from .email import validate_email_credentials
+
+        logger = logging.getLogger(__name__)
+        masked_email = self._mask_email(email)
+
+        is_valid = validate_email_credentials(
+            email=email,
+            secret=secret,
+            credentials=self.settings.email_auth_credentials,
+            blocklist=self.settings.email_blocklist_patterns,
+        )
+
+        if not is_valid:
+            logger.warning(f"Authentication failed for user: {masked_email}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or secret",
+                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
+            )
+
+        logger.info(f"User authenticated: {masked_email}")
+        return masked_email
 
     @staticmethod
     def _mask_email(email: str) -> str:
@@ -269,61 +353,11 @@ class EmailAuthMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Extract Authorization header
-        headers = dict(scope.get("headers", []))
-        auth_header = headers.get(b"authorization", b"").decode("utf-8")
-
-        if not auth_header:
-            raise HTTPException(
-                status_code=401,
-                detail="Missing Authorization header",
-                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
-            )
-
-        # Parse Basic auth credentials
-        from .email import parse_basic_auth_header, validate_email_credentials
-
-        credentials = parse_basic_auth_header(auth_header)
-        if credentials is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid Authorization header format. Expected: Basic base64(email:secret)",
-                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
-            )
-
-        email, secret = credentials
-
-        # Validate credentials
-        is_valid = validate_email_credentials(
-            email=email,
-            secret=secret,
-            credentials=self.settings.email_auth_credentials,
-            blocklist=self.settings.email_blocklist_patterns,
-        )
-
-        if not is_valid:
-            # Log failed authentication with masked email
-            import logging
-
-            logger = logging.getLogger(__name__)
-            masked_email = self._mask_email(email)
-            logger.warning(f"Authentication failed for user: {masked_email}")
-
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid email or secret",
-                headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
-            )
-
-        # Log successful authentication (GDPR/CCPA compliant)
-        import logging
-
-        logger = logging.getLogger(__name__)
-        masked_email = self._mask_email(email)
-        logger.info(f"User authenticated: {masked_email}")
+        # Extract and validate credentials
+        email, secret = self._extract_credentials(scope)
+        masked_email = self._validate_and_log_auth(email, secret)
 
         # Add user info to scope (same format as JWT middleware)
-        # Store masked email in scope to prevent downstream PII exposure
         scope["user"] = {"email": email, "masked_email": masked_email}
 
         # Continue to application
