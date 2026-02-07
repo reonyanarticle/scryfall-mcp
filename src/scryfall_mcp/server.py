@@ -365,11 +365,14 @@ class ScryfallMCPServer:
         """
         mode = transport_mode or self.settings.transport_mode
 
+        if mode not in ("stdio", "http", "streamable_http"):
+            raise ValueError(f"Unsupported transport mode: {mode}")
+
         try:
             if mode == "stdio":
                 # Run in stdio mode for local MCP compatibility
                 await self.app.run_stdio_async()
-            elif mode in ("http", "streamable_http"):
+            else:
                 # Run in HTTP mode for Remote MCP
                 await self.app.run(  # type: ignore[func-returns-value]
                     transport="http",
@@ -377,8 +380,6 @@ class ScryfallMCPServer:
                     port=self.settings.http_port,
                     path=self.settings.http_path,
                 )
-            else:
-                raise ValueError(f"Unsupported transport mode: {mode}")
         except Exception:
             logger.exception("Server error")
             raise
