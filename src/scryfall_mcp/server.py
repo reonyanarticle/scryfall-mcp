@@ -13,12 +13,13 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
 
 from fastmcp import Context, FastMCP
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from mcp.types import EmbeddedResource, TextContent
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 from .api.client import close_client
+from .cache.manager import close_cache
 from .i18n import detect_and_set_locale, get_locale_manager
 from .resources import load_setup_guide
 from .settings import get_settings
@@ -39,7 +40,7 @@ async def _handle_tool_error(
     error: Exception,
     tool_name: str,
     language: str | None = None,
-) -> list[TextContent | ImageContent | EmbeddedResource]:
+) -> list[TextContent | EmbeddedResource]:
     """Handle tool execution errors with logging and localized messages.
 
     Parameters
@@ -55,7 +56,7 @@ async def _handle_tool_error(
 
     Returns
     -------
-    list[TextContent | ImageContent | EmbeddedResource]
+    list[TextContent | EmbeddedResource]
         Error message as MCP text content
     """
     await ctx.error(f"Error in {tool_name}: {error}")
@@ -114,6 +115,7 @@ async def _create_lifespan(_app: FastMCP) -> AsyncIterator[None]:
         yield
     finally:
         # Shutdown/cleanup
+        await close_cache()
         await close_client()
         logger.info("Scryfall MCP Server stopped")
 
@@ -125,19 +127,19 @@ class ScryfallMCPServer:
         """Initialize the MCP server."""
         self.settings = get_settings()
         self.app = FastMCP("scryfall-mcp", lifespan=_create_lifespan)
-        
+
         # Add authentication middleware if enabled
         # Note: FastMCP internally uses Starlette, access via fastmcp.app._starlette_app
         if self.settings.email_auth_enabled:
             from scryfall_mcp.auth import EmailAuthMiddleware
             # FastMCP uses Starlette internally, middleware needs to be added there
-            if hasattr(self.app, '_starlette_app'):
+            if hasattr(self.app, "_starlette_app"):
                 self.app._starlette_app.add_middleware(EmailAuthMiddleware, settings=self.settings)
         elif self.settings.oauth_enabled:
             from scryfall_mcp.auth import JWTValidationMiddleware
-            if hasattr(self.app, '_starlette_app'):
+            if hasattr(self.app, "_starlette_app"):
                 self.app._starlette_app.add_middleware(JWTValidationMiddleware, settings=self.settings)
-        
+
         self._setup_tools()
         self._setup_prompts()
         self._setup_resources()
@@ -186,7 +188,7 @@ class ScryfallMCPServer:
             include_artist: bool = True,
             include_mana_production: bool = True,
             include_legalities: bool = False,
-        ) -> str | list[TextContent | ImageContent | EmbeddedResource]:
+        ) -> str | list[TextContent | EmbeddedResource]:
             """Search for Magic: The Gathering cards.
 
             Parameters
@@ -214,12 +216,12 @@ class ScryfallMCPServer:
 
             Returns
             -------
-            str | list[TextContent | ImageContent | EmbeddedResource]
+            str | list[TextContent | EmbeddedResource]
                 Setup guide (str) or list of MCP content items
 
             Notes
             -----
-            Image data is not included to comply with MCP ImageContent spec.
+            Image URLs are provided in Scryfall links within card details.
             Image URLs are provided in Scryfall links within card details.
             """
             from .settings import is_user_agent_configured
@@ -275,7 +277,7 @@ class ScryfallMCPServer:
             ctx: Context,
             query: str,
             language: str | None = None,
-        ) -> list[TextContent | ImageContent | EmbeddedResource]:
+        ) -> list[TextContent | EmbeddedResource]:
             """Get card name autocompletion suggestions.
 
             Parameters
@@ -289,7 +291,7 @@ class ScryfallMCPServer:
 
             Returns
             -------
-            list[TextContent | ImageContent | EmbeddedResource]
+            list[TextContent | EmbeddedResource]
                 List of MCP text content with suggestions
             """
             await ctx.info(f"Autocomplete called: query='{query}', language={language}")
@@ -305,7 +307,7 @@ class ScryfallMCPServer:
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
                 return cast(
-                    "list[TextContent | ImageContent | EmbeddedResource]", result
+                    "list[TextContent | EmbeddedResource]", result
                 )
             except Exception as e:
                 return await _handle_tool_error(ctx, e, "autocomplete", language)
@@ -369,7 +371,7 @@ class ScryfallMCPServer:
                 await self.app.run_stdio_async()
             elif mode in ("http", "streamable_http"):
                 # Run in HTTP mode for Remote MCP
-                await self.app.run(
+                await self.app.run(  # type: ignore[func-returns-value]
                     transport="http",
                     host=self.settings.http_host,
                     port=self.settings.http_port,

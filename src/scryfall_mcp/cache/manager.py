@@ -199,12 +199,37 @@ async def close_cache() -> None:
         _cache_manager = None
 
 
-# Cache TTL constants are now managed in settings.py
-# Import them from settings for backward compatibility
+# Cache TTL constants - lazily loaded from settings to avoid module-level side effects
 
-_settings = get_settings()
-CACHE_TTL_SEARCH = _settings.cache_ttl_search
-CACHE_TTL_CARD = _settings.cache_ttl_card
-CACHE_TTL_PRICE = _settings.cache_ttl_price
-CACHE_TTL_SET = _settings.cache_ttl_set
-CACHE_TTL_AUTOCOMPLETE = _settings.cache_ttl_default  # Using default for autocomplete
+
+def _get_cache_ttl(attr: str) -> int:
+    """Get cache TTL value from settings.
+
+    Parameters
+    ----------
+    attr : str
+        Settings attribute name
+
+    Returns
+    -------
+    int
+        TTL value in seconds
+    """
+    value: int = getattr(get_settings(), attr)
+    return value
+
+
+# Property-like accessors for backward compatibility
+def get_cache_ttl_search() -> int:
+    """Get search cache TTL."""
+    return _get_cache_ttl("cache_ttl_search")
+
+
+def get_cache_ttl_card() -> int:
+    """Get card cache TTL."""
+    return _get_cache_ttl("cache_ttl_card")
+
+
+def get_cache_ttl_set() -> int:
+    """Get set cache TTL."""
+    return _get_cache_ttl("cache_ttl_set")

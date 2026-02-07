@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from jose import jwt
+
+# Skip all tests if fastapi is not installed
+pytest.importorskip("fastapi")
 
 from scryfall_mcp.auth.middleware import JWTValidationMiddleware
 from scryfall_mcp.settings import Settings

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from mcp.types import EmbeddedResource, TextContent
 
 from scryfall_mcp.i18n import english_mapping, japanese_mapping
 from scryfall_mcp.models import (
@@ -144,7 +144,7 @@ class TestSearchPresenter:
     def test_present_results_no_image_data(
         self, en_presenter, card_with_images, basic_built_query
     ):
-        """Test that ImageContent is not included (MCP spec compliance)."""
+        """Test that only TextContent and EmbeddedResource are returned (MCP spec compliance)."""
         search_result = SearchResult(
             object="list",
             total_cards=1,
@@ -158,10 +158,9 @@ class TestSearchPresenter:
             search_result, basic_built_query, options
         )
 
-        # ImageContent removed - MCP spec requires base64, not URLs
-        # Image URLs are in text content and EmbeddedResource instead
-        image_contents = [r for r in results if isinstance(r, ImageContent)]
-        assert len(image_contents) == 0
+        # Only TextContent and EmbeddedResource should be present
+        for item in results:
+            assert isinstance(item, (TextContent, EmbeddedResource))
 
         # Verify image URL is in text content
         text_contents = [r for r in results if isinstance(r, TextContent)]
@@ -863,7 +862,7 @@ class TestSearchPresenter:
         card_text = en_presenter._format_single_card(card, 1, options)
 
         assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user"]
+        assert card_text.annotations.audience == ["user", "assistant"]
         assert card_text.annotations.priority == 0.8
 
     def test_annotations_disabled_in_format_single_card(self, en_presenter, sample_card_data):
@@ -1062,7 +1061,7 @@ class TestSearchPresenter:
         assert "Legal" in card_text.text
         assert "Illustrated by Seb McKinnon" in card_text.text
         assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user"]
+        assert card_text.annotations.audience == ["user", "assistant"]
 
         # Test EmbeddedResource (machine-readable)
         import json

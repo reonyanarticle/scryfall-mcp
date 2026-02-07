@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from ..cache import CACHE_TTL_AUTOCOMPLETE, CACHE_TTL_CARD, CACHE_TTL_SEARCH, get_cache
+from ..cache import get_cache, get_cache_ttl_card, get_cache_ttl_search
 from ..models import (
     BulkData,
     Card,
@@ -501,7 +501,7 @@ class ScryfallAPIClient:
             await cache.set(
                 "search_cards",
                 result.model_dump(),
-                ttl=CACHE_TTL_SEARCH,
+                ttl=get_cache_ttl_search(),
                 query=query,
                 unique=unique,
                 order=order,
@@ -540,7 +540,7 @@ class ScryfallAPIClient:
         # Cache the result
         if cache:
             await cache.set(
-                "card_by_id", result.model_dump(), ttl=CACHE_TTL_CARD, card_id=card_id
+                "card_by_id", result.model_dump(), ttl=get_cache_ttl_card(), card_id=card_id
             )
 
         return result
@@ -750,7 +750,7 @@ class ScryfallAPIClient:
         # Cache the result
         if cache:
             await cache.set(
-                "autocomplete", result, ttl=CACHE_TTL_AUTOCOMPLETE, query=query
+                "autocomplete", result, ttl=get_settings().cache_ttl_default, query=query
             )
 
         return result

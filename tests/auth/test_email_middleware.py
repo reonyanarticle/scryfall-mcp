@@ -8,6 +8,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+# Skip all tests if fastapi is not installed
+pytest.importorskip("fastapi")
+
 from scryfall_mcp.auth.email import hash_secret
 from scryfall_mcp.auth.middleware import EmailAuthMiddleware
 from scryfall_mcp.settings import Settings

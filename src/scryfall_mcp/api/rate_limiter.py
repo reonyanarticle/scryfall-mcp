@@ -10,7 +10,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .rate_limit_backend import RateLimitBackend
@@ -305,7 +305,6 @@ class RateLimiterManager:
         scryfall_limiter : RateLimiter | None, optional
             Scryfall API rate limiter. Uses global instance if None.
         """
-        from .rate_limit_backend import RateLimitBackend
 
         self._backend = backend
         self._scryfall_limiter = scryfall_limiter or get_rate_limiter()

@@ -7,14 +7,22 @@ Remote MCP access with OAuth 2.1 authentication.
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from fastapi import HTTPException
 from jose import JWTError, jwt
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..settings import Settings
+
+# Dynamic import for optional dependency
+try:
+    from fastapi import HTTPException  # type: ignore[import-not-found]
+except ImportError:
+    HTTPException = None
 
 # ASGI type definitions
 ASGIScope = dict[str, Any]
@@ -171,9 +179,10 @@ class JWTValidationMiddleware:
             )
             return decoded
         except JWTError as e:
+            logger.warning("JWT validation failed: %s", e)
             raise HTTPException(
                 status_code=401,
-                detail=f"Invalid token: {e}",
+                detail="Invalid or expired token",
             ) from e
 
 

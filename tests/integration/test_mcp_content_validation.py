@@ -39,11 +39,6 @@ def validate_mcp_content(content_items: list) -> tuple[bool, list[str]]:
                 errors.append(
                     f"Item {i}: TextContent 'text' must be string, got {type(item['text'])}"
                 )
-        elif item_type == "image":
-            if "data" not in item:
-                errors.append(f"Item {i}: ImageContent missing 'data' field")
-            if "mimeType" not in item:
-                errors.append(f"Item {i}: ImageContent missing 'mimeType' field")
         elif item_type == "resource":
             if "resource" not in item:
                 errors.append(f"Item {i}: EmbeddedResource missing 'resource' field")

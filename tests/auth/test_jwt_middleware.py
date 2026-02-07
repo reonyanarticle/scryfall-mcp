@@ -8,6 +8,9 @@ from unittest.mock import MagicMock
 import pytest
 from jose import jwt
 
+# Skip all tests if fastapi is not installed
+pytest.importorskip("fastapi")
+
 from scryfall_mcp.auth.middleware import JWTValidationMiddleware
 from scryfall_mcp.settings import Settings
 

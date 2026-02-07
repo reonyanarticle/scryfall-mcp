@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ main, dev/* ]
+    branches: [ main, 'dev/**', 'feature/**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'dev/**', 'feature/**' ]
 
 jobs:
   test:
@@ -126,8 +126,8 @@ jobs:
 
     - name: Run security checks
       run: |
-        uv run bandit -r src/ -f json -o bandit-report.json || true
-        uv run safety check --json > safety-report.json || true
+        uv run bandit -r src/ -f json -o bandit-report.json
+        uv run safety check --json > safety-report.json
 
     - name: Upload security reports
       uses: actions/upload-artifact@v4

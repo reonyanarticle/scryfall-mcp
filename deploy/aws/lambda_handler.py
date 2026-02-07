@@ -44,21 +44,30 @@ def get_server() -> ScryfallMCPServer:
     return _server
 
 
-# Create Mangum handler
-# lifespan="off" is recommended for Lambda to avoid lifecycle management issues
-_mangum_handler = Mangum(
-    app=get_server().app,
-    lifespan="off",
-    api_gateway_base_path="/mcp",
-)
+# Lazily initialized Mangum handler (avoids module-level server instantiation)
+_mangum_handler: Mangum | None = None
+
+
+def _get_mangum_handler() -> Mangum:
+    """Get or create the Mangum ASGI handler.
+
+    Returns
+    -------
+    Mangum
+        Configured Mangum handler instance
+    """
+    global _mangum_handler
+    if _mangum_handler is None:
+        _mangum_handler = Mangum(
+            app=get_server().app,
+            lifespan="off",
+            api_gateway_base_path="/mcp",
+        )
+    return _mangum_handler
 
 
 def handler(event: LambdaEvent, context: LambdaContext) -> dict[str, Any]:
     """AWS Lambda entry point for MCP requests.
-
-    This function is invoked by AWS Lambda when an HTTP request arrives
-    via API Gateway. It delegates to Mangum to convert the Lambda event
-    to an ASGI request and routes it to the FastMCP application.
 
     Parameters
     ----------
@@ -71,42 +80,17 @@ def handler(event: LambdaEvent, context: LambdaContext) -> dict[str, Any]:
     -------
     dict[str, Any]
         API Gateway-compatible response dict with statusCode, headers, and body
-
-    Examples
-    --------
-    Typical Lambda event structure:
-
-    >>> event = {
-    ...     "requestContext": {"http": {"method": "POST", "path": "/mcp"}},
-    ...     "headers": {"authorization": "Bearer <token>"},
-    ...     "body": '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}'
-    ... }
-    >>> response = handler(event, context)
-    >>> assert response["statusCode"] == 200
-
-    Notes
-    -----
-    - Cold starts: First invocation may take 1-3 seconds
-    - Warm invocations: Typically <100ms due to server reuse
-    - Memory: Configured for 768MB in serverless.yml (optimal balance)
-    - Timeout: 30 seconds max (API Gateway maximum)
-
-    The handler automatically:
-    - Validates JWT tokens via API Gateway authorizer (when enabled)
-    - Enforces CORS policies (configured in serverless.yml)
-    - Applies rate limiting (via RateLimiterManager)
-    - Uses in-memory caching (no Redis for cost optimization)
     """
     settings = get_settings()
 
-    # Log request details for debugging (sanitized)
     if settings.log_level == "DEBUG":
         import logging
 
         logger = logging.getLogger(__name__)
         logger.debug(
-            f"Lambda invocation - Request ID: {context.aws_request_id}, "
-            f"Path: {event.get('requestContext', {}).get('http', {}).get('path', 'unknown')}"
+            "Lambda invocation - Request ID: %s, Path: %s",
+            context.aws_request_id,
+            event.get("requestContext", {}).get("http", {}).get("path", "unknown"),
         )
 
-    return _mangum_handler(event, context)
+    return _get_mangum_handler()(event, context)

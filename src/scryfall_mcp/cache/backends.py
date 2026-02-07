@@ -172,9 +172,9 @@ class RedisCache(CacheProtocol):
         """Get Redis connection, creating if necessary."""
         if self._redis is None:
             try:
-                import redis.asyncio as redis
+                import redis.asyncio as redis  # type: ignore[import-not-found]
 
-                self._redis = redis.from_url(self.redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
+                self._redis = redis.from_url(self.redis_url, decode_responses=True)
                 # Test connection
                 if self._redis is not None:
                     await self._redis.ping()

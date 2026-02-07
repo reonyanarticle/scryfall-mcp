@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 from mcp.types import (
     Annotations,
     EmbeddedResource,
-    ImageContent,
     TextContent,
     TextResourceContents,
 )
@@ -56,7 +55,7 @@ class SearchPresenter:
         search_result: SearchResult,
         built_query: BuiltQuery,
         search_options: SearchOptions,
-    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+    ) -> list[TextContent | EmbeddedResource]:
         """Format search results for MCP presentation.
 
         Parameters
@@ -73,7 +72,7 @@ class SearchPresenter:
         list
             MCP content items for presentation
         """
-        content_items: list[TextContent | ImageContent | EmbeddedResource] = []
+        content_items: list[TextContent | EmbeddedResource] = []
 
         # Add search summary
         summary = self._create_summary(search_result, built_query)
@@ -151,7 +150,7 @@ class SearchPresenter:
 
     def _format_cards(
         self, cards: list[Card], options: SearchOptions
-    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+    ) -> list[TextContent | EmbeddedResource]:
         """Format individual card results.
 
         Parameters
@@ -166,7 +165,7 @@ class SearchPresenter:
         list
             Formatted card content items
         """
-        content_items: list[TextContent | ImageContent | EmbeddedResource] = []
+        content_items: list[TextContent | EmbeddedResource] = []
 
         for i, card in enumerate(cards, 1):
             # Add human-readable card presentation
@@ -299,7 +298,7 @@ class SearchPresenter:
         # Add MCP Annotations
         annotations = None
         if options.use_annotations:
-            annotations = Annotations(audience=["user"], priority=PRIORITY_USER_CONTENT)
+            annotations = Annotations(audience=["user", "assistant"], priority=PRIORITY_USER_CONTENT)
 
         return TextContent(type="text", text=card_text, annotations=annotations)
 

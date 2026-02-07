@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from redis.asyncio import Redis
+    from redis.asyncio import Redis  # type: ignore[import-not-found]
 
 
 class RateLimitBackend(ABC):

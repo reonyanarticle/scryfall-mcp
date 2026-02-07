@@ -435,7 +435,7 @@ class Settings(BaseSettings):
 
         # Validate email addresses against blocklist
         if self.email_auth_enabled:
-            for email in self.email_auth_credentials.keys():
+            for email in self.email_auth_credentials:
                 for pattern in self.email_blocklist_patterns:
                     if fnmatch.fnmatch(email, pattern):
                         raise ValueError(

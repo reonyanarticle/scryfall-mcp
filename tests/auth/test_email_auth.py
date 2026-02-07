@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import base64
 
-import pytest
-
 from scryfall_mcp.auth.email import (
     hash_secret,
     is_email_blocked,
