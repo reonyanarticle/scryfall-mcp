@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -11,6 +12,13 @@ from typer.testing import CliRunner
 from scryfall_mcp.__main__ import app
 
 runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    """Strip ANSI escape codes from text."""
+    return _ANSI_RE.sub("", text)
 
 
 class TestMainModule:
@@ -66,23 +74,26 @@ class TestMainFunction:
         result = runner.invoke(app, [])
         # Typer exits with code 2 when no subcommand is provided
         assert result.exit_code == 2
-        assert "Usage:" in result.output
-        assert "Missing command" in result.output
+        plain = _strip_ansi(result.output)
+        assert "Usage:" in plain
+        assert "Missing command" in plain
 
     def test_main_help_flag(self) -> None:
         """Test the '--help' command."""
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "Scryfall MCP Server" in result.output
-        assert "Commands" in result.output
+        plain = _strip_ansi(result.output)
+        assert "Scryfall MCP Server" in plain
+        assert "Commands" in plain
 
     def test_serve_command_help(self) -> None:
         """Test the 'serve --help' command."""
         result = runner.invoke(app, ["serve", "--help"])
         assert result.exit_code == 0
-        assert "Start the MCP server" in result.output
-        assert "--transport" in result.output
-        assert "--http-port" in result.output
+        plain = _strip_ansi(result.output)
+        assert "Start the MCP server" in plain
+        assert "--transport" in plain
+        assert "--http-port" in plain
 
     def test_setup_command(self) -> None:
         """Test the 'setup' command."""
