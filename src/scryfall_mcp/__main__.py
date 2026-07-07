@@ -22,6 +22,17 @@ app = typer.Typer(
 )
 
 
+@app.callback(invoke_without_command=True)
+def _default(ctx: typer.Context) -> None:
+    """Run the stdio server when no subcommand is given.
+
+    Keeps `scryfall-mcp` (bare) working for MCP clients such as Claude
+    Desktop, whose configurations launch the command without arguments.
+    """
+    if ctx.invoked_subcommand is None:
+        serve()
+
+
 @app.command()
 def serve(
     transport: Annotated[

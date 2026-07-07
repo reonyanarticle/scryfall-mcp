@@ -69,14 +69,16 @@ class TestMainModule:
 class TestMainFunction:
     """Test the main() function CLI commands."""
 
-    def test_main_no_args_shows_error(self) -> None:
-        """Test that main() with no args shows error (typer requires subcommand)."""
-        result = runner.invoke(app, [])
-        # Typer exits with code 2 when no subcommand is provided
-        assert result.exit_code == 2
-        plain = _strip_ansi(result.output)
-        assert "Usage:" in plain
-        assert "Missing command" in plain
+    def test_main_no_args_defaults_to_serve(self) -> None:
+        """Test that main() with no args falls back to the serve command.
+
+        Bare `scryfall-mcp` must keep starting the stdio server so that
+        existing MCP client configurations (e.g. Claude Desktop) keep working.
+        """
+        with patch("scryfall_mcp.__main__.serve") as mock_serve:
+            result = runner.invoke(app, [])
+            assert result.exit_code == 0
+            mock_serve.assert_called_once()
 
     def test_main_help_flag(self) -> None:
         """Test the '--help' command."""
@@ -111,7 +113,9 @@ class TestMainFunction:
         config_data = {"user_agent": "Test-Agent/1.0 (test@example.com)"}
         mock_config_file.open = mock_open(read_data=json.dumps(config_data))
 
-        with patch("scryfall_mcp.__main__.get_config_file", return_value=mock_config_file):
+        with patch(
+            "scryfall_mcp.__main__.get_config_file", return_value=mock_config_file
+        ):
             result = runner.invoke(app, ["config"])
 
         assert result.exit_code == 0
@@ -123,7 +127,9 @@ class TestMainFunction:
         mock_config_file = MagicMock(spec=Path)
         mock_config_file.exists.return_value = False
 
-        with patch("scryfall_mcp.__main__.get_config_file", return_value=mock_config_file):
+        with patch(
+            "scryfall_mcp.__main__.get_config_file", return_value=mock_config_file
+        ):
             result = runner.invoke(app, ["config"])
 
         assert result.exit_code == 1
@@ -161,7 +167,9 @@ class TestMainFunction:
 
         with patch("scryfall_mcp.__main__.ScryfallMCPServer") as mock_server:
             with patch("scryfall_mcp.__main__.asyncio.run"):
-                with patch("scryfall_mcp.__main__.get_settings", return_value=mock_settings):
+                with patch(
+                    "scryfall_mcp.__main__.get_settings", return_value=mock_settings
+                ):
                     result = runner.invoke(
                         app, ["serve", "--transport", "http", "--http-port", "3000"]
                     )
@@ -178,7 +186,9 @@ class TestMainFunction:
 
         with patch("scryfall_mcp.__main__.ScryfallMCPServer") as mock_server:
             with patch("scryfall_mcp.__main__.asyncio.run"):
-                with patch("scryfall_mcp.__main__.get_settings", return_value=mock_settings):
+                with patch(
+                    "scryfall_mcp.__main__.get_settings", return_value=mock_settings
+                ):
                     result = runner.invoke(
                         app, ["serve", "--transport", "streamable_http"]
                     )

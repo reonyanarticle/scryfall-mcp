@@ -52,7 +52,10 @@ class MCPTester:
     async def stop_server(self) -> None:
         """Stop the MCP server process."""
         if self.process:
-            self.process.terminate()
+            try:
+                self.process.terminate()
+            except ProcessLookupError:
+                pass  # Server already exited (e.g. crashed on startup)
             await self.process.wait()
 
     async def send_message(self, message: dict[str, Any]) -> None:
