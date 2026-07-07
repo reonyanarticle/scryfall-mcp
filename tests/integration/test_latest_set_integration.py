@@ -8,7 +8,11 @@ from uuid import UUID
 
 import pytest
 
-from scryfall_mcp.api.sets import clear_latest_set_cache, get_latest_expansion_code
+from scryfall_mcp.api.sets import (
+    clear_latest_set_cache,
+    get_latest_expansion_code,
+    resolve_latest_set_placeholder,
+)
 from scryfall_mcp.i18n import get_current_mapping, set_current_locale
 from scryfall_mcp.models import Set as ScryfallSet
 from scryfall_mcp.search.builder import QueryBuilder
@@ -69,14 +73,18 @@ class TestLatestSetIntegration:
             ]
 
             for query in test_queries:
-                # Parse and build
+                # Parse and build (the pure builder leaves the placeholder)
                 parsed = parser.parse(query)
-                built = await builder.build(parsed)
+                built = builder.build(parsed)
+                assert "__LATEST_SET__" in built.scryfall_query
+
+                # Placeholder resolution happens in the I/O layer
+                resolved = await resolve_latest_set_placeholder(built.scryfall_query)
 
                 # Verify the query was converted to set search
-                assert built.scryfall_query.startswith("s:")
-                assert "spm" in built.scryfall_query.lower()
-                assert "__LATEST_SET__" not in built.scryfall_query
+                assert resolved.startswith("s:")
+                assert "spm" in resolved.lower()
+                assert "__LATEST_SET__" not in resolved
 
     @pytest.mark.asyncio
     async def test_get_latest_set_tool_integration(self):
@@ -194,8 +202,9 @@ class TestLatestSetIntegration:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse("最新のエクスパンション")
-            built = await builder.build(parsed)
+            built = builder.build(parsed)
+            resolved = await resolve_latest_set_placeholder(built.scryfall_query)
 
             # The query should be just "s:spm", not "s:spm lang:ja"
-            assert built.scryfall_query == "s:spm"
-            assert "lang:" not in built.scryfall_query
+            assert resolved == "s:spm"
+            assert "lang:" not in resolved

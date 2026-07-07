@@ -2,16 +2,16 @@ name: Tests
 
 on:
   push:
-    branches: [ main, dev/* ]
+    branches: [ main, 'dev/**', 'feature/**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'dev/**', 'feature/**' ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -26,11 +26,15 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --dev
+        uv sync --dev --all-extras
 
     - name: Run linter
       run: |
         uv run ruff check src tests scripts
+
+    - name: Run format check
+      run: |
+        uv run ruff format --check src tests scripts
 
     - name: Run type checker
       run: |
@@ -69,7 +73,7 @@ jobs:
         enable-cache: true
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: uv sync
@@ -119,14 +123,14 @@ jobs:
       uses: astral-sh/setup-uv@v3
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: uv sync --dev
 
     - name: Run security checks
       run: |
-        uv run bandit -r src/ -f json -o bandit-report.json || true
+        uv run bandit -r src/ -f json -o bandit-report.json --skip B101,B105,B324
         uv run safety check --json > safety-report.json || true
 
     - name: Upload security reports

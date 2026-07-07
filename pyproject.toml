@@ -3,14 +3,26 @@ name = "scryfall-mcp"
 version = "0.1.0"
 description = "Scryfall MCP Server - Magic: The Gathering card information via MCP protocol"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "httpx>=0.25.0",
-    "redis>=4.5.0",
     "fastmcp>=0.6.0",
     "typing-extensions>=4.8.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+auth = ["python-jose[cryptography]>=3.3.0", "bcrypt>=5.0.0"]
+redis = ["redis>=4.5.0"]
+aws = ["mangum>=0.17.0", "boto3>=1.28.0"]
+all = [
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=5.0.0",
+    "redis>=4.5.0",
+    "mangum>=0.17.0",
+    "boto3>=1.28.0",
 ]
 
 [project.scripts]
@@ -22,10 +34,11 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.10.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
     "mypy>=1.5.0",
     "ruff>=0.1.0",
+    "types-python-jose>=3.5.0.20250531",
+    "bandit[toml]>=1.7.5",
+    "safety>=3.0.0",
 ]
 
 [build-system]
@@ -40,22 +53,22 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 
-[tool.black]
-target-version = ['py311']
-line-length = 88
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
+# redis はオプショナル依存のため、インストール有無で type: ignore の要否が変わる
+[[tool.mypy.overrides]]
+module = [
+    "scryfall_mcp.cache.backends",
+    "scryfall_mcp.api.rate_limit_backend",
+]
+warn_unused_ignores = false
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]

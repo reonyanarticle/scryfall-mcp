@@ -7,11 +7,17 @@ Scryfall's API rate limits (max 10 requests/second with 75-100ms intervals).
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .rate_limit_backend import RateLimitBackend
 
 from ..settings import MAX_BACKOFF_SECONDS, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class RateLimiter:
@@ -45,6 +51,12 @@ class RateLimiter:
         both rate limiting and any active exponential backoff.
 
         Thread-safe: Uses asyncio.Lock to prevent race conditions.
+
+        Notes
+        -----
+        The lock is INTENTIONALLY held across the sleep: Scryfall's rate
+        limit is global, so all outgoing requests must be serialized. A
+        429/503 backoff therefore delays every pending request, by design.
         """
         async with self._lock:
             now = time.time()
@@ -138,19 +150,34 @@ class CircuitBreaker:
             Time in seconds to wait before trying to close the circuit.
         """
         settings = get_settings()
+        # `is not None` (not `or`): an explicit 0 must not fall back to the
+        # settings default
         self._failure_threshold = (
-            failure_threshold or settings.circuit_breaker_failure_threshold
+            failure_threshold
+            if failure_threshold is not None
+            else settings.circuit_breaker_failure_threshold
         )
         self._recovery_timeout = (
-            recovery_timeout or settings.circuit_breaker_recovery_timeout
+            recovery_timeout
+            if recovery_timeout is not None
+            else settings.circuit_breaker_recovery_timeout
         )
 
         self._failure_count: int = 0
         self._last_failure_time: float = 0.0
         self._state: str = "closed"  # closed, open, half_open
+        # Protect state transitions across the await suspension points and
+        # limit half_open to a single recovery probe at a time
+        self._lock = asyncio.Lock()
+        self._half_open_trial_active: bool = False
 
     async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute a function with circuit breaker protection.
+
+        State transitions are guarded by an asyncio.Lock, and in the
+        half_open state only ONE request is allowed through as a recovery
+        probe — concurrent requests are rejected instead of stampeding the
+        recovering upstream.
 
         Parameters
         ----------
@@ -169,21 +196,39 @@ class CircuitBreaker:
         Raises
         ------
         CircuitBreakerOpenError
-            If the circuit breaker is open
+            If the circuit breaker is open, or a recovery probe is already
+            in flight while half_open
         """
-        if self._state == "open":
-            if time.time() - self._last_failure_time > self._recovery_timeout:
-                self._state = "half_open"
-            else:
-                raise CircuitBreakerOpenError("Circuit breaker is open")
+        is_trial = False
+        async with self._lock:
+            if self._state == "open":
+                if time.time() - self._last_failure_time > self._recovery_timeout:
+                    self._state = "half_open"
+                else:
+                    raise CircuitBreakerOpenError("Circuit breaker is open")
+
+            if self._state == "half_open":
+                if self._half_open_trial_active:
+                    raise CircuitBreakerOpenError(
+                        "Circuit breaker is open (recovery probe in progress)"
+                    )
+                self._half_open_trial_active = True
+                is_trial = True
 
         try:
             result = await func(*args, **kwargs)
-            self._record_success()
-            return result
         except Exception:
-            self._record_failure()
+            async with self._lock:
+                self._record_failure()
+                if is_trial:
+                    self._half_open_trial_active = False
             raise
+        else:
+            async with self._lock:
+                self._record_success()
+                if is_trial:
+                    self._half_open_trial_active = False
+            return result
 
     def _record_success(self) -> None:
         """Record a successful operation."""
@@ -204,6 +249,7 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_failure_time = 0.0
         self._state = "closed"
+        self._half_open_trial_active = False
 
     @property
     def state(self) -> str:
@@ -260,3 +306,86 @@ def reset_rate_limiting() -> None:
         _rate_limiter.reset()
     if _circuit_breaker:
         _circuit_breaker.reset()
+
+
+class RateLimiterManager:
+    """Manage per-user rate limiting with pluggable backends.
+
+    This class coordinates user rate limiting using a configurable backend
+    (Redis for distributed, memory for local) and maintains compatibility
+    with the existing Scryfall API rate limiter.
+
+    Parameters
+    ----------
+    backend : RateLimitBackend
+        Rate limiting storage backend
+    scryfall_limiter : RateLimiter | None, optional
+        Global Scryfall API rate limiter. If None, uses default instance.
+
+    Examples
+    --------
+    >>> from .rate_limit_backend import MemoryRateLimitBackend
+    >>> backend = MemoryRateLimitBackend()
+    >>> manager = RateLimiterManager(backend)
+    >>> await manager.acquire_user_limit("user123", limit=100)
+    """
+
+    def __init__(
+        self,
+        backend: RateLimitBackend,
+        scryfall_limiter: RateLimiter | None = None,
+    ) -> None:
+        """Initialize rate limiter manager.
+
+        Parameters
+        ----------
+        backend : RateLimitBackend
+            Rate limiting backend implementation
+        scryfall_limiter : RateLimiter | None, optional
+            Scryfall API rate limiter. Uses global instance if None.
+        """
+
+        self._backend = backend
+        self._scryfall_limiter = scryfall_limiter or get_rate_limiter()
+
+    async def acquire_user_limit(
+        self,
+        user_id: str,
+        limit: int = 100,
+        window_seconds: int = 60,
+    ) -> None:
+        """Acquire rate limit permission for user.
+
+        Parameters
+        ----------
+        user_id : str
+            Unique user identifier from JWT payload
+        limit : int, optional
+            Maximum requests per window (default: 100)
+        window_seconds : int, optional
+            Time window in seconds (default: 60)
+
+        Raises
+        ------
+        RateLimitExceededError
+            If user has exceeded their rate limit
+        ConnectionError
+            If backend is unavailable
+        """
+        from .exceptions import RateLimitExceededError
+
+        key = f"rate_limit:{user_id}"
+        current, is_exceeded = await self._backend.increment_and_check(
+            key, limit, window_seconds
+        )
+
+        if is_exceeded:
+            raise RateLimitExceededError(user_id, limit, window_seconds, current)
+
+    async def acquire_scryfall_limit(self) -> None:
+        """Acquire global Scryfall API rate limit.
+
+        This maintains compatibility with the existing Scryfall API
+        rate limiting system (10 req/sec).
+        """
+        await self._scryfall_limiter.acquire()

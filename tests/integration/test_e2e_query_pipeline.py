@@ -42,13 +42,15 @@ class TestEndToEndQueryPipeline:
             assert parsed.original_text == query
 
             # Builder: Scryfallクエリに変換
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             # 期待されるクエリ要素を検証
             scryfall_query = result.scryfall_query
 
             # キーワード能力（飛行）が含まれる
-            assert "keyword:flying" in scryfall_query or "flying" in scryfall_query.lower()
+            assert (
+                "keyword:flying" in scryfall_query or "flying" in scryfall_query.lower()
+            )
 
             # 色（赤）が含まれる
             assert "c:r" in scryfall_query
@@ -61,7 +63,11 @@ class TestEndToEndQueryPipeline:
 
             # 複雑度の評価（query_metadataに格納されている）
             assert "query_complexity" in result.query_metadata
-            assert result.query_metadata["query_complexity"] in ["simple", "moderate", "complex"]
+            assert result.query_metadata["query_complexity"] in [
+                "simple",
+                "moderate",
+                "complex",
+            ]
 
     async def test_complex_japanese_query_e2e(self):
         """Test complex Japanese query end-to-end."""
@@ -78,7 +84,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.language == "ja"
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -90,8 +96,11 @@ class TestEndToEndQueryPipeline:
             assert "t:legendary" in scryfall_query or "legendary" in scryfall_query
 
             # マナ総量
-            assert ("mv<=3" in scryfall_query or "cmc<=3" in scryfall_query
-                    or "manavalue<=3" in scryfall_query)
+            assert (
+                "mv<=3" in scryfall_query
+                or "cmc<=3" in scryfall_query
+                or "manavalue<=3" in scryfall_query
+            )
 
     async def test_english_query_e2e(self):
         """Test English query end-to-end."""
@@ -109,7 +118,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.original_text == query
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query.lower()
 
@@ -139,7 +148,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -164,7 +173,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -188,7 +197,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -196,7 +205,9 @@ class TestEndToEndQueryPipeline:
             assert "r:mythic" in scryfall_query or "rarity:mythic" in scryfall_query
 
             # タイプ（プレインズウォーカー）
-            assert "t:planeswalker" in scryfall_query or "planeswalker" in scryfall_query
+            assert (
+                "t:planeswalker" in scryfall_query or "planeswalker" in scryfall_query
+            )
 
     async def test_japanese_color_identity_query_e2e(self):
         """Test Japanese query with color identity."""
@@ -212,7 +223,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             scryfall_query = result.scryfall_query
 
@@ -238,7 +249,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             # クエリが生成されることを確認
             assert result.scryfall_query is not None
@@ -262,7 +273,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
 
             # Builder should handle empty query gracefully
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             # Should produce some fallback query or empty string
             assert isinstance(result.scryfall_query, str)
@@ -278,7 +289,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(simple_query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             assert "query_complexity" in result.query_metadata
             assert result.query_metadata["query_complexity"] == "simple"
@@ -292,7 +303,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(complex_query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
 
             # Should be moderate or complex
             assert "query_complexity" in result.query_metadata
@@ -310,7 +321,7 @@ class TestEndToEndQueryPipeline:
             builder_en = QueryBuilder(mapping_en)
 
             parsed_en = parser_en.parse(query_en)
-            result_en = await builder_en.build(parsed_en)
+            result_en = builder_en.build(parsed_en)
 
             # クエリにred/c:rとcreature/t:creatureが含まれることを確認
             query_lower = result_en.scryfall_query.lower()
@@ -324,7 +335,7 @@ class TestEndToEndQueryPipeline:
             builder_ja = QueryBuilder(mapping_ja)
 
             parsed_ja = parser_ja.parse(query_ja)
-            result_ja = await builder_ja.build(parsed_ja)
+            result_ja = builder_ja.build(parsed_ja)
 
             # クエリに色とタイプが含まれることを確認
             query_lower_ja = result_ja.scryfall_query.lower()
@@ -345,7 +356,7 @@ class TestEndToEndQueryPipeline:
             assert parsed.language == "ja"
 
             # Build
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify trigger pattern extraction
@@ -369,7 +380,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify ETB trigger
@@ -392,7 +403,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify attack trigger
@@ -413,7 +424,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Verify Phase 2 trigger pattern
@@ -436,7 +447,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should still use Phase 1 dictionary lookup
@@ -456,7 +467,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should extract at least one trigger
@@ -478,7 +489,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should convert to s:<set_code>
@@ -503,7 +514,7 @@ class TestEndToEndQueryPipeline:
             parsed = parser.parse(query)
             assert parsed.language == "ja"
 
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should contain all keywords
@@ -530,7 +541,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have set filter
@@ -550,11 +561,15 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should convert to s:mkm
-            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0 or "s:" in scryfall_query
+            assert (
+                "s:" in scryfall_query
+                and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+                or "s:" in scryfall_query
+            )
             # Should have flying keyword
             assert "keyword:flying" in scryfall_query
 
@@ -568,11 +583,14 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have set filter
-            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            assert (
+                "s:" in scryfall_query
+                and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            )
             # Should have red color
             assert "c:r" in scryfall_query
 
@@ -586,7 +604,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have s: prefix
@@ -604,11 +622,14 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have set filter
-            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            assert (
+                "s:" in scryfall_query
+                and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            )
             # Should have colors
             assert "c:w" in scryfall_query or "c:u" in scryfall_query
             # Should have creature type
@@ -628,7 +649,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should be converted to set search
@@ -645,11 +666,14 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have full s:mkm, not just "s"
-            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            assert (
+                "s:" in scryfall_query
+                and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            )
             # Should not have leftover "最新" or "エクスパンション"
             assert "最新" not in scryfall_query
             assert "エクスパンション" not in scryfall_query
@@ -666,11 +690,14 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should have latest set
-            assert "s:" in scryfall_query and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            assert (
+                "s:" in scryfall_query
+                and len([x for x in scryfall_query.split() if x.startswith("s:")]) > 0
+            )
             # Should have death trigger
             assert 'o:"when ~ dies"' in scryfall_query
             # Should have draw effect
@@ -695,7 +722,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should extract major components
@@ -722,12 +749,16 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should handle multicolor
-            assert ("c:w" in scryfall_query or "c:u" in scryfall_query or
-                    "c:wu" in scryfall_query or "id:wu" in scryfall_query)
+            assert (
+                "c:w" in scryfall_query
+                or "c:u" in scryfall_query
+                or "c:wu" in scryfall_query
+                or "id:wu" in scryfall_query
+            )
             # Should contain keywords
             assert "keyword:flying" in scryfall_query
             assert "keyword:lifelink" in scryfall_query
@@ -747,7 +778,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should at least extract color and type
@@ -769,7 +800,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should extract at least the death trigger and basic attributes
@@ -793,7 +824,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query1)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             assert "p>=100" in scryfall_query
@@ -809,7 +840,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query2)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             assert "p=0" in scryfall_query or "p:0" in scryfall_query
@@ -828,7 +859,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should extract keyword and type
@@ -850,7 +881,7 @@ class TestEndToEndQueryPipeline:
             builder = QueryBuilder(mapping)
 
             parsed = parser.parse(query)
-            result = await builder.build(parsed)
+            result = builder.build(parsed)
             scryfall_query = result.scryfall_query
 
             # Should contain keyword
@@ -860,6 +891,10 @@ class TestEndToEndQueryPipeline:
             # Should contain draw effect
             assert 'o:"draw"' in scryfall_query
             # Should contain colors (blue and/or black)
-            assert ("c:u" in scryfall_query or "c:b" in scryfall_query or
-                    "c:ub" in scryfall_query or "c:bu" in scryfall_query)
+            assert (
+                "c:u" in scryfall_query
+                or "c:b" in scryfall_query
+                or "c:ub" in scryfall_query
+                or "c:bu" in scryfall_query
+            )
             assert "t:creature" in scryfall_query

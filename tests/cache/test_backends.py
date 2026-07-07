@@ -331,7 +331,7 @@ class TestCompositeCache:
         # Setup mock Redis
         mock_redis = AsyncMock()
         mock_redis.ping.return_value = True
-        mock_redis.close = AsyncMock()
+        mock_redis.aclose = AsyncMock()
         mock_redis_from_url.return_value = mock_redis
 
         cache = RedisCache()
@@ -341,7 +341,7 @@ class TestCompositeCache:
 
         # Close should call redis close
         await cache.close()
-        mock_redis.close.assert_called_once()
+        mock_redis.aclose.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_redis_close_without_connection(self):

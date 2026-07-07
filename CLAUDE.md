@@ -1,486 +1,62 @@
-# Scryfall MCP Server
-
-Magic: The Gatheringのカード情報を提供するScryfall APIをMCP (Model Context Protocol)経由でAIアシスタントに接続するサーバー。
-詳細はAPI Documentation (https://scryfall.com/docs/api) を参考にしてください。
-
-## 主要機能
-
-- Scryfall検索構文によるカード検索
-- 自然言語からScryfall構文への変換
-- カード価格情報の取得と通貨換算
-- デッキ構成の統計分析
-- 多言語カード名のサポート（日本語、英語、その他）
-- 地域別の価格表示とタイムゾーン対応
-
-## プロジェクト構造
-
-```
-scryfall-mcp/
-├── docs/                      # ドキュメント類置き場（ファイル名は大文字で統一）
-│   ├── API-REFERENCE.md       # API仕様書
-│   ├── CONFIGURATION.md       # 設定ガイド
-│   ├── DEVELOPMENT.md         # 開発者ガイド
-│   └── INTERNATIONALIZATION.md # 多言語対応ガイド
-├── src/
-│   └── scryfall_mcp/
-│       ├── __init__.py
-│       ├── server.py          # MCPサーバーエントリポイント
-│       ├── settings.py        # 環境変数・グローバル変数管理
-│       ├── api/
-│       │   ├── client.py      # Scryfall APIクライアント
-│       │   ├── rate_limiter.py # レート制限実装
-│       │   └── models.py      # APIレスポンスモデル
-│       ├── cache/
-│       │   ├── manager.py     # キャッシュ管理
-│       │   └── backends.py    # メモリ/Redis実装
-│       ├── search/
-│       │   ├── builder.py     # クエリビルダー
-│       │   └── processor.py   # 自然言語処理
-│       ├── i18n/
-│       │   ├── __init__.py    # 多言語化システム
-│       │   ├── locales.py     # 地域設定管理
-│       │   └── mappings/      # 言語別マッピングデータ
-│       │       ├── ja.py      # 日本語マッピング
-│       │       ├── en.py      # 英語マッピング
-│       │       └── common.py  # 共通マッピング定義
-│       └── tools/
-│           ├── search.py      # 検索ツール
-│           ├── card.py        # カード詳細ツール
-│           └── deck.py        # デッキ分析ツール
-├── tests/                     # テスト
-├── uv.lock
-└── pyproject.toml
-```
-
-## Scryfall API制約
-
-### レート制限
-- 最大10 requests/second（リクエスト間隔75-100ms以上）
-- 429エラー時はexponential backoff実装必須
-
-### 必須HTTPヘッダー
-```
-User-Agent: アプリ名とバージョン、連絡先
-Accept: application/json;q=0.9,*/*;q=0.8
-```
-
-これらのヘッダーがないと403でブロックされる。
-
-### データ取得
-- 1ページ最大175カード
-- 大量データはBulk Data APIを使用
-
-## キャッシュ戦略
-
-### 階層構成
-- L1 (メモリ): LRU, 最大1000エントリ
-- L2 (Redis): TTL付き永続化
-
-### TTL設定（Scryfall推奨: 最低24時間）
-- 検索結果・カード詳細: 24時間
-- 価格情報: 24時間（価格更新は1日1回）
-- セット情報: 1週間
-
-## エラー処理
-
-### サーキットブレーカー
-- 失敗閾値: 5回連続
-- オープン時間: 60秒
-- ハーフオープン試行: 1リクエスト
-
-### リトライポリシー
-- 429/503エラー: exponential backoff
-- 最大リトライ: 5回
-- タイムアウト: 30秒
-
-## カード表示仕様（MCP出力フォーマット）
-
-### 表示フィールド一覧
-
-MCPツール（`search_cards`）でカード検索結果を返す際、以下のフィールドを表示します。
-
-#### 必須フィールド（常に表示）
-
-| # | フィールド | データモデル | 表示条件 | 説明 |
-|---|-----------|------------|---------|------|
-| 1 | **カード名** | `name` / `printed_name` | 常に表示 | 日本語検索時は`printed_name`優先 |
-| 2 | **マナコスト** | `mana_cost` | 値が存在する場合 | `{R}`, `{2}{U}{U}`等のシンボル形式 |
-| 3 | **タイプライン** | `type_line` / `printed_type_line` | 常に表示 | 日本語検索時は`printed_type_line`優先 |
-| 4 | **パワー/タフネス** | `power` / `toughness` | クリーチャーのみ | 形式: `3/3`, `*/1+*`等 |
-| 5 | **オラクルテキスト** | `oracle_text` / `printed_text` | 値が存在する場合 | 日本語検索時は`printed_text`優先 |
-| 6 | **セット情報** | `set_name`, `rarity` | 常に表示 | セット名とレアリティを括弧内に表示 |
-
-#### Phase 1追加フィールド（Issue #7対応）
-
-| # | フィールド | データモデル | デフォルト | 表示制御パラメータ | 説明 |
-|---|-----------|------------|----------|-------------------|------|
-| 7 | **キーワード能力** | `keywords` | ON | `include_keywords` | 飛行、速攻等のキーワード一覧（カンマ区切り） |
-| 8 | **イラストレーター** | `artist` | ON | `include_artist` | カードイラストの作成者名 |
-| 9 | **マナ生成** | `produced_mana` | ON | `include_mana_production` | **土地専用**: 生成可能なマナ色 |
-| 10 | **フォーマット適格性** | `legalities` | 条件付き | `format_filter` | format_filter指定時のみ表示 |
-
-### 表示制御オプション
-
-```python
-class SearchOptions(BaseModel):
-    """Search presentation options."""
-
-    max_results: int = 10
-    format_filter: str | None = None
-    language: str | None = None
-
-    # Phase 1: MCP Annotations制御
-    use_annotations: bool = True
-
-    # Phase 1: 表示フィールド制御
-    include_keywords: bool = True        # デフォルトON
-    include_artist: bool = True          # デフォルトON
-    include_mana_production: bool = True # デフォルトON（土地専用）
-```
-
-### MCP Annotations仕様（Phase 1実装）
-
-すべてのコンテンツにMCP Annotationsを付与し、クライアント側での適切な表示制御を実現します。
-
-#### Annotationsフィールド
-
-```python
-from mcp.types import Annotations
-
-Annotations(
-    audience: list[Literal['user', 'assistant']] | None = None,
-    priority: float (0.0-1.0) | None = None,
-)
-```
-
-#### audience（対象者）
-
-| 値 | 意味 | 実際の動作 | 使用例 |
-|----|------|-----------|--------|
-| `["user"]` | ユーザー向け | UIに表示される**可能性がある**が、保証されない | ❌ 非推奨（表示されない場合あり） |
-| `["assistant"]` | アシスタント向け | LLMコンテキストに含まれるが、UIに表示されない | 構造化データ（EmbeddedResource） |
-| `["user", "assistant"]` | 両方 | **UIとLLMコンテキストの両方に確実に表示** | ✅ 推奨: カード情報、エラーメッセージ |
-
-**重要**: `audience=["user"]`は仕様上UIに表示されると書かれているが、Claude DesktopなどのMCPクライアントでは表示されないことがある。**確実にUIに表示するには`["user", "assistant"]`を使用すること。**
-
-#### priority（優先度）
-
-| 範囲 | 意味 | 使用例 |
-|------|------|--------|
-| `1.0` | 最重要 | カード名、マナコスト、タイプライン |
-| `0.7-0.9` | 高優先度 | オラクルテキスト、P/T、keywords |
-| `0.4-0.6` | 中優先度 | セット、レアリティ、価格 |
-| `0.1-0.3` | 低優先度 | artist、EDHREC順位 |
-
-### 実装例
-
-```python
-# ユーザー向けコンテンツ（TextContent）
-def _format_single_card(
-    self, card: Card, index: int, options: SearchOptions
-) -> TextContent:
-    """Format a single card with MCP Annotations."""
-
-    card_text = f"## {index}. {card.name}"
-
-    if card.mana_cost:
-        card_text += f" {card.mana_cost}"
-
-    # ... カード情報をマークダウンで整形 ...
-
-    # キーワード能力（Phase 1新規）
-    if options.include_keywords and card.keywords:
-        keywords_label = "キーワード能力" if is_japanese else "Keywords"
-        card_text += f"**{keywords_label}**: {', '.join(card.keywords)}\n"
-
-    # イラストレーター（Phase 1新規）
-    if options.include_artist and card.artist:
-        illustrated_by = "イラスト" if is_japanese else "Illustrated by"
-        card_text += f"*{illustrated_by} {card.artist}*\n"
-
-    # MCP Annotations付与
-    annotations = None
-    if options.use_annotations:
-        # 重要: audience=["user", "assistant"] でUIとLLM両方に確実に表示
-        annotations = Annotations(
-            audience=["user", "assistant"],
-            priority=0.8
-        )
-
-    return TextContent(type="text", text=card_text, annotations=annotations)
-
-# アシスタント向けコンテンツ（EmbeddedResource）
-def _create_card_resource(
-    self, card: Card, index: int, options: SearchOptions
-) -> EmbeddedResource:
-    """Create EmbeddedResource with full metadata and Annotations."""
-
-    card_metadata = {
-        "id": str(card.id),
-        "name": card.name,
-        # ... 既存フィールド ...
-
-        # Phase 1新規フィールド
-        "keywords": card.keywords if card.keywords else [],
-        "artist": card.artist,
-        "produced_mana": card.produced_mana,
-    }
-
-    # MCP Annotations付与
-    annotations = None
-    if options.use_annotations:
-        annotations = Annotations(
-            audience=["assistant"],
-            priority=0.6
-        )
-
-    return EmbeddedResource(
-        type="resource",
-        resource=TextResourceContents(
-            uri=AnyUrl(f"card://scryfall/{card.id}"),
-            mimeType="application/json",
-            text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
-        ),
-        annotations=annotations
-    )
-```
-
-### 実装参照
-
-- **詳細設計**: `docs/MCP-OUTPUT-DESIGN-REPORT.md`
-- **現在の実装**: `src/scryfall_mcp/search/presenter.py` (lines 175-258)
-- **データモデル**: `src/scryfall_mcp/models.py` (Card: lines 388-476)
-- **MCP仕様**: https://modelcontextprotocol.io/specification/2025-06-18
-
-## コーディング規約
-
-### Python型アノテーション
-- **型ヒントは必須**。すべての関数パラメータと戻り値に型アノテーションを付ける
-- **PEP 585準拠**: `list[str]`, `dict[str, int]`, `tuple[int, ...]`など組み込み型を使用（Python 3.9+）
-- **Union型**: `str | None`, `int | str`のようにパイプ演算子を使用（Python 3.10+）
-- **Pydantic優先**: データモデルは`pydantic.BaseModel`を使用し、`Field`で詳細定義
-- **標準ライブラリ型**: `collections.abc`モジュールから`Generator`, `Iterator`, `Callable`などをインポート
-  ```python
-  from collections.abc import Generator, Iterator
-
-  def example() -> Generator[str, None, None]:
-      yield "example"
-  ```
-- **Optional不使用**: `Optional[str]`ではなく`str | None`を使用
-- **typing後方互換**: `from __future__ import annotations`を各ファイル先頭に記載
-
-### Docstring規約
-- **docstringは必須**: すべての関数、クラス、メソッドにdocstringを記載します
-- **NumPy Styleを使用**: 以下の形式に従ってください
-  ```python
-  def function_name(param1: str, param2: int | None = None) -> bool:
-      """Brief description of the function.
-
-      Detailed description if needed. Can span multiple lines.
-
-      Parameters
-      ----------
-      param1 : str
-          Description of param1
-      param2 : int | None, optional
-          Description of param2 (default: None)
-
-      Returns
-      -------
-      bool
-          Description of return value
-
-      Raises
-      ------
-      ValueError
-          When param1 is empty
-      RuntimeError
-          When operation fails
-
-      Examples
-      --------
-      >>> function_name("test", 42)
-      True
-      """
-  ```
-- **型表記の統一**: docstring内の型は最新のPython型アノテーション形式を使用してください
-  - ✅ `str | None`
-  - ❌ `str, optional` (古い表記)
-  - ✅ `list[str]`
-  - ❌ `List[str]` (typing.List)
-- **セクション順序**: Parameters → Returns → Yields → Raises → Examples を守ってください
-- **Generator型の記載**は以下のようにしてください。
-  ```python
-  def generator_func() -> Generator[int, None, None]:
-      """Generator function.
-
-      Yields
-      ------
-      int
-          Description of yielded values
-      """
-  ```
-
-### コード品質
-
-#### 関数の長さ制限
-
-関数は50行以内を目安に分割する。短い関数は理解しやすく、テストが書きやすく、保守が容易になる。
-
-参考: `src/scryfall_mcp/tools/search.py` の `CardSearchTool.execute` メソッドは90行→26行にリファクタリング済み。
-
-#### ハンガリアン記法の禁止
-
-変数名に型情報を含めない（Hungarian notation禁止）。型ヒントで型を明示する。
-
-- 禁止例: `str_name`, `int_count`, `list_items`
-- 推奨例: `name: str`, `count: int`, `items: list[str]`
-- 例外: ビジネスロジック上で型が意味を持つ場合（`json_data`, `html_content`）は許容されるが、型ヒントは必須。
-
-#### 単一責任の原則
-
-1つの関数は1つの責任のみを持つこと。複数の責任を持つ長大な関数は、各責任ごとにヘルパーメソッドに分割し、メイン関数はオーケストレーション（調整）のみを行う。
-
-#### 可読性原則
-
-- 1関数1責任: 各関数は単一の明確な責任を持つ
-- 早期リターン推奨: ネストを減らし可読性を向上させる
-- ネストの深さ制限: ネストは最大3レベル（`for`/`if`/`with`/`match`を合算）まで
-- 明確な変数名: 省略形は一般的な慣習（`db`, `id`, `url`, `api`, `http`など）を除き避ける
-  - 単一文字の変数名はループカウンタ `i`, `j` のみ許容
-  - ブール値は `is_`, `has_`, `can_` などの接頭辞を使用
-- 定数は大文字: モジュールレベル定数は`UPPER_SNAKE_CASE`を使用
-- 言語依存ファイル命名規則: 言語コードを拡張子として使用
-  - 形式: `{base_name}.{language_code}`（例: `setup_guide.ja`, `setup_guide.en`）
-  - フォールバック: デフォルト言語ファイル（拡張子なし）または`.ja`
-
-### 非同期処理
-- **I/O処理はasync/await**: すべてのネットワーク、ファイルI/Oは非同期化してください
-- **CPU boundは別プロセス**: 重い計算処理は`ProcessPoolExecutor`を使用してください
-- **タイムアウト必須**: すべての外部API呼び出しにタイムアウトを設定してください
-
-### 命名規則
-- **クラス**: `PascalCase` (例: `ScryfallAPIClient`)
-- **関数/変数**: `snake_case` (例: `search_cards`, `max_results`)
-- **定数**: `UPPER_SNAKE_CASE` (例: `CACHE_TTL_SEARCH`)
-- **プライベート**: `_prefix` (例: `_make_request`, `_session`)
-- **プロテクテッド**: 単一アンダースコア`_` (例: `_internal_method`)
-- **プライベート強制**: 二重アンダースコア`__`は名前マングリングが必要な場合のみ
-
-## テスト
+# CLAUDE.md（Scryfall MCP Server 開発ガイド）
+
+作業前に必読。本書は**要約とポインタ**に徹し、詳細ルールは `.claude/rules/` に集約する。
+Magic: The Gathering のカードデータを MCP 経由で AI アシスタントに提供するサーバー。Scryfall API との統合により、日本語を含む自然言語でのカード検索を提供する。
+
+## 禁止事項（必須・詳細は .claude/rules/）
+
+- ❌ Scryfall への**レート制限を無視しない**（最大 10 req/s、リクエスト間隔 75–100ms 以上、`User-Agent`＋`Accept` ヘッダー必須）→ [.claude/rules/coding.md](.claude/rules/coding.md)
+- ❌ **テストで実 API を叩かない**（Scryfall はモック化必須）。
+- ❌ **stdout に print しない**（stdio transport が壊れる）。ログは標準 `logging` で stderr へ。
+- ❌ `ImageContent` を使わない（MCP 仕様に存在しない）。MCP 出力は `TextContent` と `EmbeddedResource` のみ。
+- ❌ ユーザー向けコンテンツに `audience=["user"]` 単独を使わない（UI 表示が保証されない）。**必ず `["user", "assistant"]`**。
+- ❌ ドキュメントに**動的情報（テスト数・カバレッジ%・日付・コミットハッシュ）を書かない** → [.claude/rules/documentation.md](.claude/rules/documentation.md)
+- ❌ ログに個人情報・API キー・Redis 認証情報・User-Agent の連絡先を出さない。
+
+## 開発ルール（詳細＝[.claude/rules/python.md](.claude/rules/python.md)）
+
+- Python 3.12 / 依存管理は uv / lint＋整形＝Ruff・型＝mypy --strict / pytest（カバレッジ95%目標）。
+- 型ヒント必須（PEP 585、`X | None`、`Optional` 不可）。docstring は **NumPy style** 必須。
+- I/O はすべて `async`/`await`（httpx async）。ただし惰性で全付与しない。
+- 関数は50行以内・ネスト最大3レベル・早期リターン・単一責任。ハンガリアン記法禁止。
+- プロジェクト固有の制約（Scryfall API・MCP 出力・i18n・セキュリティ）＝[.claude/rules/coding.md](.claude/rules/coding.md)。
+- ドキュメント作成＝[.claude/rules/documentation.md](.claude/rules/documentation.md)。
+
+## アーキテクチャ要点
+
+- **検索パイプライン**：自然言語クエリ → Parser → QueryBuilder → Presenter → MCP レスポンス（`src/scryfall_mcp/search/`）。コアは純粋に保ち、I/O（`api/` `cache/`）と分離。
+- **MCP ツールは3つ**：`search_cards` / `autocomplete_card_names` / `get_latest_expansion_set`。ツール関数は薄く、ロジックはサービス層へ。
+- **多言語**：ロケールは `contextvars`（並行性セーフ）。日本語カード名は事前翻訳せず Scryfall のネイティブ多言語対応（`lang:` フィルタ＋ `include_multilingual`）を使う。
+- **2層キャッシュ**：メモリ（L1・LRU）＋ Redis（L2・任意）。Redis 障害時はメモリで継続。TTL は Scryfall 推奨の最低24時間。
+- **エラーハンドリング**：ステータス別（400/403/429/500+）・日英の実行可能なガイダンス。該当なしはエラーでなくメッセージ。設定不備はエラー＋MCP Resource（`scryfall://setup-guide`）で案内。
+- カード表示仕様の正本：[docs/CARD-DISPLAY-SPEC.md](docs/CARD-DISPLAY-SPEC.md)。
+
+## docs 索引（正本の対応）
+
+- 開発環境・ワークフロー：[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)／テスト：[docs/TESTING-GUIDE.md](docs/TESTING-GUIDE.md)
+- 設定・環境変数：[docs/CONFIGURATION.md](docs/CONFIGURATION.md)／API：[docs/API-REFERENCE.md](docs/API-REFERENCE.md)
+- カード表示仕様：[docs/CARD-DISPLAY-SPEC.md](docs/CARD-DISPLAY-SPEC.md)／i18n：[docs/INTERNATIONALIZATION.md](docs/INTERNATIONALIZATION.md)
+- Remote MCP デプロイ（AWS Lambda）：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)（設計：[docs/REMOTE-MCP-IMPLEMENTATION-PLAN.md](docs/REMOTE-MCP-IMPLEMENTATION-PLAN.md)）
+
+## 品質ゲート（コミット前に必ず通す）
 
 ```bash
-# 全テスト実行
-uv run pytest
-
-# カバレッジ付き
-uv run pytest --cov=scryfall_mcp
-
-# 特定テスト
-uv run pytest tests/test_search.py -v
-
-# 監視モード
-uv run pytest-watch
+uv run ruff check src/ tests/ --fix
+uv run ruff format src/ tests/
+uv run mypy src/
+uv run pytest --cov=scryfall_mcp --cov-report=term-missing
 ```
 
-### テスト方針
-- Scryfall APIはモック化
-- 非同期処理はpytest-asyncio使用
-- カバレッジ目標: 95%以上
+## skill / サブエージェント（作業の重さで使い分ける）
 
-## デバッグ
+- skill：`/test`（**haiku**・テスト実行と報告のみ）、`/qa`（**sonnet**・失敗を修正して通るまで）、`/commit`（**sonnet**・混入チェック込みの日本語コミット）、`/mcp-smoke`（**sonnet**・3ツールの実挙動を PASS/FAIL）。
+- サブエージェント：`python-code-reviewer`（sonnet）＝コード差分の規約準拠レビュー（正本＝`.claude/rules/`）。`python-test-debugger`（sonnet）＝テスト失敗の分析・カバレッジ調査。`markdown-proofreader`（haiku）＝ドキュメントの文章品質・AI っぽさチェック。
+- 実装の区切りでは `/qa` →（server.py / tools/ に触れたら）`/mcp-smoke` →（コード差分があれば）`python-code-reviewer` の順で自己検証してから完了報告する。
 
-```bash
-# 詳細ログ
-LOG_LEVEL=DEBUG uv run python -m scryfall_mcp
+## 進め方（対話ルール）
 
-# プロファイリング
-uv run python -m cProfile -o profile.stats main.py
-```
+- 設計・計画・ドキュメントだけを頼まれたら、承認前に実装コードを書かない（スコープ確認が先）。
+- 成果物は**検証してから完了報告**（テストが通る・仕様に合うことを確認。「たぶん動く」で渡さない）。
+- User-Agent 等の機密設定値をコード・ログ・ドキュメントにハードコードしない。
 
-## MCP実装の注意点
-
-### stdioモード
-- 標準出力には何も出力しない
-- ログはstderrまたはファイルへ
-- JSON通信を妨げない
-
-### ツール定義
-- 引数と戻り値の型を明確に
-- エラーはMCPエラー形式で返す
-- 長時間処理は進捗通知
-
-## 多言語対応
-
-### 設計方針
-- 地域設定（ロケール）による自動切り替え
-- フォールバック機能（未対応言語は英語表示）
-- 動的ロード（必要な言語のみメモリ使用）
-
-### サポート言語
-- 日本語 (ja): 完全対応
-- 英語 (en): ベース言語
-- その他: 将来対応予定（独語、仏語、中国語等）
-
-### カード名マッピング
-- 各言語のマッピングファイルを分離
-- 頻出カード優先の段階的実装
-
-### 検索構文変換（多言語）
-```python
-# 日本語
-colors = {"白": "w", "青": "u", "黒": "b", "赤": "r", "緑": "g"}
-types = {"クリーチャー": "creature", "インスタント": "instant"}
-operators = {"以下": "<=", "以上": ">=", "より大きい": ">"}
-
-# 英語（ベース）
-colors = {"white": "w", "blue": "u", "black": "b", "red": "r", "green": "g"}
-```
-
-### 地域別の価格対応
-- 通貨自動変換（USD → JPY, EUR等）
-- 地域別の価格表示設定
-- タイムゾーン考慮した価格更新
-
-## セキュリティ
-
-- 環境変数で機密情報管理
-- 入力値のサニタイズ必須
-- ログに個人情報・APIキー出力禁止
-
-## ライセンス
-
-- Wizards of the Coastのファンコンテンツポリシー遵守
-- 価格情報は推定値である旨明記
-- 商用利用時は出典表示必須
-
-## トラブルシューティング
-
-### よくあるエラー
-
-| エラー | 原因 | 対処 |
-|--------|------|------|
-| 429 | レート制限 | SCRYFALL_RATE_LIMIT_MSを増加 |
-| 403 | ヘッダー不足 | User-Agent/Acceptヘッダー確認 |
-| Redis接続失敗 | サーバー未起動 | redis-server起動 |
-
-## CI/CD
-
-GitHub Actionsで以下を実行します。
-1. リント・フォーマットチェック
-2. 型チェック
-3. テスト実行
-4. カバレッジ測定
-
-## ドキュメント規約
-
-### ファイル命名規則
-- docs/直下のファイル名は**すべて大文字**で統一すること
-- 拡張子は.mdを使用
-- 例: API-REFERENCE.md, CONFIGURATION.md, DEVELOPMENT.md
-
-### ドキュメント構成
-- API-REFERENCE.md: MCPツール仕様とScryfall検索構文
-- CONFIGURATION.md: 環境変数設定ガイド
-- DEVELOPMENT.md: 開発環境セットアップと規約
-- INTERNATIONALIZATION.md: 多言語対応の実装ガイド
+このドキュメントは設計決定の現状を反映するよう更新すること（作業履歴・タスクバックログは書かず、git / PR 履歴と GitHub Issues に残す）。

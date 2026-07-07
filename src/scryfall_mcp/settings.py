@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Rate limiting constants
@@ -74,12 +74,6 @@ class Settings(BaseSettings):
         default=None,
         description="Redis connection URL",
     )
-    redis_db: int = Field(
-        default=0,
-        ge=0,
-        le=15,
-        description="Redis database number",
-    )
 
     # Cache TTL Settings (in seconds)
     # Scryfall recommends caching data for at least 24 hours
@@ -92,11 +86,6 @@ class Settings(BaseSettings):
         default=86400,  # 24 hours
         ge=3600,
         description="TTL for card details",
-    )
-    cache_ttl_price: int = Field(
-        default=21600,  # 6 hours
-        ge=300,
-        description="TTL for price information",
     )
     cache_ttl_set: int = Field(
         default=604800,  # 1 week
@@ -125,17 +114,6 @@ class Settings(BaseSettings):
         description="Fallback locale when translation is not available",
     )
 
-    # Currency and Pricing
-    default_currency: str = Field(
-        default="USD",
-        pattern="^[A-Z]{3}$",
-        description="Default currency code (ISO 4217)",
-    )
-    supported_currencies: list[str] = Field(
-        default=["USD", "JPY", "EUR", "GBP"],
-        description="List of supported currencies",
-    )
-
     # Circuit Breaker Configuration
     circuit_breaker_failure_threshold: int = Field(
         default=5,
@@ -156,69 +134,101 @@ class Settings(BaseSettings):
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Logging level",
     )
-    log_format: str = Field(
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        description="Log message format",
-    )
-
     # Development Settings
     debug: bool = Field(
         default=False,
         description="Enable debug mode",
     )
-    mock_api: bool = Field(
-        default=False,
-        description="Use mock API responses for testing",
+
+    # Remote MCP Configuration
+    transport_mode: str = Field(
+        default="stdio",
+        pattern="^(stdio|http|streamable_http)$",
+        description="Transport mode for MCP server",
+    )
+    http_host: str = Field(
+        default="127.0.0.1",
+        description="HTTP server host for remote transport",
+    )
+    http_port: int = Field(
+        default=8000,
+        ge=1024,
+        le=65535,
+        description="HTTP server port for remote transport",
+    )
+    http_path: str = Field(
+        default="/mcp",
+        description="HTTP endpoint path for MCP protocol",
     )
 
-    # Query Processing Settings
-    query_complexity_operator_high: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Operator count threshold for high complexity queries",
+    # Authentication Configuration
+    oauth_enabled: bool = Field(
+        default=False,
+        description="Enable OAuth 2.1 authentication for remote MCP",
     )
-    query_complexity_field_high: int = Field(
-        default=5,
-        ge=1,
-        le=15,
-        description="Field count threshold for high complexity queries",
+    jwt_secret_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="JWT signing secret (REQUIRED in production)",
     )
-    query_complexity_operator_moderate: int = Field(
-        default=1,
-        ge=1,
-        le=5,
-        description="Operator count threshold for moderate complexity queries",
+    jwt_algorithm: str = Field(
+        default="HS256",
+        pattern="^(HS256|HS384|HS512|RS256|RS384|RS512)$",
+        description="JWT algorithm for token verification",
     )
-    query_complexity_field_moderate: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        description="Field count threshold for moderate complexity queries",
+    jwt_audience: str = Field(
+        default="scryfall-mcp-api",
+        description=(
+            "Expected JWT audience claim. Must match the API Gateway "
+            "authorizer configuration. Empty string disables the check."
+        ),
     )
-    query_specificity_high: int = Field(
-        default=4,
-        ge=1,
-        le=10,
-        description="Specificity threshold for high specificity queries",
+    jwt_issuer: str = Field(
+        default="",
+        description=(
+            "Expected JWT issuer claim (OAuth issuer URL). "
+            "Empty string disables the check."
+        ),
     )
-    query_specificity_moderate: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        description="Specificity threshold for moderate specificity queries",
+
+    # Email-based Authentication (Alternative to OAuth/JWT)
+    email_auth_enabled: bool = Field(
+        default=False,
+        description="Enable email-based authentication (simpler alternative to OAuth)",
     )
-    cache_key_hash_threshold: int = Field(
-        default=100,
-        ge=50,
-        le=500,
-        description="Max parameter string length before hashing cache keys",
+    email_auth_credentials: dict[str, str] = Field(
+        default_factory=dict,
+        repr=False,  # bcrypt hashes must not leak via repr/str of Settings
+        description="Email to hashed secret mapping (email: bcrypt_hash)",
     )
-    autocomplete_max_suggestions: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Maximum number of autocomplete suggestions to return",
+    email_blocklist_patterns: list[str] = Field(
+        default=[
+            "*@example.com",
+            "*@example.org",
+            "test@*",
+            "admin@*",
+            "user@*",
+            "noreply@*",
+            "no-reply@*",
+        ],
+        description="Email patterns to block (supports wildcards)",
+    )
+
+    # OAuth Provider Endpoints
+    oauth_client_id: str = Field(
+        default="",
+        description="OAuth 2.1 client ID from authorization server",
+    )
+    oauth_authorization_url: str = Field(
+        default="",
+        description="OAuth authorization endpoint URL (e.g., https://auth.provider.com/oauth/authorize)",
+    )
+    oauth_token_url: str = Field(
+        default="",
+        description="OAuth token endpoint URL (e.g., https://auth.provider.com/oauth/token)",
+    )
+    allowed_origins: list[str] = Field(
+        default=[],
+        description="CORS allowed origins (required for HTTP transport)",
     )
 
     @field_validator("supported_locales")
@@ -233,21 +243,9 @@ class Settings(BaseSettings):
                 raise ValueError(f"Invalid locale code: {locale}")
         return v
 
-    @field_validator("supported_currencies")
-    @classmethod
-    def validate_supported_currencies(cls, v: list[str]) -> list[str]:
-        """Validate that all supported currencies are valid ISO 4217 codes."""
-        import re
-
-        pattern = re.compile(r"^[A-Z]{3}$")
-        for currency in v:
-            if not pattern.match(currency):
-                raise ValueError(f"Invalid currency code: {currency}")
-        return v
-
     @model_validator(mode="after")
-    def validate_locale_currency_consistency(self) -> Settings:
-        """Ensure default locales and currencies are in their supported lists."""
+    def validate_locale_consistency(self) -> Settings:
+        """Ensure default and fallback locales are in the supported list."""
         # Validate default locale
         if self.supported_locales and self.default_locale not in self.supported_locales:
             raise ValueError(
@@ -263,15 +261,183 @@ class Settings(BaseSettings):
                 f"Fallback locale {self.fallback_locale} not in supported locales {self.supported_locales}"
             )
 
-        # Validate default currency
-        if (
-            self.supported_currencies
-            and self.default_currency not in self.supported_currencies
-        ):
+        return self
+
+    @model_validator(mode="after")
+    def validate_jwt_production_requirements(self) -> Settings:
+        """Ensure JWT secret is configured when OAuth is enabled.
+
+        This validator enforces security requirements for JWT configuration
+        in production environments to prevent deployment without proper secrets.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If oauth_enabled is True but jwt_secret_key is empty
+        ValueError
+            If jwt_secret_key is shorter than 32 characters
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     oauth_enabled=True,
+        ...     jwt_secret_key="x" * 32
+        ... )
+        >>> settings.oauth_enabled
+        True
+        """
+        if self.oauth_enabled:
+            secret = self.jwt_secret_key.get_secret_value()
+            if not secret:
+                raise ValueError(
+                    "jwt_secret_key is required when oauth_enabled=True. "
+                    "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+            if len(secret) < 32:
+                raise ValueError(
+                    "jwt_secret_key must be at least 32 characters for security"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_email_auth_requirements(self) -> Settings:
+        """Validate email authentication configuration.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If email_auth_enabled but no credentials provided
+        ValueError
+            If email matches blocklist patterns
+        ValueError
+            If both oauth and email auth are enabled
+        """
+        import fnmatch
+
+        # Mutual exclusivity check
+        if self.email_auth_enabled and self.oauth_enabled:
             raise ValueError(
-                f"Default currency {self.default_currency} not in supported currencies {self.supported_currencies}"
+                "Cannot enable both email_auth and oauth authentication. "
+                "Choose one authentication method."
             )
 
+        # Require credentials when enabled
+        if self.email_auth_enabled and not self.email_auth_credentials:
+            raise ValueError(
+                "email_auth_enabled is True but email_auth_credentials is empty. "
+                "Provide at least one email:hashed_secret pair."
+            )
+
+        # Validate email addresses against blocklist
+        if self.email_auth_enabled:
+            for email in self.email_auth_credentials:
+                for pattern in self.email_blocklist_patterns:
+                    if fnmatch.fnmatch(email, pattern):
+                        raise ValueError(
+                            f"Email '{email}' matches blocklist pattern '{pattern}'. "
+                            f"Template/test emails are not allowed."
+                        )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_oauth_configuration(self) -> Settings:
+        """Ensure OAuth endpoints are configured when OAuth is enabled.
+
+        This validator enforces that all required OAuth 2.1 configuration
+        parameters are properly set when OAuth authentication is enabled.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If OAuth is enabled but required endpoints are not configured
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     oauth_enabled=True,
+        ...     oauth_client_id="client_123",
+        ...     oauth_authorization_url="https://auth.example.com/authorize",
+        ...     oauth_token_url="https://auth.example.com/token"
+        ... )
+        >>> settings.oauth_enabled
+        True
+        """
+        if self.oauth_enabled:
+            if not self.oauth_client_id:
+                raise ValueError("oauth_client_id is required when oauth_enabled=True")
+            if not self.oauth_authorization_url:
+                raise ValueError(
+                    "oauth_authorization_url is required when oauth_enabled=True. "
+                    "Example: https://auth.provider.com/oauth/authorize"
+                )
+            if not self.oauth_token_url:
+                raise ValueError(
+                    "oauth_token_url is required when oauth_enabled=True. "
+                    "Example: https://auth.provider.com/oauth/token"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_cors_production_requirements(self) -> Settings:
+        """Ensure CORS is properly configured for HTTP transport.
+
+        This validator enforces CORS configuration requirements for HTTP-based
+        transports and warns about insecure wildcard usage in production.
+
+        Returns
+        -------
+        Settings
+            The validated settings instance
+
+        Raises
+        ------
+        ValueError
+            If HTTP transport is enabled but allowed_origins is empty
+
+        Warnings
+        --------
+        Issues a security warning if wildcard '*' is used in production mode
+
+        Examples
+        --------
+        >>> settings = Settings(
+        ...     transport_mode="http",
+        ...     allowed_origins=["https://app.example.com"]
+        ... )
+        >>> settings.transport_mode
+        'http'
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        if self.transport_mode in ("http", "streamable_http"):
+            if not self.allowed_origins:
+                raise ValueError(
+                    "allowed_origins is required for HTTP transport. "
+                    "Example: ['https://claude.ai', 'https://app.example.com']"
+                )
+            if "*" in self.allowed_origins and not self.debug:
+                logger.warning(
+                    "SECURITY WARNING: CORS wildcard '*' is insecure in production. "
+                    "Specify exact origins instead."
+                )
         return self
 
     model_config = SettingsConfigDict(

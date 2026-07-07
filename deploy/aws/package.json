@@ -1,0 +1,17 @@
+{
+  "name": "scryfall-mcp-aws-deploy",
+  "version": "0.1.0",
+  "description": "AWS Lambda deployment configuration for Scryfall MCP Server",
+  "private": true,
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.1.0"
+  },
+  "scripts": {
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:staging": "serverless deploy --stage staging",
+    "deploy:production": "serverless deploy --stage production",
+    "info": "serverless info",
+    "remove": "serverless remove"
+  }
+}

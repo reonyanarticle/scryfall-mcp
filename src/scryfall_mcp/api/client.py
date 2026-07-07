@@ -14,9 +14,11 @@ from typing import Any, cast
 from urllib.parse import urljoin
 
 import httpx
+from pydantic import ValidationError
 
-from ..cache import CACHE_TTL_AUTOCOMPLETE, CACHE_TTL_CARD, CACHE_TTL_SEARCH, get_cache
-from ..models import (
+from ..cache import get_cache, get_cache_ttl_card, get_cache_ttl_search
+from ..settings import get_settings
+from .models import (
     BulkData,
     Card,
     Catalog,
@@ -24,7 +26,6 @@ from ..models import (
     SearchResult,
     Set,
 )
-from ..settings import get_settings
 from .rate_limiter import (
     CircuitBreakerOpenError,
     get_circuit_breaker,
@@ -494,14 +495,14 @@ class ScryfallAPIClient:
         }
 
         data = await self._make_request("GET", "/cards/search", params)
-        result = SearchResult(**data)
+        result = self._parse_search_result(data)
 
         # Cache the result
         if cache:
             await cache.set(
                 "search_cards",
                 result.model_dump(),
-                ttl=CACHE_TTL_SEARCH,
+                ttl=get_cache_ttl_search(),
                 query=query,
                 unique=unique,
                 order=order,
@@ -513,6 +514,47 @@ class ScryfallAPIClient:
             )
 
         return result
+
+    @staticmethod
+    def _parse_search_result(data: dict[str, Any]) -> SearchResult:
+        """Parse a search response, validating cards individually.
+
+        One malformed card (a Scryfall schema variant we don't model yet)
+        must not fail the entire page: invalid cards are logged and
+        skipped instead.
+
+        Parameters
+        ----------
+        data : dict[str, Any]
+            Raw /cards/search response body
+
+        Returns
+        -------
+        SearchResult
+            Validated search result containing only the parseable cards
+        """
+        raw_cards = data.get("data")
+        if not isinstance(raw_cards, list):
+            return SearchResult(**data)
+
+        cards: list[Card] = []
+        for index, raw_card in enumerate(raw_cards):
+            try:
+                cards.append(Card(**raw_card))
+            except ValidationError as e:
+                name = (
+                    raw_card.get("name", "<unknown>")
+                    if isinstance(raw_card, dict)
+                    else "<unknown>"
+                )
+                logger.warning(
+                    "Skipping card %d (%s) that failed validation: %s",
+                    index,
+                    name,
+                    e,
+                )
+
+        return SearchResult(**{**data, "data": cards})
 
     async def get_card_by_id(self, card_id: str) -> Card:
         """Get a card by its Scryfall ID.
@@ -540,7 +582,10 @@ class ScryfallAPIClient:
         # Cache the result
         if cache:
             await cache.set(
-                "card_by_id", result.model_dump(), ttl=CACHE_TTL_CARD, card_id=card_id
+                "card_by_id",
+                result.model_dump(),
+                ttl=get_cache_ttl_card(),
+                card_id=card_id,
             )
 
         return result
@@ -671,8 +716,7 @@ class ScryfallAPIClient:
 
         # Sort by release date descending and return the latest
         expansion_sets.sort(
-            key=lambda s: date.fromisoformat(str(s.released_at)),
-            reverse=True
+            key=lambda s: date.fromisoformat(str(s.released_at)), reverse=True
         )
 
         return expansion_sets[0]
@@ -750,7 +794,10 @@ class ScryfallAPIClient:
         # Cache the result
         if cache:
             await cache.set(
-                "autocomplete", result, ttl=CACHE_TTL_AUTOCOMPLETE, query=query
+                "autocomplete",
+                result,
+                ttl=get_settings().cache_ttl_default,
+                query=query,
             )
 
         return result

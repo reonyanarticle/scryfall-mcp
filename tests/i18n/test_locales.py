@@ -67,7 +67,9 @@ class TestLocaleManager:
         return LocaleManager()
 
     @staticmethod
-    def _create_test_mapping(language_code: str, language_name: str, locale_code: str) -> LanguageMapping:
+    def _create_test_mapping(
+        language_code: str, language_name: str, locale_code: str
+    ) -> LanguageMapping:
         """Create a test LanguageMapping with standard test data.
 
         This helper reduces duplication in tests that need to create mappings.
@@ -434,10 +436,12 @@ class TestGlobalFunctions:
         manager = LocaleManager()
 
         # Test with locale that raises exception
+        # Mock environment variables to ensure we reach the getdefaultlocale() code path
         with patch("locale.getdefaultlocale", side_effect=Exception("Test error")):
-            detected = manager.detect_locale()
-            # Should fallback to default
-            assert detected == manager._default_locale
+            with patch.dict(os.environ, {}, clear=True):
+                detected = manager.detect_locale()
+                # Should fallback to default
+                assert detected == manager._default_locale
 
 
 class TestContextvarLocale:

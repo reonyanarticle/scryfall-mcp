@@ -8,13 +8,11 @@ from __future__ import annotations
 
 from .backends import CompositeCache, MemoryCache, RedisCache
 from .manager import (
-    CACHE_TTL_AUTOCOMPLETE,
-    CACHE_TTL_CARD,
-    CACHE_TTL_PRICE,
-    CACHE_TTL_SEARCH,
-    CACHE_TTL_SET,
     CacheManager,
     get_cache,
+    get_cache_ttl_card,
+    get_cache_ttl_search,
+    get_cache_ttl_set,
 )
 
 __all__ = [
@@ -23,9 +21,7 @@ __all__ = [
     "RedisCache",
     "CompositeCache",
     "get_cache",
-    "CACHE_TTL_SEARCH",
-    "CACHE_TTL_CARD",
-    "CACHE_TTL_AUTOCOMPLETE",
-    "CACHE_TTL_PRICE",
-    "CACHE_TTL_SET",
+    "get_cache_ttl_search",
+    "get_cache_ttl_card",
+    "get_cache_ttl_set",
 ]

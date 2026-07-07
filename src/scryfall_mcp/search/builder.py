@@ -10,7 +10,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
-from ..models import BuiltQuery, ParsedQuery
+from .models import BuiltQuery, ParsedQuery
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +62,13 @@ class QueryBuilder:
             patterns = create_japanese_patterns(locale_mapping.search_keywords)
             self._pattern_matcher = AbilityPatternMatcher(patterns)
 
-    async def build(self, parsed: ParsedQuery) -> BuiltQuery:
+    def build(self, parsed: ParsedQuery) -> BuiltQuery:
         """Build Scryfall query from parsed data.
+
+        This method is a pure transformation: it performs no I/O. The
+        ``__LATEST_SET__`` placeholder is left in the query and must be
+        resolved by the caller (I/O layer) via
+        `scryfall_mcp.api.sets.resolve_latest_set_placeholder`.
 
         Parameters
         ----------
@@ -85,11 +90,12 @@ class QueryBuilder:
         # Start with normalized text and apply transformations
         # IMPORTANT: _convert_operators must run before _convert_basic_terms
         # to handle patterns like "パワー3以上" before "パワー" gets converted to "p"
+        # Card names and card types are intentionally passed through unchanged:
+        # Scryfall natively matches multilingual names (printed_name + lang:),
+        # and type words are converted as part of _convert_colors.
         query = self._convert_operators(working_text)
         query = self._convert_colors(query)
-        query = self._convert_types(query)
         query = self._convert_basic_terms(query)
-        query = self._convert_card_names(query)
         query = self._convert_phrases(query)
 
         # Add ability tokens from Phase 2 pattern matching
@@ -97,9 +103,6 @@ class QueryBuilder:
             query = f"{query} {' '.join(ability_tokens)}"
 
         query = self._clean_query(query)
-
-        # Issue #3: Replace __LATEST_SET__ placeholder with actual latest set
-        query = await self._replace_latest_set_placeholder(query)
 
         # Generate suggestions based on parsed data
         suggestions = self._generate_suggestions(parsed)
@@ -113,134 +116,6 @@ class QueryBuilder:
             suggestions=suggestions,
             query_metadata=metadata,
         )
-
-    def build_query(self, text: str, locale: str | None = None) -> str:
-        """Legacy method for backward compatibility.
-
-        Parameters
-        ----------
-        text : str
-            Natural language search text
-        locale : str | None, optional (default: None)
-            Locale code for language-specific processing
-
-        Returns
-        -------
-        str
-            Scryfall search query
-        """
-        # This method is kept for backward compatibility
-        # In the refactored version, use Parser -> QueryBuilder -> Presenter flow
-
-        # Update mapping if locale changed
-        if locale and locale != self._mapping.language_code:
-            from ..i18n import get_locale_manager
-
-            manager = get_locale_manager()
-            self._mapping = manager.get_mapping(locale)
-
-            # Re-initialize pattern matcher if locale changed to Japanese
-            if self._mapping.language_code == "ja":
-                from .ability_patterns import (
-                    AbilityPatternMatcher,
-                    create_japanese_patterns,
-                )
-
-                patterns = create_japanese_patterns(self._mapping.search_keywords)
-                self._pattern_matcher = AbilityPatternMatcher(patterns)
-            else:
-                self._pattern_matcher = None
-
-        # Clean and normalize the input
-        normalized_text = self._normalize_text(text)
-
-        # Phase 2: Apply pattern matching FIRST (before other conversions)
-        # This prevents other conversions from interfering with pattern matching
-        ability_tokens: list[str] = []
-        if self._pattern_matcher is not None:
-            normalized_text, ability_tokens = self._pattern_matcher.apply(
-                normalized_text
-            )
-
-        # Process the text through various conversion steps
-        # IMPORTANT: _convert_operators must run before _convert_basic_terms
-        # to handle patterns like "パワー3以上" before "パワー" gets converted to "p"
-        query = self._convert_operators(normalized_text)
-        query = self._convert_colors(query)
-        query = self._convert_types(query)
-        query = self._convert_basic_terms(query)
-        query = self._convert_card_names(query)
-        query = self._convert_phrases(query)
-
-        # Add ability tokens from pattern matching
-        if ability_tokens:
-            query = f"{query} {' '.join(ability_tokens)}"
-
-        query = self._clean_query(query)
-
-        # Issue #3: Replace __LATEST_SET__ placeholder with actual latest set (sync)
-        query = self._replace_latest_set_placeholder_sync(query)
-
-        return query
-
-    def _normalize_text(self, text: str) -> str:
-        """Normalize input text.
-
-        Parameters
-        ----------
-        text : str
-            Raw input text
-
-        Returns
-        -------
-        str
-            Normalized text
-        """
-        # Remove extra whitespace
-        text = re.sub(r"\s+", " ", text.strip())
-
-        # Handle Japanese specific normalizations
-        if self._mapping.language_code == "ja":
-            # Convert full-width numbers to half-width
-            text = self._convert_fullwidth_numbers(text)
-
-            # Convert full-width operators to half-width
-            text = text.replace("＝", "=").replace("！", "!")
-            text = text.replace("（", "(").replace("）", ")")
-            text = text.replace("［", "[").replace("］", "]")
-
-        return text
-
-    def _convert_fullwidth_numbers(self, text: str) -> str:
-        """Convert full-width numbers to half-width.
-
-        Parameters
-        ----------
-        text : str
-            Text with potential full-width numbers
-
-        Returns
-        -------
-        str
-            Text with half-width numbers
-        """
-        fullwidth_to_halfwidth = {
-            "０": "0",
-            "１": "1",
-            "２": "2",
-            "３": "3",
-            "４": "4",
-            "５": "5",
-            "６": "6",
-            "７": "7",
-            "８": "8",
-            "９": "9",
-        }
-
-        for fw, hw in fullwidth_to_halfwidth.items():
-            text = text.replace(fw, hw)
-
-        return text
 
     def _convert_basic_terms(self, text: str) -> str:
         """Convert basic search terms.
@@ -317,23 +192,6 @@ class QueryBuilder:
 
         return text
 
-    def _convert_types(self, text: str) -> str:
-        """Convert card type references.
-
-        Parameters
-        ----------
-        text : str
-            Input text
-
-        Returns
-        -------
-        str
-            Text with converted types
-        """
-        # This is handled partially in _convert_colors for Japanese
-        # Additional type-only conversions can be added here
-        return text
-
     def _convert_operators(self, text: str) -> str:
         """Convert comparison operators.
 
@@ -393,31 +251,11 @@ class QueryBuilder:
 
         return text
 
-    def _convert_card_names(self, text: str) -> str:
-        """Pass card names as-is to Scryfall.
-
-        Scryfall natively supports multilingual card names through the printed_name
-        field and lang: parameter. No pre-translation is needed.
-
-        Parameters
-        ----------
-        text : str
-            Input text
-
-        Returns
-        -------
-        str
-            Text unchanged (Scryfall handles multilingual names)
-        """
-        # No conversion needed - Scryfall supports multilingual card names natively
-        # The lang: parameter will be added during query execution
-        return text
-
     def _convert_phrases(self, text: str) -> str:
         """Convert common phrases using dictionary replacements.
 
-        Note: Pattern matching (Phase 2) is now handled in build_query()
-        before this method is called.
+        Note: Pattern matching is applied in build() before this method
+        is called.
 
         Parameters
         ----------
@@ -460,85 +298,6 @@ class QueryBuilder:
         query = re.sub(r"\s*([<>=!]+)\s*", r"\1", query)
 
         return query
-
-    async def _replace_latest_set_placeholder(self, query: str) -> str:
-        """Replace __LATEST_SET__ placeholder with actual latest set code.
-
-        This method fetches the latest expansion set code from Scryfall API
-        (with 24-hour caching) and replaces the __LATEST_SET__ placeholder.
-
-        Parameters
-        ----------
-        query : str
-            Query string potentially containing __LATEST_SET__ placeholder
-
-        Returns
-        -------
-        str
-            Query with placeholder replaced by actual set code
-
-        Notes
-        -----
-        - Uses get_latest_expansion_code() with 24h cache
-        - Fallback to "mkm" if API call fails
-        - Only performs API call if placeholder is present
-        """
-        if "__LATEST_SET__" not in query:
-            return query
-
-        try:
-            from ..api.client import get_client
-            from ..api.sets import get_latest_expansion_code
-
-            client = await get_client()
-            latest_code = await get_latest_expansion_code(client)
-            return query.replace("__LATEST_SET__", latest_code)
-        except Exception as e:
-            logger.warning(
-                f"Failed to fetch latest set, using fallback: {e}",
-                exc_info=True
-            )
-            # Fallback to hardcoded value
-            from ..i18n.constants import LATEST_SET_CODE_FALLBACK
-            return query.replace("__LATEST_SET__", LATEST_SET_CODE_FALLBACK)
-
-    def _replace_latest_set_placeholder_sync(self, query: str) -> str:
-        """Synchronous version of _replace_latest_set_placeholder.
-
-        This method replaces __LATEST_SET__ placeholder using the synchronous
-        cache accessor. It's used by the legacy build_query() method.
-
-        Parameters
-        ----------
-        query : str
-            Query string potentially containing __LATEST_SET__ placeholder
-
-        Returns
-        -------
-        str
-            Query with placeholder replaced by set code (from cache or fallback)
-
-        Notes
-        -----
-        - Uses cached value if available
-        - Falls back to LATEST_SET_CODE_FALLBACK if no cache
-        - Does not perform API calls (sync-safe)
-        """
-        if "__LATEST_SET__" not in query:
-            return query
-
-        try:
-            from ..api.sets import get_latest_expansion_code_sync
-
-            latest_code = get_latest_expansion_code_sync()
-            return query.replace("__LATEST_SET__", latest_code)
-        except Exception as e:
-            logger.warning(
-                f"Failed to get latest set from cache, using fallback: {e}",
-                exc_info=True
-            )
-            from ..i18n.constants import LATEST_SET_CODE_FALLBACK
-            return query.replace("__LATEST_SET__", LATEST_SET_CODE_FALLBACK)
 
     def _generate_suggestions(self, parsed: ParsedQuery) -> list[str]:
         """Generate suggestions based on parsed query data.
@@ -670,84 +429,3 @@ class QueryBuilder:
             return "moderate"
         else:
             return "many"
-
-    def suggest_corrections(self, text: str) -> list[str]:
-        """Legacy method for backward compatibility.
-
-        Parameters
-        ----------
-        text : str
-            Input text
-
-        Returns
-        -------
-        list[str]
-            List of suggested corrections
-        """
-        # This method is kept for backward compatibility
-        # In the refactored version, suggestions are generated in _generate_suggestions
-        suggestions = []
-
-        # Check for common misspellings in Japanese
-        if self._mapping.language_code == "ja":
-            for mistake, correction in self._JA_COMMON_MISTAKES.items():
-                if mistake in text.lower():
-                    suggestions.append(
-                        f"'{mistake}' を '{correction}' の間違いですか？"
-                    )
-
-        return suggestions
-
-    def get_search_help(self) -> dict[str, list[str]]:
-        """Get help information for search syntax.
-
-        Returns
-        -------
-        dict
-            Help information organized by category
-        """
-        if self._mapping.language_code == "ja":
-            return {
-                "色の指定": [
-                    "白いクリーチャー → 白色のクリーチャー",
-                    "青のカード → 青色のカード",
-                    "赤または緑 → 赤色または緑色",
-                ],
-                "パワー・タフネス": [
-                    "パワーが3以上 → パワー3以上",
-                    "タフネス2以下 → タフネス2以下",
-                    "パワー5より大きい → パワー6以上",
-                ],
-                "マナコスト": [
-                    "マナ総量3 → マナ総量3",
-                    "マナコスト{1}{W} → マナコスト{1}{W}",
-                    "点数で見たマナコスト4以下 → CMC4以下",
-                ],
-                "カードタイプ": [
-                    "クリーチャー → クリーチャータイプ",
-                    "インスタント → インスタント呪文",
-                    "アーティファクト → アーティファクト",
-                ],
-            }
-        return {
-            "Colors": [
-                "white creatures",
-                "blue spells",
-                "red or green",
-            ],
-            "Power/Toughness": [
-                "power >= 3",
-                "toughness <= 2",
-                "power > 5",
-            ],
-            "Mana Cost": [
-                "mana value 3",
-                "mana cost {1}{W}",
-                "cmc <= 4",
-            ],
-            "Card Types": [
-                "creatures",
-                "instants",
-                "artifacts",
-            ],
-        }
