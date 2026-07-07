@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Any
 
-from ..models import CacheEntry
+from .models import CacheEntry
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +174,9 @@ class RedisCache(CacheProtocol):
             try:
                 import redis.asyncio as redis  # type: ignore[import-not-found]
 
-                self._redis = redis.from_url(self.redis_url, decode_responses=True)
+                self._redis = redis.from_url(  # type: ignore[no-untyped-call]
+                    self.redis_url, decode_responses=True
+                )
                 # Test connection
                 if self._redis is not None:
                     await self._redis.ping()
@@ -204,6 +206,32 @@ class RedisCache(CacheProtocol):
         except Exception as e:
             logger.warning(f"Redis get error: {e}")
             return None
+
+    async def get_with_ttl(self, key: str) -> tuple[Any | None, int | None]:
+        """Get a value and its remaining TTL in seconds from Redis.
+
+        Returns
+        -------
+        tuple[Any | None, int | None]
+            (value, remaining_ttl). remaining_ttl is None when the key has
+            no expiry or the value is missing.
+        """
+        redis = await self._get_redis()
+        if not redis or not self._available:
+            return None, None
+
+        try:
+            prefixed = self._make_key(key)
+            value = await redis.get(prefixed)
+            if value is None:
+                return None, None
+            ttl = await redis.ttl(prefixed)
+            # Redis TTL: -1 = no expiry, -2 = key vanished (race)
+            remaining = ttl if isinstance(ttl, int) and ttl > 0 else None
+            return json.loads(value), remaining
+        except Exception as e:
+            logger.warning(f"Redis get error: {e}")
+            return None, None
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         """Set a value in Redis cache."""
@@ -247,7 +275,7 @@ class RedisCache(CacheProtocol):
     async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
-            await self._redis.close()
+            await self._redis.aclose()
 
     def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
@@ -285,10 +313,12 @@ class CompositeCache(CacheProtocol):
 
         # Try L2 (Redis) if available
         if self.redis_cache:
-            value = await self.redis_cache.get(key)
+            value, remaining_ttl = await self.redis_cache.get_with_ttl(key)
             if value is not None:
-                # Write back to L1
-                await self.memory_cache.set(key, value)
+                # Write back to L1 with the REMAINING L2 TTL so both layers
+                # expire together (a near-expiry entry must not get a fresh
+                # default TTL on promotion)
+                await self.memory_cache.set(key, value, remaining_ttl)
                 return value
 
         return None
