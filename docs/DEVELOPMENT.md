@@ -4,7 +4,7 @@
 
 ### 前提条件
 
-- Python 3.11+
+- Python 3.12+
 - uv (推奨) または pip
 - Git
 
@@ -33,7 +33,8 @@ scryfall-mcp/
 │   ├── __init__.py
 │   ├── server.py               # MCPサーバーエントリポイント
 │   ├── settings.py             # 設定管理・定数定義
-│   ├── models.py               # データモデル・型定義（統合）
+│   ├── models.py               # リクエストモデル＋再エクスポートfaçade
+│   │                               # （実体は api/search/i18n/cache 各層の models.py）
 │   ├── api/                    # Scryfall APIクライアント
 │   │   ├── client.py           # HTTPクライアント
 │   │   └── rate_limiter.py     # レート制限とサーキットブレーカー
@@ -42,8 +43,9 @@ scryfall-mcp/
 │   │   ├── locales.py          # ロケール管理
 │   │   └── mappings/           # 言語マッピング
 │   ├── search/                 # 検索エンジン
+│   │   ├── parser.py           # 自然言語解析
 │   │   ├── builder.py          # クエリビルダー
-│   │   └── processor.py        # 自然言語処理
+│   │   └── presenter.py        # MCP出力フォーマット
 │   └── tools/                  # MCPツール
 │       └── search.py           # 検索ツール実装
 ├── tests/                      # テストスイート

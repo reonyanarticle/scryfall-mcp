@@ -1224,7 +1224,7 @@ export $(cat .env | xargs)
    # .github/workflows/test.yml
    strategy:
      matrix:
-       python-version: ['3.11', '3.12']
+       python-version: ['3.12']
    ```
 
 ---

@@ -11,9 +11,9 @@ Magic: The Gatheringのカードを検索します。
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |------------|----|----|-----------|------|
 | `query` | string | ✓ | - | 検索クエリ（自然言語またはScryfall構文） |
-| `language` | string | - | null | 言語コード（"en", "ja"） |
+| `language` | string | - | null | 言語コード（Scryfall対応コードのみ: en, es, fr, de, it, pt, ja, ko, ru, zhs, zht 等。未知の値はバリデーションエラー） |
 | `max_results` | integer | - | 10 | 最大の検索結果数（1-175） |
-| `format_filter` | string | - | null | フォーマット指定（"standard", "modern"等） |
+| `format_filter` | string | - | null | フォーマット指定（standard, modern, legacy, commander 等の既知フォーマットのみ。未知の値はバリデーションエラー） |
 
 #### レスポンス
 
