@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from ..i18n import LanguageMapping
-from ..models import ParsedQuery
+from .models import ParsedQuery
 
 
 class SearchParser:
@@ -46,6 +46,9 @@ class SearchParser:
             language=self._mapping.language_code,
         )
 
+    # Full-width to half-width digit mapping (Japanese input normalization)
+    _FULLWIDTH_DIGITS = str.maketrans("０１２３４５６７８９", "0123456789")
+
     def _normalize_text(self, text: str) -> str:
         """Normalize text for processing.
 
@@ -65,6 +68,14 @@ class SearchParser:
         # Normalize smart quotes to ASCII quotes
         text = text.replace("“", '"').replace("”", '"')
         text = text.replace("‘", "'").replace("’", "'")
+
+        # Japanese input: convert full-width digits and operators so that
+        # downstream query building emits ASCII Scryfall syntax
+        if self._mapping.language_code == "ja":
+            text = text.translate(self._FULLWIDTH_DIGITS)
+            text = text.replace("＝", "=").replace("！", "!")
+            text = text.replace("（", "(").replace("）", ")")
+            text = text.replace("［", "[").replace("］", "]")
 
         return text
 

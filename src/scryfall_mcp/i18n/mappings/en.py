@@ -6,7 +6,7 @@ terms and search syntax. This serves as the fallback language.
 
 from __future__ import annotations
 
-from ...models import LanguageMapping
+from ..models import LanguageMapping
 
 
 class EnglishMapping(LanguageMapping):

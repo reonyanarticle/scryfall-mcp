@@ -7,12 +7,20 @@ using natural language queries with Japanese support.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from mcp import Tool
-from mcp.types import EmbeddedResource, TextContent
+from mcp.types import (
+    Annotations,
+    EmbeddedResource,
+    Role,
+    TextContent,
+    TextResourceContents,
+)
+from pydantic import AnyUrl, ValidationError
 
 from ..api.client import ScryfallAPIError, get_client
+from ..api.sets import resolve_latest_set_placeholder
 from ..errors import ErrorCategory, ErrorContext, get_error_handler
 from ..i18n import get_current_mapping, use_locale
 from ..models import (
@@ -23,10 +31,54 @@ from ..models import (
     SearchResult,
 )
 from ..search.builder import QueryBuilder
+from ..search.models import PresentedResource, PresentedText
 from ..search.parser import SearchParser
 from ..search.presenter import SearchPresenter
 
 logger = logging.getLogger(__name__)
+
+
+def to_mcp_content(
+    items: list[PresentedText | PresentedResource],
+) -> list[TextContent | EmbeddedResource]:
+    """Convert framework-neutral presenter DTOs into MCP content types.
+
+    This adapter is the single place where the presenter's output meets
+    the MCP SDK — the search core itself never imports ``mcp.types``.
+
+    Parameters
+    ----------
+    items : list[PresentedText | PresentedResource]
+        Presenter output sections
+
+    Returns
+    -------
+    list[TextContent | EmbeddedResource]
+        MCP protocol content items
+    """
+    converted: list[TextContent | EmbeddedResource] = []
+    for item in items:
+        annotations = None
+        if item.audience is not None:
+            audience = cast("list[Role]", list(item.audience))
+            annotations = Annotations(audience=audience, priority=item.priority)
+        if isinstance(item, PresentedText):
+            converted.append(
+                TextContent(type="text", text=item.text, annotations=annotations)
+            )
+        else:
+            converted.append(
+                EmbeddedResource(
+                    type="resource",
+                    resource=TextResourceContents(
+                        uri=AnyUrl(item.uri),
+                        mimeType=item.mime_type,
+                        text=item.text,
+                    ),
+                    annotations=annotations,
+                )
+            )
+    return converted
 
 
 class CardSearchTool:
@@ -69,7 +121,10 @@ class CardSearchTool:
         """
         try:
             request = CardSearchTool._validate_request(arguments)
+        except ValidationError as e:
+            return CardSearchTool._handle_validation_error(e, arguments)
 
+        try:
             with use_locale(request.language or "en"):
                 builder, presenter, built = await CardSearchTool._build_query_pipeline(
                     request
@@ -89,7 +144,9 @@ class CardSearchTool:
                     return result
 
                 search_options = CardSearchTool._create_search_options(request)
-                return presenter.present_results(result, built, search_options)
+                return to_mcp_content(
+                    presenter.present_results(result, built, search_options)
+                )
 
         except Exception as e:
             return CardSearchTool._handle_unexpected_error(e, arguments)
@@ -132,14 +189,18 @@ class CardSearchTool:
         presenter = SearchPresenter(mapping)
 
         parsed = parser.parse(request.query)
-        built = await builder.build(parsed)
+        built = builder.build(parsed)
+
+        # Placeholder resolution needs the Scryfall API, so it happens here
+        # in the I/O layer — the builder itself stays pure.
+        built.scryfall_query = await resolve_latest_set_placeholder(
+            built.scryfall_query
+        )
 
         return builder, presenter, built
 
     @staticmethod
-    def _add_query_filters(
-        scryfall_query: str, request: SearchCardsRequest
-    ) -> str:
+    def _add_query_filters(scryfall_query: str, request: SearchCardsRequest) -> str:
         """Add format and language filters to query.
 
         Parameters
@@ -164,11 +225,7 @@ class CardSearchTool:
             scryfall_query.strip().startswith("s:")
             and " " not in scryfall_query.strip()
         )
-        if (
-            request.language
-            and request.language != "en"
-            and not is_set_only_search
-        ):
+        if request.language and request.language != "en" and not is_set_only_search:
             scryfall_query += f" lang:{request.language}"
 
         return scryfall_query
@@ -253,7 +310,9 @@ class CardSearchTool:
         return [TextContent(type="text", text=formatted_error)]
 
     @staticmethod
-    def _handle_no_results(request: SearchCardsRequest) -> list[TextContent | EmbeddedResource]:
+    def _handle_no_results(
+        request: SearchCardsRequest,
+    ) -> list[TextContent | EmbeddedResource]:
         """Handle no results case.
 
         Parameters
@@ -336,6 +395,49 @@ class CardSearchTool:
         formatted_error = error_handler.format_error_message(error_info)
         return [TextContent(type="text", text=formatted_error)]
 
+    @staticmethod
+    def _handle_validation_error(
+        error: ValidationError, arguments: dict[str, Any]
+    ) -> list[TextContent | EmbeddedResource]:
+        """Handle request validation errors with actionable guidance.
+
+        Invalid user input (unknown format, out-of-range max_results, …)
+        is a usage error, not a server bug: report WHICH field is wrong
+        instead of a generic unknown-error message.
+
+        Parameters
+        ----------
+        error : ValidationError
+            Pydantic validation error from SearchCardsRequest
+        arguments : dict
+            Raw tool arguments
+
+        Returns
+        -------
+        list
+            Error message content
+        """
+        logger.info(f"Invalid search request: {error}")
+
+        issues = "\n".join(
+            f"- {'.'.join(str(loc) for loc in err['loc'])}: {err['msg']}"
+            for err in error.errors()
+        )
+        language = arguments.get("language")
+        if language == "ja":
+            message = (
+                "🔍 **検索リクエストのパラメータが正しくありません**\n\n"
+                f"{issues}\n\n"
+                "パラメータを修正して再度お試しください。"
+            )
+        else:
+            message = (
+                "🔍 **Invalid search request parameters**\n\n"
+                f"{issues}\n\n"
+                "Please fix the parameters and try again."
+            )
+        return [TextContent(type="text", text=message)]
+
 
 class AutocompleteTool:
     """Tool for card name autocompletion."""
@@ -383,9 +485,7 @@ class AutocompleteTool:
                     )
                     return [TextContent(type="text", text=no_results_msg)]
 
-                result_text = AutocompleteTool._format_suggestions(
-                    suggestions, request
-                )
+                result_text = AutocompleteTool._format_suggestions(suggestions, request)
                 return [TextContent(type="text", text=result_text)]
 
         except Exception as e:
