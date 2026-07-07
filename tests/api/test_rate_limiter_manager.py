@@ -85,9 +85,7 @@ class TestRateLimiterManager:
         return MockRateLimitBackend(should_exceed=True)
 
     @pytest.fixture
-    def manager(
-        self, mock_backend_healthy: MockRateLimitBackend
-    ) -> RateLimiterManager:
+    def manager(self, mock_backend_healthy: MockRateLimitBackend) -> RateLimiterManager:
         """Create manager with healthy backend."""
         return RateLimiterManager(backend=mock_backend_healthy)
 
@@ -194,7 +192,7 @@ class TestMemoryRateLimitBackend:
         await backend.increment_and_check("rate_limit:user1", 100, 60)
         await backend.increment_and_check("rate_limit:user2", 50, 60)
 
-        assert len(backend._limiters) == 2
+        assert len(backend._windows) == 2
 
     @pytest.mark.asyncio
     async def test_memory_backend_lru_eviction(self) -> None:
@@ -210,10 +208,10 @@ class TestMemoryRateLimitBackend:
         # This should evict user1 (oldest)
         await backend.increment_and_check("rate_limit:user3", 100, 60)
 
-        assert len(backend._limiters) == 2
-        assert "rate_limit:user1" not in backend._limiters
-        assert "rate_limit:user2" in backend._limiters
-        assert "rate_limit:user3" in backend._limiters
+        assert len(backend._windows) == 2
+        assert "rate_limit:user1" not in backend._windows
+        assert "rate_limit:user2" in backend._windows
+        assert "rate_limit:user3" in backend._windows
 
     @pytest.mark.asyncio
     async def test_memory_backend_lru_move_to_end(self) -> None:
@@ -232,7 +230,7 @@ class TestMemoryRateLimitBackend:
         # This should evict user2 (now oldest)
         await backend.increment_and_check("rate_limit:user3", 100, 60)
 
-        assert len(backend._limiters) == 2
-        assert "rate_limit:user1" in backend._limiters  # Still present (MRU)
-        assert "rate_limit:user2" not in backend._limiters  # Evicted
-        assert "rate_limit:user3" in backend._limiters
+        assert len(backend._windows) == 2
+        assert "rate_limit:user1" in backend._windows  # Still present (MRU)
+        assert "rate_limit:user2" not in backend._windows  # Evicted
+        assert "rate_limit:user3" in backend._windows

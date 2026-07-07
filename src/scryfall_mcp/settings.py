@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Rate limiting constants
@@ -74,12 +74,6 @@ class Settings(BaseSettings):
         default=None,
         description="Redis connection URL",
     )
-    redis_db: int = Field(
-        default=0,
-        ge=0,
-        le=15,
-        description="Redis database number",
-    )
 
     # Cache TTL Settings (in seconds)
     # Scryfall recommends caching data for at least 24 hours
@@ -92,11 +86,6 @@ class Settings(BaseSettings):
         default=86400,  # 24 hours
         ge=3600,
         description="TTL for card details",
-    )
-    cache_ttl_price: int = Field(
-        default=21600,  # 6 hours
-        ge=300,
-        description="TTL for price information",
     )
     cache_ttl_set: int = Field(
         default=604800,  # 1 week
@@ -125,17 +114,6 @@ class Settings(BaseSettings):
         description="Fallback locale when translation is not available",
     )
 
-    # Currency and Pricing
-    default_currency: str = Field(
-        default="USD",
-        pattern="^[A-Z]{3}$",
-        description="Default currency code (ISO 4217)",
-    )
-    supported_currencies: list[str] = Field(
-        default=["USD", "JPY", "EUR", "GBP"],
-        description="List of supported currencies",
-    )
-
     # Circuit Breaker Configuration
     circuit_breaker_failure_threshold: int = Field(
         default=5,
@@ -156,69 +134,10 @@ class Settings(BaseSettings):
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Logging level",
     )
-    log_format: str = Field(
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        description="Log message format",
-    )
-
     # Development Settings
     debug: bool = Field(
         default=False,
         description="Enable debug mode",
-    )
-    mock_api: bool = Field(
-        default=False,
-        description="Use mock API responses for testing",
-    )
-
-    # Query Processing Settings
-    query_complexity_operator_high: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Operator count threshold for high complexity queries",
-    )
-    query_complexity_field_high: int = Field(
-        default=5,
-        ge=1,
-        le=15,
-        description="Field count threshold for high complexity queries",
-    )
-    query_complexity_operator_moderate: int = Field(
-        default=1,
-        ge=1,
-        le=5,
-        description="Operator count threshold for moderate complexity queries",
-    )
-    query_complexity_field_moderate: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        description="Field count threshold for moderate complexity queries",
-    )
-    query_specificity_high: int = Field(
-        default=4,
-        ge=1,
-        le=10,
-        description="Specificity threshold for high specificity queries",
-    )
-    query_specificity_moderate: int = Field(
-        default=2,
-        ge=1,
-        le=10,
-        description="Specificity threshold for moderate specificity queries",
-    )
-    cache_key_hash_threshold: int = Field(
-        default=100,
-        ge=50,
-        le=500,
-        description="Max parameter string length before hashing cache keys",
-    )
-    autocomplete_max_suggestions: int = Field(
-        default=10,
-        ge=1,
-        le=50,
-        description="Maximum number of autocomplete suggestions to return",
     )
 
     # Remote MCP Configuration
@@ -247,14 +166,28 @@ class Settings(BaseSettings):
         default=False,
         description="Enable OAuth 2.1 authentication for remote MCP",
     )
-    jwt_secret_key: str = Field(
-        default="",
+    jwt_secret_key: SecretStr = Field(
+        default=SecretStr(""),
         description="JWT signing secret (REQUIRED in production)",
     )
     jwt_algorithm: str = Field(
         default="HS256",
         pattern="^(HS256|HS384|HS512|RS256|RS384|RS512)$",
         description="JWT algorithm for token verification",
+    )
+    jwt_audience: str = Field(
+        default="scryfall-mcp-api",
+        description=(
+            "Expected JWT audience claim. Must match the API Gateway "
+            "authorizer configuration. Empty string disables the check."
+        ),
+    )
+    jwt_issuer: str = Field(
+        default="",
+        description=(
+            "Expected JWT issuer claim (OAuth issuer URL). "
+            "Empty string disables the check."
+        ),
     )
 
     # Email-based Authentication (Alternative to OAuth/JWT)
@@ -264,6 +197,7 @@ class Settings(BaseSettings):
     )
     email_auth_credentials: dict[str, str] = Field(
         default_factory=dict,
+        repr=False,  # bcrypt hashes must not leak via repr/str of Settings
         description="Email to hashed secret mapping (email: bcrypt_hash)",
     )
     email_blocklist_patterns: list[str] = Field(
@@ -297,14 +231,6 @@ class Settings(BaseSettings):
         description="CORS allowed origins (required for HTTP transport)",
     )
 
-    # Multi-tenant Rate Limiting
-    rate_limit_per_user: int = Field(
-        default=100,
-        ge=1,
-        le=10000,
-        description="Rate limit per user (requests per minute)",
-    )
-
     @field_validator("supported_locales")
     @classmethod
     def validate_supported_locales(cls, v: list[str]) -> list[str]:
@@ -317,21 +243,9 @@ class Settings(BaseSettings):
                 raise ValueError(f"Invalid locale code: {locale}")
         return v
 
-    @field_validator("supported_currencies")
-    @classmethod
-    def validate_supported_currencies(cls, v: list[str]) -> list[str]:
-        """Validate that all supported currencies are valid ISO 4217 codes."""
-        import re
-
-        pattern = re.compile(r"^[A-Z]{3}$")
-        for currency in v:
-            if not pattern.match(currency):
-                raise ValueError(f"Invalid currency code: {currency}")
-        return v
-
     @model_validator(mode="after")
-    def validate_locale_currency_consistency(self) -> Settings:
-        """Ensure default locales and currencies are in their supported lists."""
+    def validate_locale_consistency(self) -> Settings:
+        """Ensure default and fallback locales are in the supported list."""
         # Validate default locale
         if self.supported_locales and self.default_locale not in self.supported_locales:
             raise ValueError(
@@ -345,15 +259,6 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 f"Fallback locale {self.fallback_locale} not in supported locales {self.supported_locales}"
-            )
-
-        # Validate default currency
-        if (
-            self.supported_currencies
-            and self.default_currency not in self.supported_currencies
-        ):
-            raise ValueError(
-                f"Default currency {self.default_currency} not in supported currencies {self.supported_currencies}"
             )
 
         return self
@@ -387,17 +292,17 @@ class Settings(BaseSettings):
         True
         """
         if self.oauth_enabled:
-            if not self.jwt_secret_key:
+            secret = self.jwt_secret_key.get_secret_value()
+            if not secret:
                 raise ValueError(
                     "jwt_secret_key is required when oauth_enabled=True. "
                     "Generate with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
                 )
-            if len(self.jwt_secret_key) < 32:
+            if len(secret) < 32:
                 raise ValueError(
                     "jwt_secret_key must be at least 32 characters for security"
                 )
         return self
-
 
     @model_validator(mode="after")
     def validate_email_auth_requirements(self) -> Settings:
@@ -475,9 +380,7 @@ class Settings(BaseSettings):
         """
         if self.oauth_enabled:
             if not self.oauth_client_id:
-                raise ValueError(
-                    "oauth_client_id is required when oauth_enabled=True"
-                )
+                raise ValueError("oauth_client_id is required when oauth_enabled=True")
             if not self.oauth_authorization_url:
                 raise ValueError(
                     "oauth_authorization_url is required when oauth_enabled=True. "

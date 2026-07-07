@@ -24,8 +24,13 @@ class TestConfigPaths:
     def test_get_config_dir_macos(self) -> None:
         """Test get_config_dir on macOS."""
         with patch("scryfall_mcp.setup_wizard.sys.platform", "darwin"):
-            with patch("scryfall_mcp.setup_wizard.Path.home", return_value=Path("/Users/test")):
-                with patch("scryfall_mcp.setup_wizard.Path.mkdir"):
+            with patch(
+                "scryfall_mcp.setup_wizard.Path.home", return_value=Path("/Users/test")
+            ):
+                with (
+                    patch("scryfall_mcp.setup_wizard.Path.mkdir"),
+                    patch("scryfall_mcp.setup_wizard.Path.chmod"),
+                ):
                     config_dir = get_config_dir()
                     assert config_dir == Path(
                         "/Users/test/Library/Application Support/scryfall-mcp"
@@ -34,18 +39,31 @@ class TestConfigPaths:
     def test_get_config_dir_linux(self) -> None:
         """Test get_config_dir on Linux."""
         with patch("scryfall_mcp.setup_wizard.sys.platform", "linux"):
-            with patch("scryfall_mcp.setup_wizard.Path.home", return_value=Path("/home/test")):
-                with patch("scryfall_mcp.setup_wizard.Path.mkdir"):
+            with patch(
+                "scryfall_mcp.setup_wizard.Path.home", return_value=Path("/home/test")
+            ):
+                with (
+                    patch("scryfall_mcp.setup_wizard.Path.mkdir"),
+                    patch("scryfall_mcp.setup_wizard.Path.chmod"),
+                ):
                     config_dir = get_config_dir()
                     assert config_dir == Path("/home/test/.config/scryfall-mcp")
 
     def test_get_config_dir_windows(self) -> None:
         """Test get_config_dir on Windows."""
         with patch("scryfall_mcp.setup_wizard.sys.platform", "win32"):
-            with patch("scryfall_mcp.setup_wizard.Path.home", return_value=Path("C:/Users/test")):
-                with patch("scryfall_mcp.setup_wizard.Path.mkdir"):
+            with patch(
+                "scryfall_mcp.setup_wizard.Path.home",
+                return_value=Path("C:/Users/test"),
+            ):
+                with (
+                    patch("scryfall_mcp.setup_wizard.Path.mkdir"),
+                    patch("scryfall_mcp.setup_wizard.Path.chmod"),
+                ):
                     config_dir = get_config_dir()
-                    assert config_dir == Path("C:/Users/test/AppData/Local/scryfall-mcp")
+                    assert config_dir == Path(
+                        "C:/Users/test/AppData/Local/scryfall-mcp"
+                    )
 
     def test_get_config_file(self) -> None:
         """Test get_config_file returns correct path."""
@@ -162,7 +180,9 @@ class TestGetUserAgent:
         with patch("scryfall_mcp.setup_wizard.load_config", return_value=None):
             with patch("sys.stdin.isatty", return_value=True):
                 with patch("sys.stdout.isatty", return_value=True):
-                    with patch("scryfall_mcp.setup_wizard.run_setup_wizard") as mock_wizard:
+                    with patch(
+                        "scryfall_mcp.setup_wizard.run_setup_wizard"
+                    ) as mock_wizard:
                         mock_wizard.return_value = {
                             "user_agent": "Test-Agent/1.0",
                             "contact": "test@example.com",
@@ -219,7 +239,7 @@ class TestRunSetupWizard:
 
         with patch("scryfall_mcp.setup_wizard.get_config_file", return_value=mock_file):
             with patch("builtins.input", return_value="user@example.com"):
-                with patch("builtins.open", mock_open()):
+                with patch("scryfall_mcp.setup_wizard._write_config_file"):
                     config = run_setup_wizard()
 
                     assert config["contact"] == "user@example.com"
@@ -235,7 +255,7 @@ class TestRunSetupWizard:
 
         with patch("scryfall_mcp.setup_wizard.get_config_file", return_value=mock_file):
             with patch("builtins.input", return_value="https://github.com/user/repo"):
-                with patch("builtins.open", mock_open()):
+                with patch("scryfall_mcp.setup_wizard._write_config_file"):
                     config = run_setup_wizard()
 
                     assert config["contact"] == "https://github.com/user/repo"
@@ -247,10 +267,8 @@ class TestRunSetupWizard:
 
         with patch("scryfall_mcp.setup_wizard.get_config_file", return_value=mock_file):
             # First return invalid, then valid
-            with patch(
-                "builtins.input", side_effect=["invalid", "user@example.com"]
-            ):
-                with patch("builtins.open", mock_open()):
+            with patch("builtins.input", side_effect=["invalid", "user@example.com"]):
+                with patch("scryfall_mcp.setup_wizard._write_config_file"):
                     config = run_setup_wizard()
 
                     assert config["contact"] == "user@example.com"
@@ -265,7 +283,7 @@ class TestRunSetupWizard:
         with patch("scryfall_mcp.setup_wizard.get_config_file", return_value=mock_file):
             # First return empty, then valid
             with patch("builtins.input", side_effect=["", "user@example.com"]):
-                with patch("builtins.open", mock_open()):
+                with patch("scryfall_mcp.setup_wizard._write_config_file"):
                     config = run_setup_wizard()
 
                     assert config["contact"] == "user@example.com"
