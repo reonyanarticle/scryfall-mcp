@@ -65,7 +65,9 @@ class TestJWTValidationMiddleware:
             "exp": now + exp_offset,
             "nbf": now,
         }
-        return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        return jwt.encode(
+            payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        )
 
     def test_extract_bearer_token_success(
         self, middleware: JWTValidationMiddleware, settings: Settings

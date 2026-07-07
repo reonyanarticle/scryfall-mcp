@@ -379,9 +379,11 @@ def get_mapping(locale: str) -> LanguageMapping:
 ])
 def test_query_translation(locale, query, expected):
     set_current_locale(locale)
-    builder = QueryBuilder()
-    result = builder.build_query(query)
-    assert expected in result
+    mapping = get_current_mapping()
+    parser = SearchParser(mapping)
+    builder = QueryBuilder(mapping)
+    result = builder.build(parser.parse(query))
+    assert expected in result.scryfall_query
 ```
 
 ### デバッグ情報

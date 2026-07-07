@@ -125,14 +125,21 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiaWF0IjoxNjkwMDAwMDA
 
 #### Middleware設定
 
+認証機能には `auth` extra が必要です（`pip install 'scryfall-mcp[auth]'`）。
+ミドルウェアは素の ASGI ミドルウェアとして実装されており、サーバー起動時に
+`SCRYFALL_MCP_OAUTH_ENABLED=true` を設定すると自動で組み込まれます（`server.py`）。
+手動で組み込む場合:
+
 ```python
-from fastapi import FastAPI
 from scryfall_mcp.auth.middleware import JWTValidationMiddleware
 from scryfall_mcp.settings import get_settings
 
-app = FastAPI()
+# 任意のASGIアプリ（Starlette等）をラップする
 app.add_middleware(JWTValidationMiddleware, settings=get_settings())
 ```
+
+認証失敗は例外ではなく **401 JSONレスポンスをASGI経由で直接返します**
+（raw ASGIミドルウェアはStarletteの例外変換層の外側で動くため）。
 
 #### 検証フロー
 
@@ -148,6 +155,8 @@ app.add_middleware(JWTValidationMiddleware, settings=get_settings())
    - 有効期限（exp）
    - 発行時刻（iat）
    - 有効開始時刻（nbf）
+   - audience（`SCRYFALL_MCP_JWT_AUDIENCE`、デフォルト `scryfall-mcp-api`。空文字で無効化）
+   - issuer（`SCRYFALL_MCP_JWT_ISSUER` 設定時のみ）
 
 3. **ペイロード取得**
    ```python
@@ -165,13 +174,13 @@ app.add_middleware(JWTValidationMiddleware, settings=get_settings())
 
 ```bash
 # JWT Secret Key (32文字以上必須)
-export JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export SCRYFALL_MCP_JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 
 # JWT Algorithm
-export JWT_ALGORITHM="HS256"
+export SCRYFALL_MCP_JWT_ALGORITHM="HS256"
 
 # OAuth有効化
-export OAUTH_ENABLED=true
+export SCRYFALL_MCP_OAUTH_ENABLED=true
 ```
 
 #### 自動検証
@@ -181,12 +190,14 @@ export OAUTH_ENABLED=true
 ```python
 # OAuth有効時の検証
 if self.oauth_enabled:
+    secret = self.jwt_secret_key.get_secret_value()  # SecretStrを展開
+
     # JWT secretが空 → エラー
-    if not self.jwt_secret_key:
+    if not secret:
         raise ValueError("jwt_secret_key is required")
 
     # 32文字未満 → エラー
-    if len(self.jwt_secret_key) < 32:
+    if len(secret) < 32:
         raise ValueError("jwt_secret_key must be at least 32 characters")
 ```
 
@@ -316,14 +327,14 @@ new_token = await oauth_client.refresh_token(
 
 ```bash
 # OAuth Provider設定
-export OAUTH_ENABLED=true
-export OAUTH_CLIENT_ID="your_client_id"
-export OAUTH_AUTHORIZATION_URL="https://auth.provider.com/oauth/authorize"
-export OAUTH_TOKEN_URL="https://auth.provider.com/oauth/token"
+export SCRYFALL_MCP_OAUTH_ENABLED=true
+export SCRYFALL_MCP_OAUTH_CLIENT_ID="your_client_id"
+export SCRYFALL_MCP_OAUTH_AUTHORIZATION_URL="https://auth.provider.com/oauth/authorize"
+export SCRYFALL_MCP_OAUTH_TOKEN_URL="https://auth.provider.com/oauth/token"
 
 # JWT設定
-export JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-export JWT_ALGORITHM="HS256"
+export SCRYFALL_MCP_JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export SCRYFALL_MCP_JWT_ALGORITHM="HS256"
 ```
 
 #### 自動検証
@@ -332,8 +343,9 @@ OAuth有効時に以下が自動検証されます（`validate_jwt_production_re
 
 ```python
 if oauth_enabled:
-    assert jwt_secret_key, "JWT secret required"
-    assert len(jwt_secret_key) >= 32, "Secret too short"
+    secret = jwt_secret_key.get_secret_value()  # SecretStr
+    assert secret, "JWT secret required"
+    assert len(secret) >= 32, "Secret too short"
 ```
 
 ### セキュリティ考慮事項
@@ -459,11 +471,8 @@ async def increment_and_check(self, key: str, limit: int, window_seconds: int):
 
     # Check limit
     if current > limit:
-        raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded",
-            headers={"Retry-After": "60"},
-        )
+        # 実装は api/rate_limiter.py の RateLimitExceededError を送出する
+        raise RateLimitExceededError("Rate limit exceeded")
 ```
 
 ### メモリフォールバック
@@ -602,7 +611,7 @@ ValueError: jwt_secret_key is required when oauth_enabled=True
 **解決:**
 
 ```bash
-export JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export SCRYFALL_MCP_JWT_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 ```
 
 #### 2. Secret短すぎる
@@ -675,7 +684,7 @@ print(jwt.get_unverified_claims(token))
 #### 7. Authorization header不足
 
 ```text
-HTTPException: Authorization header missing
+401 {"detail": "Missing or invalid Authorization header"}
 ```
 
 **解決:**
@@ -758,7 +767,11 @@ settings = get_settings()
 middleware = JWTValidationMiddleware(None, settings)
 
 payload = {"sub": "test_user", "iat": int(time.time()), "exp": int(time.time()) + 3600}
-token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+token = jwt.encode(
+    payload,
+    settings.jwt_secret_key.get_secret_value(),
+    algorithm=settings.jwt_algorithm,
+)
 
 try:
     decoded = middleware._decode_and_verify_token(token)
@@ -830,7 +843,7 @@ asyncio.run(test_rate_limiting())
 ### ライブラリ
 
 - python-jose: <https://python-jose.readthedocs.io/>
-- FastAPI: <https://fastapi.tiangolo.com/advanced/middleware/>
+- Starlette Middleware: <https://www.starlette.io/middleware/>
 - httpx: <https://www.python-httpx.org/>
 - redis-py: <https://redis-py.readthedocs.io/>
 

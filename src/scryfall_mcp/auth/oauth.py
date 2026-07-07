@@ -73,6 +73,18 @@ class OAuthClient:
         self.settings = settings
         self.client = httpx.AsyncClient()
 
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client and release connections."""
+        await self.client.aclose()
+
+    async def __aenter__(self) -> OAuthClient:
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        """Exit async context manager, closing the HTTP client."""
+        await self.aclose()
+
     def generate_pkce_pair(self) -> tuple[str, str]:
         """Generate PKCE code verifier and challenge per RFC 7636.
 

@@ -219,7 +219,9 @@ def _set_all_secrets(ssm: Any, stage: str) -> None:
         secret_value = _prompt_for_secret_value(secret_key, config)
 
         # Put parameter
-        _put_parameter(ssm, param_name, secret_value, config["type"], config["description"])
+        _put_parameter(
+            ssm, param_name, secret_value, config["type"], config["description"]
+        )
 
 
 def _set_single_secret(ssm: Any, stage: str, key: str, value: str | None) -> None:
@@ -397,9 +399,7 @@ def list(
         response = ssm.get_parameters_by_path(Path=path, WithDecryption=False)
 
         if not response["Parameters"]:
-            console.print(
-                f"[yellow]No parameters found for stage '{stage}'[/yellow]"
-            )
+            console.print(f"[yellow]No parameters found for stage '{stage}'[/yellow]")
             return
 
         table = Table(title=f"Secrets for stage: {stage}")

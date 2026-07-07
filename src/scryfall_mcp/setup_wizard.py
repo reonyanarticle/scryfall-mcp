@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -36,7 +37,35 @@ def get_config_dir() -> Path:
         config_dir = xdg_config_home / "scryfall-mcp"
 
     config_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # mkdir's mode is ignored when the directory already exists — tighten
+    # permissions explicitly so a pre-existing loose directory is fixed too
+    config_dir.chmod(0o700)
     return config_dir
+
+
+def _write_config_file(config_file: Path, config: dict[str, str]) -> None:
+    """Write config JSON atomically with owner-only (0o600) permissions.
+
+    A temp file is created with restrictive permissions from the start
+    (no create-then-chmod window where PII is world-readable), then moved
+    into place atomically.
+
+    Parameters
+    ----------
+    config_file : Path
+        Destination path for the configuration file
+    config : dict[str, str]
+        Configuration data to serialize
+    """
+    tmp_path = config_file.with_suffix(".json.tmp")
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(config, f, indent=2)
+        tmp_path.replace(config_file)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def get_config_file() -> Path:
@@ -121,12 +150,9 @@ def save_config(contact: str) -> dict[str, str]:
 
     config = {"user_agent": user_agent, "contact": contact}
 
-    # Save configuration with owner-only permissions to protect PII
+    # Save configuration atomically with owner-only permissions (PII)
     config_file = get_config_file()
-    with config_file.open("w") as f:
-        json.dump(config, f, indent=2)
-    # Set file permissions to 0o600 (owner read/write only)
-    config_file.chmod(0o600)
+    _write_config_file(config_file, config)
 
     logger.info(f"Configuration saved to: {config_file}")
     return config
@@ -175,12 +201,9 @@ def run_setup_wizard() -> dict[str, str]:
 
     config = {"user_agent": user_agent, "contact": contact}
 
-    # Save configuration with owner-only permissions to protect PII
+    # Save configuration atomically with owner-only permissions (PII)
     config_file = get_config_file()
-    with config_file.open("w") as f:
-        json.dump(config, f, indent=2)
-    # Set file permissions to 0o600 (owner read/write only)
-    config_file.chmod(0o600)
+    _write_config_file(config_file, config)
 
     print(f"✅ Configuration saved to: {config_file}")
     print("\n" + "=" * 70)

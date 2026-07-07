@@ -26,7 +26,6 @@ class TestSettings:
         assert settings.default_locale == "en"
         assert settings.supported_locales == ["en", "ja"]
         assert settings.fallback_locale == "en"
-        assert settings.default_currency == "USD"
         assert settings.debug is False
 
     def test_environment_variable_override(self):
@@ -71,10 +70,6 @@ class TestSettings:
         with pytest.raises(ValidationError):
             Settings(default_locale="invalid")
 
-        # Test invalid currency format
-        with pytest.raises(ValidationError):
-            Settings(default_currency="invalid")
-
     def test_locale_validation(self):
         """Test locale validation logic."""
         # Test valid locales
@@ -100,35 +95,17 @@ class TestSettings:
                 fallback_locale="fr",
             )
 
-    def test_currency_validation(self):
-        """Test currency validation logic."""
-        # Test valid currencies
-        settings = Settings(
-            supported_currencies=["USD", "JPY", "EUR"],
-            default_currency="JPY",
-        )
-        assert settings.default_currency == "JPY"
-
-        # Test default currency not in supported currencies
-        with pytest.raises(ValidationError):
-            Settings(
-                supported_currencies=["USD", "JPY"],
-                default_currency="EUR",
-            )
-
     def test_ttl_settings(self):
         """Test TTL settings validation."""
         # Test valid TTL values (all >= 24 hours per Scryfall recommendation)
         settings = Settings(
             cache_ttl_search=86400,  # 24 hours (minimum)
             cache_ttl_card=172800,  # 48 hours
-            cache_ttl_price=129600,  # 36 hours
             cache_ttl_set=604800,  # 1 week
         )
 
         assert settings.cache_ttl_search == 86400
         assert settings.cache_ttl_card == 172800
-        assert settings.cache_ttl_price == 129600
         assert settings.cache_ttl_set == 604800
 
         # Test minimum TTL values (should fail if below 24 hours)
@@ -197,7 +174,6 @@ class TestSettingsIntegration:
     def test_settings_with_test_fixture(self, test_settings):
         """Test settings work with test fixture."""
         assert test_settings.debug is True
-        assert test_settings.mock_api is True
         assert test_settings.cache_backend == "memory"
 
     def test_redis_settings(self):
@@ -205,19 +181,10 @@ class TestSettingsIntegration:
         settings = Settings(
             cache_backend="redis",
             cache_redis_url="redis://localhost:6379/0",
-            redis_db=5,
         )
 
         assert settings.cache_backend == "redis"
         assert settings.cache_redis_url == "redis://localhost:6379/0"
-        assert settings.redis_db == 5
-
-        # Test Redis DB validation
-        with pytest.raises(ValidationError):
-            Settings(redis_db=-1)
-
-        with pytest.raises(ValidationError):
-            Settings(redis_db=16)
 
     def test_supported_locales_validation(self):
         """Test comprehensive locale validation."""
@@ -235,20 +202,3 @@ class TestSettingsIntegration:
 
         with pytest.raises(ValidationError):
             Settings(supported_locales=["en", "e"])  # Too short
-
-    def test_supported_currencies_validation(self):
-        """Test comprehensive currency validation."""
-        # Test valid currency codes
-        valid_currencies = ["USD", "EUR", "JPY", "GBP", "CAD", "AUD", "CHF", "CNY"]
-        settings = Settings(supported_currencies=valid_currencies)
-        assert settings.supported_currencies == valid_currencies
-
-        # Test invalid currency codes
-        with pytest.raises(ValidationError):
-            Settings(supported_currencies=["USD", "invalid"])
-
-        with pytest.raises(ValidationError):
-            Settings(supported_currencies=["USD", "usd"])  # Must be uppercase
-
-        with pytest.raises(ValidationError):
-            Settings(supported_currencies=["USD", "US"])  # Too short

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import TYPE_CHECKING
@@ -120,8 +121,10 @@ class RedisRateLimitBackend(RateLimitBackend):
 class MemoryRateLimitBackend(RateLimitBackend):
     """In-memory rate limiting backend for single-instance deployments.
 
-    Uses existing RateLimiter class for per-key rate limiting.
-    Suitable for development and single-server deployments.
+    Uses fixed-window counting with the same semantics as
+    `RedisRateLimitBackend` (INCR within a window, reject when the count
+    exceeds the limit), so swapping backends does not change enforcement
+    behavior. Suitable for development and single-server deployments.
 
     Parameters
     ----------
@@ -144,18 +147,18 @@ class MemoryRateLimitBackend(RateLimitBackend):
         max_users : int, optional
             Maximum number of users to track before LRU eviction (default: 10000)
         """
-        from .rate_limiter import RateLimiter
-
-        self._limiters: OrderedDict[str, RateLimiter] = OrderedDict()
+        # key -> (window_start_monotonic, request_count)
+        self._windows: OrderedDict[str, tuple[float, int]] = OrderedDict()
         self._max_users = max_users
 
     async def increment_and_check(
         self, key: str, limit: int, window_seconds: int
     ) -> tuple[int, bool]:
-        """Implement memory-based rate limiting.
+        """Implement fixed-window rate limiting in memory.
 
-        Creates per-key RateLimiter instances with appropriate intervals.
-        Implements LRU eviction when max_users is exceeded.
+        Mirrors the Redis backend: increments the counter for the current
+        window and reports whether the limit is exceeded. Implements LRU
+        eviction when max_users is exceeded.
 
         Parameters
         ----------
@@ -169,23 +172,21 @@ class MemoryRateLimitBackend(RateLimitBackend):
         Returns
         -------
         tuple[int, bool]
-            (1, False) - Memory backend doesn't track exact counts
+            (current_count, is_exceeded)
         """
-        from .rate_limiter import RateLimiter
+        now = time.monotonic()
+        window_start, count = self._windows.get(key, (now, 0))
 
-        # Create limiter if not exists
-        if key not in self._limiters:
-            # Evict oldest if over capacity
-            if len(self._limiters) >= self._max_users:
-                self._limiters.popitem(last=False)  # Remove oldest (LRU)
+        # Start a fresh window when the previous one has elapsed
+        if now - window_start >= window_seconds:
+            window_start, count = now, 0
 
-            # Calculate per-request interval
-            interval_ms = int((window_seconds * 1000.0) / limit)
-            self._limiters[key] = RateLimiter(rate_limit_ms=interval_ms)
-        else:
-            # Move to end (most recently used)
-            self._limiters.move_to_end(key)
+        count += 1
+        self._windows[key] = (window_start, count)
+        self._windows.move_to_end(key)
 
-        # Acquire blocks if rate limit would be exceeded
-        await self._limiters[key].acquire()
-        return 1, False  # Memory backend doesn't return exact count
+        # Evict oldest entries if over capacity (LRU)
+        while len(self._windows) > self._max_users:
+            self._windows.popitem(last=False)
+
+        return count, count > limit

@@ -204,37 +204,45 @@ async def get_latest_expansion_code(client: ScryfallAPIClient) -> str:
         return LATEST_SET_CODE_FALLBACK
 
 
-def get_latest_expansion_code_sync() -> str:
-    """Synchronous wrapper for getting the latest expansion code.
+async def resolve_latest_set_placeholder(query: str) -> str:
+    """Replace the ``__LATEST_SET__`` placeholder with the latest set code.
 
-    DEPRECATED: This function is provided for backward compatibility only.
-    Use async get_latest_expansion_code() instead.
+    Placeholder resolution requires a Scryfall API call, so it lives in the
+    I/O layer; the query builder (pure core) leaves the placeholder in place.
 
-    This function provides a synchronous interface for getting the latest
-    expansion code. It returns a fallback value since proper async fetching
-    cannot be done synchronously.
+    Parameters
+    ----------
+    query : str
+        Query string potentially containing the ``__LATEST_SET__`` placeholder
 
     Returns
     -------
     str
-        The fallback expansion set code
+        Query with the placeholder replaced by the actual set code
+        (falls back to `LATEST_SET_CODE_FALLBACK` if the API is unavailable)
 
     Notes
     -----
-    This function always returns the fallback value and should not be used
-    in production code. For async contexts, use get_latest_expansion_code() directly.
-
-    Warnings
-    --------
-    This function is deprecated and will be removed in a future version.
+    - Uses get_latest_expansion_code() with its 1-week cache
+    - Only performs an API call if the placeholder is present
     """
-    logger.warning(
-        "get_latest_expansion_code_sync() is deprecated. "
-        "Use async get_latest_expansion_code() instead."
-    )
-    from ..i18n.constants import LATEST_SET_CODE_FALLBACK
+    if "__LATEST_SET__" not in query:
+        return query
 
-    return LATEST_SET_CODE_FALLBACK
+    try:
+        from .client import get_client
+
+        client = await get_client()
+        latest_code = await get_latest_expansion_code(client)
+    except Exception as e:
+        logger.warning(
+            f"Failed to fetch latest set, using fallback: {e}", exc_info=True
+        )
+        from ..i18n.constants import LATEST_SET_CODE_FALLBACK
+
+        latest_code = LATEST_SET_CODE_FALLBACK
+
+    return query.replace("__LATEST_SET__", latest_code)
 
 
 async def clear_latest_set_cache() -> None:

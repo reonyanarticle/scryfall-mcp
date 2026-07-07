@@ -49,7 +49,9 @@ class TestEmailAuthMiddleware:
     ) -> None:
         """Test successful authentication flow."""
         # Arrange
-        auth_header = self.create_basic_auth_header("test@example.com", "test-secret-123")
+        auth_header = self.create_basic_auth_header(
+            "test@example.com", "test-secret-123"
+        )
         scope = {
             "type": "http",
             "headers": [(b"authorization", auth_header.encode())],
@@ -158,7 +160,9 @@ class TestEmailAuthMiddleware:
         self, middleware: EmailAuthMiddleware, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Test successful authentication logs masked email."""
-        auth_header = self.create_basic_auth_header("test@example.com", "test-secret-123")
+        auth_header = self.create_basic_auth_header(
+            "test@example.com", "test-secret-123"
+        )
         scope = {
             "type": "http",
             "headers": [(b"authorization", auth_header.encode())],

@@ -256,7 +256,9 @@ class TestValidateEmailCredentials:
         """Test validation fails for unregistered email."""
         credentials = {"user@example.com": hash_secret("secret")}
 
-        result = validate_email_credentials("unknown@example.com", "any", credentials, [])
+        result = validate_email_credentials(
+            "unknown@example.com", "any", credentials, []
+        )
 
         assert result is False
 

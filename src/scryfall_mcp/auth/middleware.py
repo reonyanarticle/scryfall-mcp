@@ -7,6 +7,7 @@ Remote MCP access with OAuth 2.1 authentication.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
@@ -18,16 +19,49 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from ..settings import Settings
 
-# Dynamic import for optional dependency
-try:
-    from fastapi import HTTPException  # type: ignore[import-not-found]
-except ImportError:
-    HTTPException = None
-
 # ASGI type definitions
 ASGIScope = dict[str, Any]
 ASGIReceiveCallable = Callable[[], Awaitable[dict[str, Any]]]
 ASGISendCallable = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+class AuthenticationError(Exception):
+    """Authentication failure, converted to an HTTP 401 response.
+
+    Raw ASGI middleware added via ``add_middleware`` runs *outside*
+    Starlette's exception handling, so raising ``HTTPException`` there
+    would surface as a 500. Instead, the middlewares catch this exception
+    and emit the 401 response directly on the ASGI ``send`` channel.
+
+    Parameters
+    ----------
+    detail : str
+        Human-readable error message (returned to the client as JSON)
+    headers : dict[str, str] | None, optional (default: None)
+        Additional response headers (e.g. ``WWW-Authenticate``)
+    """
+
+    def __init__(self, detail: str, headers: dict[str, str] | None = None) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.headers = headers or {}
+
+
+async def _send_unauthorized(
+    send: ASGISendCallable, error: AuthenticationError
+) -> None:
+    """Send a 401 JSON response directly on the ASGI send channel."""
+    body = json.dumps({"detail": error.detail}).encode("utf-8")
+    headers: list[tuple[bytes, bytes]] = [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode("ascii")),
+    ]
+    headers.extend(
+        (key.encode("ascii"), value.encode("ascii"))
+        for key, value in error.headers.items()
+    )
+    await send({"type": "http.response.start", "status": 401, "headers": headers})
+    await send({"type": "http.response.body", "body": body})
 
 
 class JWTValidationMiddleware:
@@ -80,17 +114,21 @@ class JWTValidationMiddleware:
         send : ASGISendCallable
             ASGI send callable for response
 
-        Raises
-        ------
-        HTTPException
-            If token is missing, invalid, or expired
+        Notes
+        -----
+        Authentication failures are answered directly with a 401 response;
+        they are not raised past this middleware.
         """
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
         # Extract and validate token
-        user_payload = await self._validate_jwt_from_scope(scope)
+        try:
+            user_payload = await self._validate_jwt_from_scope(scope)
+        except AuthenticationError as error:
+            await _send_unauthorized(send, error)
+            return
         scope["user"] = user_payload
 
         await self.app(scope, receive, send)
@@ -110,7 +148,7 @@ class JWTValidationMiddleware:
 
         Raises
         ------
-        HTTPException
+        AuthenticationError
             If token is missing, invalid, or expired
         """
         token = self._extract_bearer_token(scope)
@@ -131,17 +169,14 @@ class JWTValidationMiddleware:
 
         Raises
         ------
-        HTTPException
+        AuthenticationError
             If Authorization header is missing or invalid
         """
         headers = dict(scope["headers"])
         auth_header = headers.get(b"authorization", b"").decode()
 
         if not auth_header.startswith("Bearer "):
-            raise HTTPException(
-                status_code=401,
-                detail="Missing or invalid Authorization header",
-            )
+            raise AuthenticationError("Missing or invalid Authorization header")
 
         token: str = auth_header[7:]  # Remove "Bearer " prefix
         return token
@@ -161,30 +196,38 @@ class JWTValidationMiddleware:
 
         Raises
         ------
-        HTTPException
+        AuthenticationError
             If token signature is invalid, expired, or malformed
         """
+        options = {
+            "verify_exp": True,  # Verify expiration time
+            "verify_iat": True,  # Verify issued at time
+            "verify_nbf": True,  # Verify not before time
+            "require_exp": True,  # Require exp claim
+            "require_iat": True,  # Require iat claim
+        }
+        decode_kwargs: dict[str, Any] = {}
+
+        # Mirror the API Gateway authorizer: reject tokens minted for other
+        # audiences/issuers even though they share the signing secret.
+        if self.settings.jwt_audience:
+            decode_kwargs["audience"] = self.settings.jwt_audience
+            options["verify_aud"] = True
+        if self.settings.jwt_issuer:
+            decode_kwargs["issuer"] = self.settings.jwt_issuer
+
         try:
             decoded: dict[str, Any] = jwt.decode(
                 token,
-                self.settings.jwt_secret_key,
+                self.settings.jwt_secret_key.get_secret_value(),
                 algorithms=[self.settings.jwt_algorithm],
-                options={
-                    "verify_exp": True,  # Verify expiration time
-                    "verify_iat": True,  # Verify issued at time
-                    "verify_nbf": True,  # Verify not before time
-                    "require_exp": True,  # Require exp claim
-                    "require_iat": True,  # Require iat claim
-                },
+                options=options,
+                **decode_kwargs,
             )
             return decoded
         except JWTError as e:
             logger.warning("JWT validation failed: %s", e)
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token",
-            ) from e
-
+            raise AuthenticationError("Invalid or expired token") from e
 
 
 class EmailAuthMiddleware:
@@ -209,7 +252,9 @@ class EmailAuthMiddleware:
 
     def __init__(
         self,
-        app: Callable[[ASGIScope, ASGIReceiveCallable, ASGISendCallable], Awaitable[None]],
+        app: Callable[
+            [ASGIScope, ASGIReceiveCallable, ASGISendCallable], Awaitable[None]
+        ],
         settings: Settings,
     ) -> None:
         """Initialize email authentication middleware.
@@ -239,7 +284,7 @@ class EmailAuthMiddleware:
 
         Raises
         ------
-        HTTPException
+        AuthenticationError
             401 if header is missing or invalid
         """
         from .email import parse_basic_auth_header
@@ -248,17 +293,15 @@ class EmailAuthMiddleware:
         auth_header = headers.get(b"authorization", b"").decode("utf-8")
 
         if not auth_header:
-            raise HTTPException(
-                status_code=401,
-                detail="Missing Authorization header",
+            raise AuthenticationError(
+                "Missing Authorization header",
                 headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
         credentials = parse_basic_auth_header(auth_header)
         if credentials is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid Authorization header format. Expected: Basic base64(email:secret)",
+            raise AuthenticationError(
+                "Invalid Authorization header format. Expected: Basic base64(email:secret)",
                 headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
@@ -281,14 +324,11 @@ class EmailAuthMiddleware:
 
         Raises
         ------
-        HTTPException
+        AuthenticationError
             401 if validation fails
         """
-        import logging
-
         from .email import validate_email_credentials
 
-        logger = logging.getLogger(__name__)
         masked_email = self._mask_email(email)
 
         is_valid = validate_email_credentials(
@@ -300,9 +340,8 @@ class EmailAuthMiddleware:
 
         if not is_valid:
             logger.warning(f"Authentication failed for user: {masked_email}")
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid email or secret",
+            raise AuthenticationError(
+                "Invalid email or secret",
                 headers={"WWW-Authenticate": 'Basic realm="Scryfall MCP"'},
             )
 
@@ -352,10 +391,10 @@ class EmailAuthMiddleware:
         send : ASGISendCallable
             ASGI send callable
 
-        Raises
-        ------
-        HTTPException
-            401 if authentication fails
+        Notes
+        -----
+        Authentication failures are answered directly with a 401 response;
+        they are not raised past this middleware.
         """
         # Only authenticate HTTP requests
         if scope["type"] != "http":
@@ -363,8 +402,12 @@ class EmailAuthMiddleware:
             return
 
         # Extract and validate credentials
-        email, secret = self._extract_credentials(scope)
-        masked_email = self._validate_and_log_auth(email, secret)
+        try:
+            email, secret = self._extract_credentials(scope)
+            masked_email = self._validate_and_log_auth(email, secret)
+        except AuthenticationError as error:
+            await _send_unauthorized(send, error)
+            return
 
         # Add user info to scope (same format as JWT middleware)
         scope["user"] = {"email": email, "masked_email": masked_email}

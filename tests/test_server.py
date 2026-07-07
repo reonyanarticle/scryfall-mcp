@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from scryfall_mcp import __version__
 from scryfall_mcp.server import ScryfallMCPServer, main, sync_main
 
 
@@ -42,7 +43,9 @@ class TestScryfallMCPServer:
             server = ScryfallMCPServer()
 
             # Verify that FastMCP was called with correct name and lifespan
-            mock_fastmcp.assert_called_once_with("scryfall-mcp", lifespan=mock_lifespan)
+            mock_fastmcp.assert_called_once_with(
+                "scryfall-mcp", version=__version__, lifespan=mock_lifespan
+            )
 
             # Verify that tool decorators were called
             assert (
@@ -84,8 +87,10 @@ class TestScryfallMCPServer:
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
+                    self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
@@ -119,8 +124,10 @@ class TestScryfallMCPServer:
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
+                    self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
@@ -234,7 +241,9 @@ if __name__ == "__main__":
     @pytest.mark.asyncio
     async def test_search_cards_without_user_agent(self) -> None:
         """Test search_cards when User-Agent is not configured."""
-        with patch("scryfall_mcp.settings.is_user_agent_configured", return_value=False):
+        with patch(
+            "scryfall_mcp.settings.is_user_agent_configured", return_value=False
+        ):
             server = ScryfallMCPServer()
 
             # Get the search_cards tool function
@@ -248,24 +257,28 @@ if __name__ == "__main__":
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
                 def prompt(self):
                     def decorator(func):
                         return func
+
                     return decorator
 
                 def resource(self, uri):
                     def decorator(func):
                         return func
+
                     return decorator
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
@@ -311,24 +324,28 @@ if __name__ == "__main__":
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
                 def prompt(self):
                     def decorator(func):
                         return func
+
                     return decorator
 
                 def resource(self, uri):
                     def decorator(func):
                         return func
+
                     return decorator
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
@@ -365,8 +382,9 @@ if __name__ == "__main__":
             captured_tools: list = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
@@ -637,6 +655,7 @@ class TestMainFunctions:
         # Should return TextContent with English error message
         assert len(result) == 1
         from mcp.types import TextContent
+
         assert isinstance(result[0], TextContent)
         assert "Search error" in result[0].text
         assert "Test error message" in result[0].text
@@ -657,6 +676,7 @@ class TestMainFunctions:
         # Should return TextContent with Japanese error message
         assert len(result) == 1
         from mcp.types import TextContent
+
         assert isinstance(result[0], TextContent)
         assert "検索エラー" in result[0].text
         assert "テストエラー" in result[0].text
@@ -674,6 +694,7 @@ class TestMainFunctions:
         # Should return autocomplete-specific error message
         assert len(result) == 1
         from mcp.types import TextContent
+
         assert isinstance(result[0], TextContent)
         assert "Autocomplete error" in result[0].text
 
@@ -690,6 +711,7 @@ class TestMainFunctions:
         # Should return generic error message
         assert len(result) == 1
         from mcp.types import TextContent
+
         assert isinstance(result[0], TextContent)
         assert "Error in unknown_tool" in result[0].text
 
@@ -716,24 +738,28 @@ class TestMainFunctions:
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
                 def prompt(self):
                     def decorator(func):
                         return func
+
                     return decorator
 
                 def resource(self, uri):
                     def decorator(func):
                         return func
+
                     return decorator
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
@@ -779,24 +805,28 @@ class TestMainFunctions:
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
                 def prompt(self):
                     def decorator(func):
                         return func
+
                     return decorator
 
                 def resource(self, uri):
                     def decorator(func):
                         return func
+
                     return decorator
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):
@@ -823,7 +853,9 @@ class TestMainFunctions:
     @pytest.mark.asyncio
     async def test_autocomplete_with_success(self) -> None:
         """Test autocomplete_card_names tool success path."""
-        with patch("scryfall_mcp.tools.search.AutocompleteTool.execute") as mock_execute:
+        with patch(
+            "scryfall_mcp.tools.search.AutocompleteTool.execute"
+        ) as mock_execute:
             # Mock successful execution
             mock_result = [Mock(text="Lightning Bolt\nLightning Strike")]
             mock_execute.return_value = mock_result
@@ -836,24 +868,28 @@ class TestMainFunctions:
             captured_tools = []
 
             class MockApp:
-                def __init__(self, name, lifespan=None):
+                def __init__(self, name, version=None, lifespan=None):
                     self.name = name
+                    self.version = version
                     self.lifespan = lifespan
 
                 def tool(self):
                     def decorator(func):
                         captured_tools.append(func)
                         return func
+
                     return decorator
 
                 def prompt(self):
                     def decorator(func):
                         return func
+
                     return decorator
 
                 def resource(self, uri):
                     def decorator(func):
                         return func
+
                     return decorator
 
             with patch("scryfall_mcp.server.FastMCP", MockApp):

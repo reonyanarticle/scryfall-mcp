@@ -18,6 +18,7 @@ from mcp.types import EmbeddedResource, TextContent
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
+from . import __version__
 from .api.client import close_client
 from .cache.manager import close_cache
 from .i18n import detect_and_set_locale, get_locale_manager
@@ -78,6 +79,46 @@ async def _handle_tool_error(
     return [TextContent(type="text", text=error_msg)]
 
 
+async def _ensure_user_agent_configured(ctx: Context) -> None:
+    """Reject tool calls until SCRYFALL_MCP_USER_AGENT is configured.
+
+    Raises a ValueError (surfaced in the client ChatUI) pointing at the
+    `scryfall://setup-guide` resource. Shared by tools that hit the
+    Scryfall API.
+
+    Parameters
+    ----------
+    ctx : Context
+        FastMCP context for error reporting
+
+    Raises
+    ------
+    ValueError
+        If the User-Agent has not been configured
+    """
+    from .settings import is_user_agent_configured
+
+    if is_user_agent_configured():
+        return
+
+    error_message = (
+        "❌ **User-Agent が設定されていません**\n\n"
+        "Scryfall APIを使用するには、環境変数 SCRYFALL_MCP_USER_AGENT の設定が必要です。\n\n"
+        "📖 **詳細なセットアップガイド:**\n"
+        "MCP Resourcesから `scryfall://setup-guide` を参照してください。\n"
+        "または、以下の手順で設定してください：\n\n"
+        "1. Claude Desktop設定ファイルを開く\n"
+        "   - macOS/Linux: ~/Library/Application Support/Claude/claude_desktop_config.json\n"
+        "   - Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n\n"
+        "2. SCRYFALL_MCP_USER_AGENT 環境変数を追加\n"
+        '   "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n\n'
+        "3. Claude Desktopを再起動\n\n"
+        "詳細: https://scryfall.com/docs/api"
+    )
+    await ctx.error(error_message)
+    raise ValueError(error_message)
+
+
 @asynccontextmanager
 async def _create_lifespan(_app: FastMCP) -> AsyncIterator[None]:
     """Lifecycle manager for the MCP server.
@@ -126,19 +167,41 @@ class ScryfallMCPServer:
     def __init__(self) -> None:
         """Initialize the MCP server."""
         self.settings = get_settings()
-        self.app = FastMCP("scryfall-mcp", lifespan=_create_lifespan)
+        # version= must be wired explicitly, otherwise FastMCP reports its
+        # own package version in the MCP handshake instead of ours
+        self.app = FastMCP(
+            "scryfall-mcp", version=__version__, lifespan=_create_lifespan
+        )
 
         # Add authentication middleware if enabled
         # Note: FastMCP internally uses Starlette, access via fastmcp.app._starlette_app
         if self.settings.email_auth_enabled:
-            from scryfall_mcp.auth import EmailAuthMiddleware
+            try:
+                from scryfall_mcp.auth import EmailAuthMiddleware
+            except ImportError as e:
+                raise RuntimeError(
+                    "Email authentication requires the 'auth' extra. "
+                    "Install with: pip install 'scryfall-mcp[auth]'"
+                ) from e
+
             # FastMCP uses Starlette internally, middleware needs to be added there
             if hasattr(self.app, "_starlette_app"):
-                self.app._starlette_app.add_middleware(EmailAuthMiddleware, settings=self.settings)
+                self.app._starlette_app.add_middleware(
+                    EmailAuthMiddleware, settings=self.settings
+                )
         elif self.settings.oauth_enabled:
-            from scryfall_mcp.auth import JWTValidationMiddleware
+            try:
+                from scryfall_mcp.auth import JWTValidationMiddleware
+            except ImportError as e:
+                raise RuntimeError(
+                    "OAuth/JWT authentication requires the 'auth' extra. "
+                    "Install with: pip install 'scryfall-mcp[auth]'"
+                ) from e
+
             if hasattr(self.app, "_starlette_app"):
-                self.app._starlette_app.add_middleware(JWTValidationMiddleware, settings=self.settings)
+                self.app._starlette_app.add_middleware(
+                    JWTValidationMiddleware, settings=self.settings
+                )
 
         self._setup_tools()
         self._setup_prompts()
@@ -222,45 +285,17 @@ class ScryfallMCPServer:
             Notes
             -----
             Image URLs are provided in Scryfall links within card details.
-            Image URLs are provided in Scryfall links within card details.
             """
-            from .settings import is_user_agent_configured
+            # Snapshot the tool arguments BEFORE any other local is created,
+            # so the parameter contract is declared exactly once (in this
+            # signature) and validated by SearchCardsRequest in the tool.
+            arguments = {k: v for k, v in locals().items() if k != "ctx"}
 
-            # Check User-Agent configuration before processing
-            if not is_user_agent_configured():
-                # Raise error with reference to setup guide resource
-                error_message = (
-                    "❌ **User-Agent が設定されていません**\n\n"
-                    "Scryfall APIを使用するには、環境変数 SCRYFALL_MCP_USER_AGENT の設定が必要です。\n\n"
-                    "📖 **詳細なセットアップガイド:**\n"
-                    "MCP Resourcesから `scryfall://setup-guide` を参照してください。\n"
-                    "または、以下の手順で設定してください：\n\n"
-                    "1. Claude Desktop設定ファイルを開く\n"
-                    "   - macOS/Linux: ~/Library/Application Support/Claude/claude_desktop_config.json\n"
-                    "   - Windows: %APPDATA%\\Claude\\claude_desktop_config.json\n\n"
-                    "2. SCRYFALL_MCP_USER_AGENT 環境変数を追加\n"
-                    '   "SCRYFALL_MCP_USER_AGENT": "YourApp/1.0 (your-email@example.com)"\n\n'
-                    "3. Claude Desktopを再起動\n\n"
-                    "詳細: https://scryfall.com/docs/api"
-                )
-                await ctx.error(error_message)
-                raise ValueError(error_message)
+            await _ensure_user_agent_configured(ctx)
 
             await ctx.info(
                 f"Search cards called: query='{query}', language={language}, max_results={max_results}"
             )
-
-            arguments = {
-                "query": query,
-                "language": language,
-                "max_results": max_results,
-                "format_filter": format_filter,
-                "use_annotations": use_annotations,
-                "include_keywords": include_keywords,
-                "include_artist": include_artist,
-                "include_mana_production": include_mana_production,
-                "include_legalities": include_legalities,
-            }
 
             await ctx.report_progress(0, 100, "Searching for cards...")
             # Return structured MCP content directly
@@ -294,21 +329,17 @@ class ScryfallMCPServer:
             list[TextContent | EmbeddedResource]
                 List of MCP text content with suggestions
             """
-            await ctx.info(f"Autocomplete called: query='{query}', language={language}")
+            # Parameter contract declared once in this signature (see search_cards)
+            arguments = {k: v for k, v in locals().items() if k != "ctx"}
 
-            arguments = {
-                "query": query,
-                "language": language,
-            }
+            await ctx.info(f"Autocomplete called: query='{query}', language={language}")
 
             await ctx.report_progress(0, 100, "Getting autocomplete suggestions...")
             # Return structured MCP content directly
             try:
                 result = await AutocompleteTool.execute(arguments)
                 await ctx.report_progress(100, 100, "Autocomplete complete")
-                return cast(
-                    "list[TextContent | EmbeddedResource]", result
-                )
+                return cast("list[TextContent | EmbeddedResource]", result)
             except Exception as e:
                 return await _handle_tool_error(ctx, e, "autocomplete", language)
 

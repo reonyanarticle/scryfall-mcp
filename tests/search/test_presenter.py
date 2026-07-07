@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from mcp.types import EmbeddedResource, TextContent
 
 from scryfall_mcp.i18n import english_mapping, japanese_mapping
 from scryfall_mcp.models import (
@@ -12,6 +11,7 @@ from scryfall_mcp.models import (
     SearchOptions,
     SearchResult,
 )
+from scryfall_mcp.search.models import PresentedResource, PresentedText
 from scryfall_mcp.search.presenter import SearchPresenter
 
 
@@ -119,7 +119,7 @@ class TestSearchPresenter:
         )
 
         assert len(results) >= 1
-        assert isinstance(results[0], TextContent)
+        assert isinstance(results[0], PresentedText)
         assert "Search Results" in results[0].text
         assert "test query" in results[0].text
         assert "Cards Found" in results[0].text and "1" in results[0].text
@@ -136,7 +136,7 @@ class TestSearchPresenter:
         )
 
         assert len(results) >= 1
-        assert isinstance(results[0], TextContent)
+        assert isinstance(results[0], PresentedText)
         assert "検索結果" in results[0].text
         assert "test query" in results[0].text
         assert "1枚" in results[0].text
@@ -144,7 +144,7 @@ class TestSearchPresenter:
     def test_present_results_no_image_data(
         self, en_presenter, card_with_images, basic_built_query
     ):
-        """Test that only TextContent and EmbeddedResource are returned (MCP spec compliance)."""
+        """Test that only PresentedText and PresentedResource are returned (MCP spec compliance)."""
         search_result = SearchResult(
             object="list",
             total_cards=1,
@@ -158,12 +158,12 @@ class TestSearchPresenter:
             search_result, basic_built_query, options
         )
 
-        # Only TextContent and EmbeddedResource should be present
+        # Only PresentedText and PresentedResource should be present
         for item in results:
-            assert isinstance(item, (TextContent, EmbeddedResource))
+            assert isinstance(item, (PresentedText, PresentedResource))
 
         # Verify image URL is in text content
-        text_contents = [r for r in results if isinstance(r, TextContent)]
+        text_contents = [r for r in results if isinstance(r, PresentedText)]
         assert any("scryfall.com" in tc.text for tc in text_contents)
 
     def test_present_results_with_suggestions(self, en_presenter, sample_search_result):
@@ -183,7 +183,9 @@ class TestSearchPresenter:
 
         # Find suggestions content
         suggestion_contents = [
-            r for r in results if isinstance(r, TextContent) and "Suggestions" in r.text
+            r
+            for r in results
+            if isinstance(r, PresentedText) and "Suggestions" in r.text
         ]
         assert len(suggestion_contents) >= 1
         assert "Try using exact card names" in suggestion_contents[0].text
@@ -213,7 +215,7 @@ class TestSearchPresenter:
         suggestion_contents = [
             r
             for r in results
-            if isinstance(r, TextContent) and "検索のヒント" in r.text
+            if isinstance(r, PresentedText) and "検索のヒント" in r.text
         ]
         assert len(suggestion_contents) >= 1
         assert "正確なカード名を使用してください" in suggestion_contents[0].text
@@ -233,7 +235,7 @@ class TestSearchPresenter:
         explanation_contents = [
             r
             for r in results
-            if isinstance(r, TextContent) and "Query Analysis" in r.text
+            if isinstance(r, PresentedText) and "Query Analysis" in r.text
         ]
         assert len(explanation_contents) >= 1
         assert (
@@ -258,7 +260,7 @@ class TestSearchPresenter:
         explanation_contents = [
             r
             for r in results
-            if isinstance(r, TextContent) and "検索クエリの詳細" in r.text
+            if isinstance(r, PresentedText) and "検索クエリの詳細" in r.text
         ]
         assert len(explanation_contents) >= 1
         assert "複雑さ" in explanation_contents[0].text
@@ -274,7 +276,7 @@ class TestSearchPresenter:
         )
         summary = en_presenter._create_summary(search_result, basic_built_query)
 
-        assert isinstance(summary, TextContent)
+        assert isinstance(summary, PresentedText)
         assert "More results are available" in summary.text
 
     def test_create_summary_has_more_ja(self, ja_presenter, basic_built_query):
@@ -287,7 +289,7 @@ class TestSearchPresenter:
         )
         summary = ja_presenter._create_summary(search_result, basic_built_query)
 
-        assert isinstance(summary, TextContent)
+        assert isinstance(summary, PresentedText)
         assert "さらに多くの結果があります" in summary.text
 
     def test_create_summary_partial_results(
@@ -311,7 +313,7 @@ class TestSearchPresenter:
         )
         card_text = en_presenter._format_single_card(sample_card, 1, options)
 
-        assert isinstance(card_text, TextContent)
+        assert isinstance(card_text, PresentedText)
         assert "## 1. Lightning Bolt" in card_text.text
         assert "{R}" in card_text.text
         assert "Type" in card_text.text and "Instant" in card_text.text
@@ -324,7 +326,7 @@ class TestSearchPresenter:
         )
         card_text = ja_presenter._format_single_card(sample_card, 1, options)
 
-        assert isinstance(card_text, TextContent)
+        assert isinstance(card_text, PresentedText)
         assert "## 1. Lightning Bolt" in card_text.text
         assert "タイプ" in card_text.text
         assert "効果" in card_text.text
@@ -408,36 +410,20 @@ class TestSearchPresenter:
         options = SearchOptions(max_results=10)
         resource = en_presenter._create_card_resource(sample_card, 1, options)
 
-        assert isinstance(resource, EmbeddedResource)
-        assert resource.type == "resource"
-        assert "card://scryfall/" in str(resource.resource.uri)
-        assert resource.resource.mimeType == "application/json"
-        assert "Lightning Bolt" in resource.resource.text
+        assert isinstance(resource, PresentedResource)
+        assert "card://scryfall/" in str(resource.uri)
+        assert resource.mime_type == "application/json"
+        assert "Lightning Bolt" in resource.text
 
     def test_create_card_resource_with_faces(self, en_presenter, double_faced_card):
         """Test creating embedded resource for double-faced card."""
         options = SearchOptions(max_results=10)
         resource = en_presenter._create_card_resource(double_faced_card, 1, options)
 
-        assert isinstance(resource, EmbeddedResource)
-        assert "card_faces" in resource.resource.text
-        assert "Delver of Secrets" in resource.resource.text
-        assert "Insectile Aberration" in resource.resource.text
-
-    def test_serialize_urls(self, en_presenter):
-        """Test URL serialization."""
-        from pydantic import HttpUrl
-
-        data = {
-            "url1": HttpUrl("https://example.com/1"),
-            "url2": HttpUrl("https://example.com/2"),
-            "url3": None,
-        }
-        serialized = en_presenter._serialize_urls(data)
-
-        assert serialized["url1"] == "https://example.com/1"
-        assert serialized["url2"] == "https://example.com/2"
-        assert serialized["url3"] is None
+        assert isinstance(resource, PresentedResource)
+        assert "card_faces" in resource.text
+        assert "Delver of Secrets" in resource.text
+        assert "Insectile Aberration" in resource.text
 
     def test_create_query_explanation_entities(self, en_presenter):
         """Test query explanation with various entity types."""
@@ -499,8 +485,8 @@ class TestSearchPresenter:
 
         # Each card should produce 2 items: text content + embedded resource
         assert len(results) == 4  # 2 cards * 2 items each
-        text_contents = [r for r in results if isinstance(r, TextContent)]
-        embedded_resources = [r for r in results if isinstance(r, EmbeddedResource)]
+        text_contents = [r for r in results if isinstance(r, PresentedText)]
+        embedded_resources = [r for r in results if isinstance(r, PresentedResource)]
         assert len(text_contents) == 2
         assert len(embedded_resources) == 2
 
@@ -526,7 +512,7 @@ class TestSearchPresenter:
 
         # Should only format first 3 cards
         card_texts = [
-            r for r in results if isinstance(r, TextContent) and "## " in r.text
+            r for r in results if isinstance(r, PresentedText) and "## " in r.text
         ]
         assert len(card_texts) <= 3
 
@@ -604,16 +590,16 @@ class TestSearchPresenter:
 
         assert "Scryfallで詳細を見る" in card_text.text
 
-    def test_japanese_multilingual_card_display(
-        self, ja_presenter, sample_card_data
-    ):
+    def test_japanese_multilingual_card_display(self, ja_presenter, sample_card_data):
         """Test that Japanese cards display printed_name, printed_type_line, and printed_text."""
         # Create a Japanese card with multilingual fields
         data = sample_card_data.copy()
         data["lang"] = "ja"
         data["printed_name"] = "稲妻"
         data["printed_type_line"] = "インスタント"
-        data["printed_text"] = "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする。稲妻はそれに3点のダメージを与える。"
+        data["printed_text"] = (
+            "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする。稲妻はそれに3点のダメージを与える。"
+        )
         card = Card(**data)
 
         options = SearchOptions(
@@ -626,12 +612,13 @@ class TestSearchPresenter:
         # Should display Japanese type line
         assert "インスタント" in card_text.text
         # Should display Japanese oracle text
-        assert "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする" in card_text.text
+        assert (
+            "稲妻は、クリーチャー1体かプレインズウォーカー1体かプレイヤー1人を対象とする"
+            in card_text.text
+        )
         assert "**効果**:" in card_text.text
 
-    def test_japanese_card_without_printed_fields(
-        self, ja_presenter, sample_card_data
-    ):
+    def test_japanese_card_without_printed_fields(self, ja_presenter, sample_card_data):
         """Test that Japanese cards fall back to English fields when printed fields are missing."""
         # Create a Japanese search without multilingual fields
         data = sample_card_data.copy()
@@ -649,9 +636,7 @@ class TestSearchPresenter:
         assert "Lightning Bolt deals 3 damage to any target." in card_text.text
         assert "**効果**:" in card_text.text
 
-    def test_english_card_ignores_printed_fields(
-        self, en_presenter, sample_card_data
-    ):
+    def test_english_card_ignores_printed_fields(self, en_presenter, sample_card_data):
         """Test that English searches ignore printed_name even if present."""
         # Create a card with Japanese printed fields (shouldn't happen in practice)
         data = sample_card_data.copy()
@@ -771,7 +756,9 @@ class TestSearchPresenter:
         assert "{R}" in card_text.text
         assert "{G}" in card_text.text
 
-    def test_mana_production_not_shown_for_nonlands(self, en_presenter, sample_card_data):
+    def test_mana_production_not_shown_for_nonlands(
+        self, en_presenter, sample_card_data
+    ):
         """Test mana production is not shown for non-land cards."""
         data = sample_card_data.copy()
         data["type_line"] = "Creature — Elf Druid"
@@ -843,7 +830,9 @@ class TestSearchPresenter:
 
             assert expected in card_text.text
 
-    def test_format_legality_not_shown_without_filter(self, en_presenter, sample_card_data):
+    def test_format_legality_not_shown_without_filter(
+        self, en_presenter, sample_card_data
+    ):
         """Test format legality is not shown when no format_filter is set."""
         data = sample_card_data.copy()
         data["legalities"] = {"modern": "legal"}
@@ -852,7 +841,9 @@ class TestSearchPresenter:
         options = SearchOptions(max_results=10)
         card_text = en_presenter._format_single_card(card, 1, options)
 
-        assert "Modern" not in card_text.text or "Type" in card_text.text  # "Modern" might appear elsewhere
+        assert (
+            "Modern" not in card_text.text or "Type" in card_text.text
+        )  # "Modern" might appear elsewhere
 
     def test_annotations_in_format_single_card(self, en_presenter, sample_card_data):
         """Test MCP Annotations are included in _format_single_card."""
@@ -861,18 +852,20 @@ class TestSearchPresenter:
         options = SearchOptions(max_results=10, use_annotations=True)
         card_text = en_presenter._format_single_card(card, 1, options)
 
-        assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user", "assistant"]
-        assert card_text.annotations.priority == 0.8
+        assert card_text.audience is not None
+        assert card_text.audience == ("user", "assistant")
+        assert card_text.priority == 0.8
 
-    def test_annotations_disabled_in_format_single_card(self, en_presenter, sample_card_data):
+    def test_annotations_disabled_in_format_single_card(
+        self, en_presenter, sample_card_data
+    ):
         """Test Annotations are not included when use_annotations=False."""
         card = Card(**sample_card_data)
 
         options = SearchOptions(max_results=10, use_annotations=False)
         card_text = en_presenter._format_single_card(card, 1, options)
 
-        assert card_text.annotations is None
+        assert card_text.audience is None
 
     def test_annotations_in_create_card_resource(self, en_presenter, sample_card_data):
         """Test MCP Annotations are included in _create_card_resource."""
@@ -881,18 +874,20 @@ class TestSearchPresenter:
         options = SearchOptions(max_results=10, use_annotations=True)
         resource = en_presenter._create_card_resource(card, 1, options)
 
-        assert resource.annotations is not None
-        assert resource.annotations.audience == ["assistant"]
-        assert resource.annotations.priority == 0.6
+        assert resource.audience is not None
+        assert resource.audience == ("assistant",)
+        assert resource.priority == 0.6
 
-    def test_annotations_disabled_in_create_card_resource(self, en_presenter, sample_card_data):
+    def test_annotations_disabled_in_create_card_resource(
+        self, en_presenter, sample_card_data
+    ):
         """Test Annotations are not included in resource when use_annotations=False."""
         card = Card(**sample_card_data)
 
         options = SearchOptions(max_results=10, use_annotations=False)
         resource = en_presenter._create_card_resource(card, 1, options)
 
-        assert resource.annotations is None
+        assert resource.audience is None
 
     def test_phase1_metadata_in_resource(self, en_presenter, sample_card_data):
         """Test Phase 1 metadata fields are included in card resource."""
@@ -908,10 +903,14 @@ class TestSearchPresenter:
         resource = en_presenter._create_card_resource(card, 1, options)
 
         import json
-        resource_data = json.loads(resource.resource.text)
+
+        resource_data = json.loads(resource.text)
 
         assert resource_data["keywords"] == ["Flying", "Haste"]
-        assert resource_data["flavor_text"] == "The spark of genius ignites in the strangest of places."
+        assert (
+            resource_data["flavor_text"]
+            == "The spark of genius ignites in the strangest of places."
+        )
         assert resource_data["artist"] == "Christopher Rush"
         assert resource_data["produced_mana"] == ["R"]
         assert resource_data["edhrec_rank"] == 42
@@ -945,7 +944,7 @@ class TestSearchPresenter:
         assert "Modern" in card_text.text
         assert "Legal" in card_text.text
         assert "Illustrated by Seb McKinnon" in card_text.text
-        assert card_text.annotations is not None
+        assert card_text.audience is not None
 
     # Phase 3 Tests: include_legalities
 
@@ -966,7 +965,8 @@ class TestSearchPresenter:
         resource = en_presenter._create_card_resource(card, 1, options)
 
         import json
-        resource_data = json.loads(resource.resource.text)
+
+        resource_data = json.loads(resource.text)
 
         # Should include legalities, but exclude "not_legal" entries
         assert "legalities" in resource_data
@@ -982,7 +982,9 @@ class TestSearchPresenter:
         assert "standard" not in resource_data["legalities"]
         assert "pauper" not in resource_data["legalities"]
 
-    def test_legalities_not_in_resource_when_disabled(self, en_presenter, sample_card_data):
+    def test_legalities_not_in_resource_when_disabled(
+        self, en_presenter, sample_card_data
+    ):
         """Test Phase 3: legalities are excluded when include_legalities=False (default)."""
         data = sample_card_data.copy()
         data["legalities"] = {
@@ -995,7 +997,8 @@ class TestSearchPresenter:
         resource = en_presenter._create_card_resource(card, 1, options)
 
         import json
-        resource_data = json.loads(resource.resource.text)
+
+        resource_data = json.loads(resource.text)
 
         # legalities should not be included when disabled
         assert "legalities" not in resource_data
@@ -1016,12 +1019,15 @@ class TestSearchPresenter:
         resource = en_presenter._create_card_resource(card, 1, options)
 
         import json
-        resource_data = json.loads(resource.resource.text)
+
+        resource_data = json.loads(resource.text)
 
         # legalities field should not be present if all entries are not_legal
         assert "legalities" not in resource_data
 
-    def test_all_features_combined_phase1_and_phase3(self, en_presenter, sample_card_data):
+    def test_all_features_combined_phase1_and_phase3(
+        self, en_presenter, sample_card_data
+    ):
         """Test Phase 1 + Phase 3: All features working together."""
         data = sample_card_data.copy()
         data["keywords"] = ["Flying", "Vigilance", "Lifelink"]
@@ -1049,7 +1055,7 @@ class TestSearchPresenter:
             use_annotations=True,
         )
 
-        # Test TextContent (user-facing)
+        # Test PresentedText (user-facing)
         card_text = en_presenter._format_single_card(card, 1, options)
         assert "Keywords" in card_text.text
         assert "Flying, Vigilance, Lifelink" in card_text.text
@@ -1060,13 +1066,14 @@ class TestSearchPresenter:
         assert "Modern" in card_text.text
         assert "Legal" in card_text.text
         assert "Illustrated by Seb McKinnon" in card_text.text
-        assert card_text.annotations is not None
-        assert card_text.annotations.audience == ["user", "assistant"]
+        assert card_text.audience is not None
+        assert card_text.audience == ("user", "assistant")
 
-        # Test EmbeddedResource (machine-readable)
+        # Test PresentedResource (machine-readable)
         import json
+
         resource = en_presenter._create_card_resource(card, 1, options)
-        resource_data = json.loads(resource.resource.text)
+        resource_data = json.loads(resource.text)
 
         # Phase 1 fields in resource
         assert resource_data["keywords"] == ["Flying", "Vigilance", "Lifelink"]
@@ -1085,5 +1092,5 @@ class TestSearchPresenter:
         assert "pauper" not in resource_data["legalities"]  # not_legal excluded
 
         # Annotations in resource
-        assert resource.annotations is not None
-        assert resource.annotations.audience == ["assistant"]
+        assert resource.audience is not None
+        assert resource.audience == ("assistant",)

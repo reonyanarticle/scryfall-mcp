@@ -23,6 +23,31 @@ def event_loop():
     loop.close()
 
 
+@pytest.fixture(autouse=True)
+def reset_global_singletons() -> Any:
+    """Reset all module-level singletons before each test.
+
+    The codebase caches six mutable singletons (settings, API client, rate
+    limiter, circuit breaker, error handler, cache manager). Without a
+    systematic reset, test outcomes depend on execution order — e.g. the
+    first ``get_settings()`` call caches a Settings built from whatever env
+    was active at that moment.
+    """
+    import scryfall_mcp.api.client as client_module
+    import scryfall_mcp.api.rate_limiter as rate_limiter_module
+    import scryfall_mcp.cache.manager as cache_manager_module
+    import scryfall_mcp.errors.handlers as handlers_module
+    import scryfall_mcp.settings as settings_module
+
+    settings_module._settings = None
+    client_module._client = None
+    rate_limiter_module._rate_limiter = None
+    rate_limiter_module._circuit_breaker = None
+    handlers_module._error_handler = None
+    cache_manager_module._cache_manager = None
+    yield
+
+
 @pytest.fixture
 def test_settings() -> Settings:
     """Create test settings."""
@@ -34,7 +59,6 @@ def test_settings() -> Settings:
         "SCRYFALL_MCP_CACHE_BACKEND": "memory",
         "SCRYFALL_MCP_DEFAULT_LOCALE": "en",
         "SCRYFALL_MCP_DEBUG": "true",
-        "SCRYFALL_MCP_MOCK_API": "true",
     }
 
     # Temporarily set environment variables

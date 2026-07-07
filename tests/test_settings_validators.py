@@ -22,7 +22,7 @@ class TestJWTProductionRequirements:
         )
 
         assert settings.oauth_enabled is True
-        assert len(settings.jwt_secret_key) == 32
+        assert len(settings.jwt_secret_key.get_secret_value()) == 32
 
     def test_jwt_requirements_enabled_without_secret(self) -> None:
         """Test OAuth enabled but no JWT secret raises error."""
@@ -62,7 +62,7 @@ class TestJWTProductionRequirements:
         )
 
         assert settings.oauth_enabled is False
-        assert settings.jwt_secret_key == ""
+        assert settings.jwt_secret_key.get_secret_value() == ""
 
 
 class TestOAuthConfiguration:
@@ -79,7 +79,10 @@ class TestOAuthConfiguration:
         )
 
         assert settings.oauth_client_id == "test_client_123"
-        assert settings.oauth_authorization_url == "https://auth.provider.com/oauth/authorize"
+        assert (
+            settings.oauth_authorization_url
+            == "https://auth.provider.com/oauth/authorize"
+        )
         assert settings.oauth_token_url == "https://auth.provider.com/oauth/token"
 
     def test_oauth_configuration_missing_client_id(self) -> None:
@@ -162,7 +165,9 @@ class TestCORSProductionRequirements:
         error_msg = str(exc_info.value)
         assert "allowed_origins is required" in error_msg
 
-    def test_cors_requirements_wildcard_in_production(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_cors_requirements_wildcard_in_production(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test CORS validator warns about wildcard in production."""
         import logging
 
@@ -179,7 +184,9 @@ class TestCORSProductionRequirements:
         assert "CORS wildcard '*'" in caplog.text
         assert "insecure in production" in caplog.text
 
-    def test_cors_requirements_wildcard_in_debug(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_cors_requirements_wildcard_in_debug(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test CORS wildcard allowed in debug mode without warning."""
         import logging
 

@@ -36,7 +36,9 @@ class TestJWTValidationMiddlewareIntegration:
         return AsyncMock()
 
     @pytest.fixture
-    def middleware(self, mock_app: AsyncMock, settings: Settings) -> JWTValidationMiddleware:
+    def middleware(
+        self, mock_app: AsyncMock, settings: Settings
+    ) -> JWTValidationMiddleware:
         """Create middleware instance with mock app."""
         return JWTValidationMiddleware(mock_app, settings)
 
@@ -69,7 +71,9 @@ class TestJWTValidationMiddlewareIntegration:
             "exp": now + exp_offset,
             "nbf": now,
         }
-        return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        return jwt.encode(
+            payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        )
 
     @pytest.mark.asyncio
     async def test_middleware_call_with_valid_token(

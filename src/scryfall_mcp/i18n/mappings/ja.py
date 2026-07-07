@@ -6,7 +6,7 @@ terms and search syntax conversion.
 
 from __future__ import annotations
 
-from ...models import LanguageMapping
+from ..models import LanguageMapping
 
 
 class JapaneseMapping(LanguageMapping):

@@ -5,25 +5,24 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from mcp.types import (
-    Annotations,
-    EmbeddedResource,
-    TextContent,
-    TextResourceContents,
-)
-from pydantic import AnyUrl
+from .models import PresentedResource, PresentedText
 
 if TYPE_CHECKING:
     from ..i18n import LanguageMapping
     from ..models import BuiltQuery, Card, SearchOptions, SearchResult
 
-# MCP Annotations priority levels
+# Annotation priority levels (consumed by the MCP adapter in tools/)
 PRIORITY_USER_CONTENT = 0.8  # User-facing card display
 PRIORITY_METADATA = 0.6  # Machine-readable card data
 
 
 class SearchPresenter:
-    """Presents search results in MCP-compatible format."""
+    """Presents search results as framework-neutral content sections.
+
+    Emits PresentedText / PresentedResource DTOs; the tools layer converts
+    them to MCP content types. This keeps the core pipeline free of any
+    MCP SDK dependency.
+    """
 
     # Rarity translations (language-independent constants)
     _RARITY_JA = {
@@ -55,7 +54,7 @@ class SearchPresenter:
         search_result: SearchResult,
         built_query: BuiltQuery,
         search_options: SearchOptions,
-    ) -> list[TextContent | EmbeddedResource]:
+    ) -> list[PresentedText | PresentedResource]:
         """Format search results for MCP presentation.
 
         Parameters
@@ -72,7 +71,7 @@ class SearchPresenter:
         list
             MCP content items for presentation
         """
-        content_items: list[TextContent | EmbeddedResource] = []
+        content_items: list[PresentedText | PresentedResource] = []
 
         # Add search summary
         summary = self._create_summary(search_result, built_query)
@@ -98,7 +97,7 @@ class SearchPresenter:
 
     def _create_summary(
         self, search_result: SearchResult, built_query: BuiltQuery
-    ) -> TextContent:
+    ) -> PresentedText:
         """Create search summary content.
 
         Parameters
@@ -110,7 +109,7 @@ class SearchPresenter:
 
         Returns
         -------
-        TextContent
+        PresentedText
             Summary content item
         """
         from ..i18n.constants import CARD_LABELS
@@ -146,11 +145,11 @@ class SearchPresenter:
             if search_result.has_more:
                 summary_text += "\n**Note**: More results are available"
 
-        return TextContent(type="text", text=summary_text)
+        return PresentedText(text=summary_text)
 
     def _format_cards(
         self, cards: list[Card], options: SearchOptions
-    ) -> list[TextContent | EmbeddedResource]:
+    ) -> list[PresentedText | PresentedResource]:
         """Format individual card results.
 
         Parameters
@@ -165,26 +164,39 @@ class SearchPresenter:
         list
             Formatted card content items
         """
-        content_items: list[TextContent | EmbeddedResource] = []
+        content_items: list[PresentedText | PresentedResource] = []
 
         for i, card in enumerate(cards, 1):
             # Add human-readable card presentation
             card_content = self._format_single_card(card, i, options)
             content_items.append(card_content)
 
-            # Add structured card data as EmbeddedResource for metadata preservation
+            # Add structured card data as a resource for metadata preservation
             card_resource = self._create_card_resource(card, i, options)
             content_items.append(card_resource)
 
             # Note: ImageContent removed - MCP spec requires base64 data, not URLs
-            # Image URLs are already included in text content and EmbeddedResource
+            # Image URLs are already included in text content and the card resource
 
         return content_items
 
+    def _is_japanese(self) -> bool:
+        """Return True when the presenter locale is Japanese."""
+        return self._mapping.language_code == "ja"
+
+    def _labels(self) -> dict[str, str]:
+        """Return the localized card label dictionary for the current locale."""
+        from ..i18n.constants import CARD_LABELS
+
+        return CARD_LABELS[self._mapping.language_code]
+
     def _format_single_card(
         self, card: Card, index: int, options: SearchOptions
-    ) -> TextContent:  # noqa: ARG002
+    ) -> PresentedText:
         """Format a single card result.
+
+        Orchestrates the section helpers; each section owns its own
+        markdown fragment.
 
         Parameters
         ----------
@@ -197,25 +209,45 @@ class SearchPresenter:
 
         Returns
         -------
-        TextContent
+        PresentedText
             Formatted card content
         """
-        from ..i18n.constants import CARD_LABELS
+        card_text = (
+            self._format_card_header(card, index)
+            + self._format_card_stats(card, options)
+            + self._format_card_oracle_text(card)
+            + self._format_card_set_info(card, options)
+            + self._format_card_footer(card, options)
+            + "\n\n---\n"
+        )
 
-        is_japanese = self._mapping.language_code == "ja"
-        labels = CARD_LABELS[self._mapping.language_code]
+        if options.use_annotations:
+            return PresentedText(
+                text=card_text,
+                audience=("user", "assistant"),
+                priority=PRIORITY_USER_CONTENT,
+            )
+        return PresentedText(text=card_text)
 
+    def _format_card_header(self, card: Card, index: int) -> str:
+        """Format the card heading (name + mana cost)."""
         # Use printed name for Japanese if available
         card_name = (
-            card.printed_name if (is_japanese and card.printed_name) else card.name
+            card.printed_name
+            if (self._is_japanese() and card.printed_name)
+            else card.name
         )
 
         card_text = f"## {index}. {card_name}"
-
         if card.mana_cost:
             card_text += f" {card.mana_cost}"
+        return card_text + "\n\n"
 
-        card_text += "\n\n"
+    def _format_card_stats(self, card: Card, options: SearchOptions) -> str:
+        """Format type line, keywords, P/T, and mana production."""
+        is_japanese = self._is_japanese()
+        labels = self._labels()
+        card_text = ""
 
         # Add type line - use printed version for Japanese if available
         type_line_display = (
@@ -223,7 +255,6 @@ class SearchPresenter:
             if (is_japanese and card.printed_type_line)
             else card.type_line
         )
-
         if type_line_display:
             card_text += f"**{labels['type']}**: {type_line_display}\n"
 
@@ -247,16 +278,24 @@ class SearchPresenter:
             mana_symbols = " ".join([f"{{{m}}}" for m in card.produced_mana])
             card_text += f"**{produces_label}**: {mana_symbols}\n"
 
-        # Add oracle text - ALWAYS show if available
-        # Use printed text for Japanese if available, otherwise use oracle_text
+        return card_text
+
+    def _format_card_oracle_text(self, card: Card) -> str:
+        """Format the oracle text section (printed text preferred for ja)."""
         oracle_text_display = (
             card.printed_text
-            if (is_japanese and card.printed_text)
+            if (self._is_japanese() and card.printed_text)
             else card.oracle_text
         )
+        if not oracle_text_display:
+            return ""
+        return f"\n**{self._labels()['oracle_text']}**:\n{oracle_text_display}\n"
 
-        if oracle_text_display:
-            card_text += f"\n**{labels['oracle_text']}**:\n{oracle_text_display}\n"
+    def _format_card_set_info(self, card: Card, options: SearchOptions) -> str:
+        """Format set name, rarity, format legality, and prices."""
+        is_japanese = self._is_japanese()
+        labels = self._labels()
+        card_text = ""
 
         if card.set_name:
             card_text += f"\n**{labels['set']}**: {card.set_name}"
@@ -285,22 +324,22 @@ class SearchPresenter:
             if price_text:
                 card_text += f"\n{price_text}"
 
-        # Add artist info
+        return card_text
+
+    def _format_card_footer(self, card: Card, options: SearchOptions) -> str:
+        """Format artist attribution and the Scryfall link."""
+        card_text = ""
+
         if options.include_artist and card.artist:
-            illustrated_by = "イラスト" if is_japanese else "Illustrated by"
+            illustrated_by = "イラスト" if self._is_japanese() else "Illustrated by"
             card_text += f"\n\n*{illustrated_by} {card.artist}*"
 
         if card.scryfall_uri:
-            card_text += f"\n\n[{labels['view_on_scryfall']}]({card.scryfall_uri})"
+            card_text += (
+                f"\n\n[{self._labels()['view_on_scryfall']}]({card.scryfall_uri})"
+            )
 
-        card_text += "\n\n---\n"
-
-        # Add MCP Annotations
-        annotations = None
-        if options.use_annotations:
-            annotations = Annotations(audience=["user", "assistant"], priority=PRIORITY_USER_CONTENT)
-
-        return TextContent(type="text", text=card_text, annotations=annotations)
+        return card_text
 
     def _format_prices(self, prices: dict[str, str | None]) -> str:
         """Format card pricing information.
@@ -334,7 +373,7 @@ class SearchPresenter:
 
         return ""
 
-    def _create_suggestions(self, suggestions: list[str]) -> TextContent:
+    def _create_suggestions(self, suggestions: list[str]) -> PresentedText:
         """Create suggestions content.
 
         Parameters
@@ -344,7 +383,7 @@ class SearchPresenter:
 
         Returns
         -------
-        TextContent
+        PresentedText
             Suggestions content item
         """
         if self._mapping.language_code == "ja":
@@ -355,9 +394,9 @@ class SearchPresenter:
         for suggestion in suggestions:
             suggestions_text += f"• {suggestion}\n"
 
-        return TextContent(type="text", text=suggestions_text)
+        return PresentedText(text=suggestions_text)
 
-    def _create_query_explanation(self, built_query: BuiltQuery) -> TextContent:
+    def _create_query_explanation(self, built_query: BuiltQuery) -> PresentedText:
         """Create query explanation for complex queries.
 
         Parameters
@@ -367,7 +406,7 @@ class SearchPresenter:
 
         Returns
         -------
-        TextContent
+        PresentedText
             Query explanation content item
         """
         if self._mapping.language_code == "ja":
@@ -414,12 +453,12 @@ class SearchPresenter:
                         f"• **{entity_name}**: {', '.join(entity_list)}\n"
                     )
 
-        return TextContent(type="text", text=explanation_text)
+        return PresentedText(text=explanation_text)
 
     def _create_card_resource(
         self, card: Card, index: int, options: SearchOptions
-    ) -> EmbeddedResource:
-        """Create an EmbeddedResource with minimal essential card metadata.
+    ) -> PresentedResource:
+        """Create a card resource with minimal essential metadata.
 
         This method creates a compact card resource containing only essential
         game data, reducing response size by ~84% to prevent BrokenPipeError
@@ -436,7 +475,7 @@ class SearchPresenter:
 
         Returns
         -------
-        EmbeddedResource
+        PresentedResource
             Minimal structured card data resource
 
         Notes
@@ -452,7 +491,7 @@ class SearchPresenter:
         # Create MINIMAL structured card data (essential fields only)
         card_metadata: dict[str, Any] = {
             "id": str(card.id),
-            "oracle_id": str(card.oracle_id),
+            "oracle_id": str(card.oracle_id) if card.oracle_id else None,
             "name": card.name,
             "lang": card.lang,
             "mana_cost": card.mana_cost,
@@ -524,37 +563,12 @@ class SearchPresenter:
             if legalities_compact:
                 card_metadata["legalities"] = legalities_compact
 
-        # Add MCP Annotations
-        annotations = None
+        body = json.dumps(card_metadata, indent=2, ensure_ascii=False)
         if options.use_annotations:
-            annotations = Annotations(
-                audience=["assistant"], priority=PRIORITY_METADATA
+            return PresentedResource(
+                uri=f"card://scryfall/{card.id}",
+                text=body,
+                audience=("assistant",),
+                priority=PRIORITY_METADATA,
             )
-
-        return EmbeddedResource(
-            type="resource",
-            resource=TextResourceContents(
-                uri=AnyUrl(f"card://scryfall/{card.id}"),
-                mimeType="application/json",
-                text=json.dumps(card_metadata, indent=2, ensure_ascii=False),
-            ),
-            annotations=annotations,
-        )
-
-    def _serialize_urls(self, data: dict[str, Any]) -> dict[str, str | None]:
-        """Convert HttpUrl objects to strings for JSON serialization.
-
-        Parameters
-        ----------
-        data : dict
-            Dictionary potentially containing HttpUrl objects
-
-        Returns
-        -------
-        dict
-            Dictionary with HttpUrl objects converted to strings
-        """
-        return {
-            key: str(value) if value is not None else None
-            for key, value in data.items()
-        }
+        return PresentedResource(uri=f"card://scryfall/{card.id}", text=body)
